@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2004/08/20 13:20:35 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -41,19 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =========================================================================*/
 #include "vtkCalcCentroid.h"
 #include "vtkObjectFactory.h"
-
-//-----  This hack needed to compile using gcc3 on OSX until new stdc++.dylib
-#ifdef __APPLE_CC__
-extern "C"
-{
-  void oft_initLocal()
-  {
-    extern void _ZNSt8ios_base4InitC4Ev();
-    _ZNSt8ios_base4InitC4Ev();
-  }
-}
-#endif
-
 
 //------------------------------------------------------------------------------
 vtkCalcCentroid* vtkCalcCentroid::New()
