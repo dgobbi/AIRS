@@ -99,6 +99,7 @@ vtkStandardNewMacro(vtkImageMRIBrainExtractor);
 vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 {
   this->brainMesh = vtkPolyData::New();
+  this->OriginalPoints = vtkPoints::New();
   // Defaults
   this->BT = 0.5; 
   this->NumberOfIterations = 1000;
@@ -560,13 +561,12 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   std::vector<myPoint>::iterator uIter;
 
   // Copy brain points as original points
-  vtkPoints *originalPoints = vtkPoints::New();
+  vtkPoints *originalPoints = self->GetOriginalPoints();//vtkPoints::New();
   for (ptIter = brainPoints.begin(); ptIter != brainPoints.end(); ptIter++, nIter++)
     {
     target = *ptIter;
     originalPoints->InsertNextPoint(target.xyz);
     }
-  self->SetOriginalPoints(originalPoints);
 
   while (iteration<nIterations)
     {
@@ -829,7 +829,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
   brainPolyData->DeepCopy( cleanPoly->GetOutput() );
   self->SetBrainMesh( brainPolyData );
-  self->SetBrainPoints( brainPolyData->GetPoints() );
+  //self->SetBrainPoints( brainPolyData->GetPoints() );
 
   //Use the brain mesh to stencil out the non-brain
   //vtkAtamaiPolyDataToImageStencil2 *theStencil = vtkAtamaiPolyDataToImageStencil2::New();
