@@ -84,6 +84,8 @@ public:
   myPoint() {};
   myPoint(const double point[3]) {
      xyz[0] = point[0]; xyz[1] = point[1]; xyz[2] = point[2]; };
+  myPoint(const float point[3]) {
+     xyz[0] = point[0]; xyz[1] = point[1]; xyz[2] = point[2]; };
   myPoint(const myPoint &point) {
      xyz[0] = point[0]; xyz[1] = point[1]; xyz[2] = point[2]; };
 
@@ -208,8 +210,13 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   double totalMass = 0.0;
   double mass;
 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+  float *spacing = inData->GetSpacing();
+  float *origin = inData->GetOrigin();
+#else
   double *spacing = inData->GetSpacing();
   double *origin = inData->GetOrigin();
+#endif
   
   tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
 
@@ -291,7 +298,6 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   else
     Tm = (double)((inContainer[size/2-1]+inContainer[size/2])/2.0);
 
-  vtkMath::Delete();
   inContainer.clear();
 }
 
@@ -389,7 +395,11 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   double COG[3], R;
 
   int extent[6];
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+  float origin[3], spacing[3];
+#else
   double origin[3], spacing[3];
+#endif
   inData->GetExtent(extent);
   inData->GetSpacing(spacing);
   inData->GetOrigin(origin);
@@ -449,7 +459,11 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   d2 = self->GetD2();
 
   // Find and store neighbours
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+  float point[3];
+#else
   double point[3];
+#endif
   int cellIdx, cellId, nIdx, nId;
   vtkIdType *pointCells, npts, *pts;
   unsigned short nCells;
