@@ -251,7 +251,7 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 
   tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
 
-  vtkMath *math = vtkMath::New();
+  
   double R2;
   R2 = pow(R,2);
 
@@ -267,7 +267,7 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 		{
 		  position[0] = (idx0*spacing[0])+origin[0];
 
-		  distance2 = math->Distance2BetweenPoints(position, COG);
+		  distance2 = vtkMath::Distance2BetweenPoints(position, COG);
 		 
 		  // Are we within R?
 		  if (distance2 < R2)
@@ -291,7 +291,7 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   else
     Tm = (double)((inContainer[size/2-1]+inContainer[size/2])/2.0);
 
-  math->Delete();
+  vtkMath::Delete();
   inContainer.clear();
 }
 
@@ -524,8 +524,6 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   double incX, incY, incZ;
   double u3multiplier;
 
-  vtkMath *math = vtkMath::New();
-
   // avoid compiler warnings
   Tl = l = l2 = Imin = Imax = 0.0; 
   incX = incY = incZ = 0.0;
@@ -567,7 +565,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 		   neighbourIdIter!=thisPointNeighbourIds.end(); neighbourIdIter++)
 		{
 		  neighbour = brainPoints[*neighbourIdIter];
-		  this_suml2 += math->Distance2BetweenPoints(target.xyz, 
+		  this_suml2 += vtkMath::Distance2BetweenPoints(target.xyz, 
 							     neighbour.xyz);
 		}
 
@@ -617,14 +615,14 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 	      temp1[1] = v0.xyz[1] - v1.xyz[1];
 	      temp1[2] = v0.xyz[2] - v1.xyz[2];
 
-	      math->Cross(temp0, temp1, cross);
+	      vtkMath::Cross(temp0, temp1, cross);
 
 	      n_hat[0] += cross[0];
 	      n_hat[1] += cross[1];
 	      n_hat[2] += cross[2];
 	    }
 
-	  math->Normalize(n_hat);
+	  vtkMath::Normalize(n_hat);
 	  
 	  // Mean location
 	  for (neighbourIdIter = thisPointNeighbourIds.begin(); 
@@ -645,7 +643,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
  
 	  // s is decomposed into a normal component s_n
 	  // and a tangential component s_t
-	  dotp = math->Dot(s,n_hat); // this can be smarter, since n_hat is a unit v
+	  dotp = vtkMath::Dot(s,n_hat); // this can be smarter, since n_hat is a unit v
 	  s_n[0] = dotp*n_hat[0];
 	  s_n[1] = dotp*n_hat[1];
 	  s_n[2] = dotp*n_hat[2];
@@ -654,7 +652,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 	  s_t[1] = s[1]-s_n[1];
 	  s_t[2] = s[2]-s_n[2];
 
-	  // Target is moved my update vector u which is made up of u1+u2+u3
+	  // Target is moved by update vector u which is made up of u1+u2+u3
 
 	  // Update component 1: within-surface vertex spacing
 	  u1[0] = 0.5*s_t[0];
@@ -664,8 +662,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 	  // Update component 2: surface smothness control
 
 	  // the sigmoid function
-	  //r = l2/(2*math->Norm(s_n)); 
-	  r = 2*math->Norm(s_n)/l2; // actually the inverse
+	  //r = l2/(2*vtkMath::Norm(s_n)); 
+	  r = 2*vtkMath::Norm(s_n)/l2; // actually the inverse
 
 	  // the smothness fraction
 	  //f2 = 0.5*(1+tanh(F*(1/r-E)));
@@ -761,7 +759,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 	      // The local background
 	      Tl = (Imax-T2)*bt+T2; 
 
-	      if ((Imax-T2) > 0) // BET2
+	      // Decide which way u3 should go
+	      if ((Imax-T2) > 0) 
 		f3 = 2.0*(Imin-Tl)/(Imax-T2);
 	      else
 		f3 = 2.0*(Imin-Tl);
@@ -828,7 +827,6 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   brainPolyData->Delete();
   cleanPoly->Delete();
   pointNeighbourList->Delete();
-  math->Delete();
 }
 
 //----------------------------------------------------------------------------
