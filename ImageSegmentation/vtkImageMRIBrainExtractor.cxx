@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkObjectFactory.h"
 #include "vtkImageData.h"
 #include "vtkImageAccumulate.h"
-#include "vtkPolyDataToImageStencil.h"
+#include "vtkAtamaiPolyDataToImageStencil.h"
 #include "vtkImageStencil.h"
 #include "vtkPolyData.h"
 #include "vtkSphereSource.h"
@@ -808,7 +808,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   self->SetBrainMesh( brainPolyData );
 
   //Use the brain mesh to stencil out the non-brain
-  vtkPolyDataToImageStencil *theStencil = vtkPolyDataToImageStencil::New();
+  vtkAtamaiPolyDataToImageStencil *theStencil = vtkAtamaiPolyDataToImageStencil::New();
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
   theStencil->SetInput( brainPolyData );
