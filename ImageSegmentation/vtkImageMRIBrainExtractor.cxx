@@ -210,7 +210,7 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   double totalMass = 0.0;
   double mass;
 
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
   float *spacing = inData->GetSpacing();
   float *origin = inData->GetOrigin();
 #else
@@ -395,7 +395,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   double COG[3], R;
 
   int extent[6];
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
   float origin[3], spacing[3];
 #else
   double origin[3], spacing[3];
@@ -459,7 +459,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   d2 = self->GetD2();
 
   // Find and store neighbours
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 2) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
   float point[3];
 #else
   double point[3];
