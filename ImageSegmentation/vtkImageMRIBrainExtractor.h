@@ -132,6 +132,22 @@ public:
   // RMin to RMax.  A local radius of curvature about RMax will result in no smoothing. 
   // The default is 10.0.
   vtkGetMacro(RMax, double);
+
+  // Description:
+  // The points on the BrainMesh after deformation
+  vtkSetObjectMacro(BrainPoints, vtkPoints);
+
+  // Description:
+  // The points on the BrainMesh after deformation
+  vtkGetObjectMacro(BrainPoints, vtkPoints);
+
+  // Description:
+  // The points on the BrainMesh before deformation
+  vtkGetObjectMacro(OriginalPoints, vtkPoints);
+
+  // Description:
+  // The points on the BrainMesh before deformation
+  vtkSetObjectMacro(OriginalPoints, vtkPoints);
   
 protected:
   vtkImageMRIBrainExtractor();
@@ -147,6 +163,9 @@ protected:
   double D2;
   double RMin;
   double RMax;
+
+  vtkPoints *BrainPoints;
+  vtkPoints *OriginalPoints;
 
 private:
   vtkImageMRIBrainExtractor(const vtkImageMRIBrainExtractor&);  // Not implemented.
