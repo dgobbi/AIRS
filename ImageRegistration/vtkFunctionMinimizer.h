@@ -54,8 +54,11 @@ public:
 
   // Description:
   // Get the current value resulting from the minimization.
-  // 
-  vtkSetMacro(ScalarResult,double); 
+  // The SetScalarResult() method does not call Modified() on the
+  // function minimizer (the Modified() call was causing performance
+  // problems on multi-CPU machines)
+  // vtkSetMacro(ScalarResult, double);
+  void SetScalarResult(double result) { this->ScalarResult = result; }
   double GetScalarResult() { return this->ScalarResult; };
 
   // Description:
