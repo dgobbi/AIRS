@@ -43,7 +43,6 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkLinearSubdivisionFilter.h"
 #include "vtkCellArray.h"
 #include "vtkPoints.h"
-#include "vtkIdType.h"
 #include "vtkIdList.h"
 #include "vtkIdListCollection.h"
 #include "vtkPolyDataNormals.h"
