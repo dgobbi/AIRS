@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 1.6)
 
 # Set the project/library name here.
-PROJECT(vtkImageCompsiting)
+PROJECT(vtkImageCompositing)
 
 # Set your list of sources here.  Do not change the name of the
 # vtkImageCompsiting_SRCS variable.
