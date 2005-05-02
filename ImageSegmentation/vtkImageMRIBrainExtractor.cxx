@@ -155,11 +155,13 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 
   // accumulate histogram bins
   voxelCount = 0;
-  for (int idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+
+  int idx2, idx1, idx0;
+  for (idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
     {
-      for (int idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+      for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
 	{
-	  for (int idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
+	  for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
 	    {
 	      idx = (int)((double)*tmpPtr-ScalarTypeMin);
 	      sum = hist[idx];
@@ -200,7 +202,6 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 
 
   //------------------------
-  int idx0, idx1, idx2;
   int count;
   double voxelVolume, totalVolume;
   
@@ -249,7 +250,7 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   voxelVolume = fabs(spacing[0]*spacing[1]*spacing[2]);
   totalVolume = voxelVolume*count;
 
-  R = pow( (3*totalVolume)/(4*M_PI) , 1.0/3.0 );
+  R = pow( (3*totalVolume)/(4*vtkMath::DoublePi()) , 1.0/3.0 );
 
   std::vector<double> inContainer;
 
