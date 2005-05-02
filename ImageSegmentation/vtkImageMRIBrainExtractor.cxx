@@ -831,8 +831,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   //self->SetBrainPoints( brainPolyData->GetPoints() );
 
   //Use the brain mesh to stencil out the non-brain
-  //vtkAtamaiPolyDataToImageStencil2 *theStencil = vtkAtamaiPolyDataToImageStencil2::New();
-  vtkAtamaiPolyDataToImageStencil *theStencil = vtkAtamaiPolyDataToImageStencil::New();
+  vtkAtamaiPolyDataToImageStencil2 *theStencil = vtkAtamaiPolyDataToImageStencil2::New();
+  //vtkAtamaiPolyDataToImageStencil *theStencil = vtkAtamaiPolyDataToImageStencil::New();
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
   theStencil->SetInput( brainPolyData );
