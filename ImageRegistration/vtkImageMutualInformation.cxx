@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/05/16 14:17:07 $
+  Version:   $Revision: 1.2 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.1 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.2 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -166,7 +166,7 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
   T *tempPtr1, *tempPtr2;
   int *outPtrC;
   int  outIdx, outIdy, *outExtent, *outIncs;
-  double *origin, *spacing;
+  vtkFloatingPointType *origin, *spacing;
   unsigned long count = 0;
   unsigned long target;
   int voxelCount = 0;

@@ -4,8 +4,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/05/16 14:17:07 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -544,7 +544,7 @@ void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas,
 {
   int wholeDataExt[6];
   int wholeGridExt[6];
-  double inDataSpacing[3];
+  vtkFloatingPointType inDataSpacing[3];
   
   inDatas[0]->UpdateInformation();
   inDatas[1]->UpdateInformation();
@@ -591,7 +591,7 @@ public:
   int patext[3]; // precompute patWholeInExt([1]-[0],[3]-[2],[5]-[4])
   int scalarType;
   float *hint;
-  double *spacing;
+  vtkFloatingPointType *spacing;
   int maxLength;
   float kernelRadius[3];
   int kernelDiameter;
@@ -1189,7 +1189,7 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
   float VectorBounds[3];
   self->GetVectorBounds(VectorBounds);
 
-  double inSpacing[3];
+  vtkFloatingPointType inSpacing[3];
   float inInvSpacing[3];
   
   float hint[3]; // the mean deformation of the surrounding grid points

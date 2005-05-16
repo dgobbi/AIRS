@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/05/16 14:17:07 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -146,7 +146,7 @@ void vtkImageCrossCorrelation::ExecuteInformation(vtkImageData **inDatas,
 {
   int idx;
   int wholeInExt[6];
-  double spacing[3];
+  vtkFloatingPointType spacing[3];
   
   inDatas[0]->Update();
   inDatas[1]->Update();

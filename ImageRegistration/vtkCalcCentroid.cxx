@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/08/20 13:20:35 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2005/05/16 14:17:07 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -85,8 +85,8 @@ static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
   double syx = 0.0, syy = 0.0, syz = 0.0;
   double szx = 0.0, szy = 0.0, szz = 0.0, si = 0.0;
   float dataCentroid[3];                   //centroid in data coordinates
-  double *spacing = input->GetSpacing();
-  double *origin = input->GetOrigin();
+  vtkFloatingPointType *spacing = input->GetSpacing();
+  vtkFloatingPointType *origin = input->GetOrigin();
 
   dataCentroid[0] = (centroid[0] - origin[0])/spacing[0];
   dataCentroid[1] = (centroid[1] - origin[1])/spacing[1];
@@ -151,8 +151,8 @@ static void vtkCalculateCentroid(vtkImageData *input, T *inPtr,
   float ZMoment = 0.0;
   float totalMass = 0.0;
 
-  double *spacing = input->GetSpacing();
-  double *origin = input->GetOrigin();
+  vtkFloatingPointType *spacing = input->GetSpacing();
+  vtkFloatingPointType *origin = input->GetOrigin();
   
   input->GetIncrements(inInc0, inInc1, inInc2);
 
