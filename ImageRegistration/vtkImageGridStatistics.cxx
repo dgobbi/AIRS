@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/05/17 01:43:38 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -100,10 +100,10 @@ static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
 
   double sum=0.0;
   double sum_squared=0.0;
-  double temp;
+  double temp=0.0;
 
   double count = inData->GetNumberOfPoints();
-
+  
   T *curPtr;
 
   // Get increments to march through data 
@@ -118,17 +118,18 @@ static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
 	{
 	  for (inIdxX = wholeInExt[0]; inIdxX <= wholeInExt[1]; inIdxX++)
 	    {
-	      temp = sqrt((*curPtr * *curPtr++) + 
-			  (*curPtr * *curPtr++) + 
-			  (*curPtr * *curPtr++));
-	      sum += temp;
+	      temp = sqrt( curPtr[0] * curPtr[0] + 
+			   curPtr[1] * curPtr[1] + 
+			   curPtr[2] * curPtr[2] );
+	      sum += temp; 
 	      sum_squared += temp*temp;
+              curPtr += 3;
 	    }
 	  curPtr += inIncY;
 	}
       curPtr += inIncZ;
     }
-
+  
   *AverageMagnitude = sum / count;
   *StandardDeviation = sqrt((sum_squared * count - sum*sum) / (count * (count-1.0)));
 
