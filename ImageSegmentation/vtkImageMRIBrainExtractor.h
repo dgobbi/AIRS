@@ -45,11 +45,10 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkImageMRIBrainExtractor_h
 #define __vtkImageMRIBrainExtractor_h
 
-#include "vtkBrainExtractorConfigure.h" // Include configuration header.
 #include "vtkImageToImageFilter.h"
 #include "vtkPolyData.h"
 
-class VTK_vtkBrainExtractor_EXPORT vtkImageMRIBrainExtractor : public vtkImageToImageFilter
+class VTK_EXPORT vtkImageMRIBrainExtractor : public vtkImageToImageFilter
 {
 public:
   static vtkImageMRIBrainExtractor* New();

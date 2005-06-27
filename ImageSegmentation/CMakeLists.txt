@@ -1,80 +1,112 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 1.6)
+PROJECT(AtamaiSegmentation)
 
-# Set the project/library name here.
-PROJECT(vtkThresholdSegmentation)
+SET(KIT AtamaiSegmentation)
+SET(UKIT ATAMAISEGMENTATION)
+SET(KIT_TCL_LIBS vtkHybridTCL )
+IF(APPLE)
+  SET(KIT_PYTHON_LIBS vtkHybridPythonD)
+ELSE(APPLE)
+  SET(KIT_PYTHON_LIBS vtkHybridPython)
+ENDIF(APPLE)
+SET(KIT_JAVA_LIBS vtkHybridJava)
+SET(KIT_LIBS vtkHybrid)
 
 # Set your list of sources here.  Do not change the name of the
-# vtkThresholdSegmentation_SRCS variable.
-SET(vtkThresholdSegmentation_SRCS
-vtkImageFloodFill.cxx
+# Kit_SRCS variable.
+SET(Kit_SRCS
+  vtkImageFloodFill.cxx
+  vtkImageMRIBrainExtractor.cxx
+  vtkAtamaiPolyDataToImageStencil.cxx
+  vtkAtamaiPolyDataToImageStencil2.cxx
 )
 
-# List the kits from VTK that are needed by this project.
-SET(vtkThresholdSegmentation_LIBS
-  vtkCommon vtkImaging vtkGraphics vtkHybrid
-)
+SET(Kit_EXTRA_SRCS)
+SET(Kit_EXTRA_CMDS)
+SET(Kit_TCL_EXTRA_SRCS)
+SET(Kit_PYTHON_EXTRA_SRCS)
+SET(Kit_JAVA_EXTRA_SRCS)
 
-#-----------------------------------------------------------------------------
-# Most users should not need to change anything below this line.
+# -----------------------------------------------------------------
+# Start of common section
 
-# Need to include class headers and the configuration header.
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
+# Create the header to configure the classes.
+CONFIGURE_FILE(${PROJECT_SOURCE_DIR}/vtk${KIT}Configure.h.in
+               ${PROJECT_BINARY_DIR}/vtk${KIT}Configure.h
+               @ONLY IMMEDIATE)
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR})
 
-# Find and load VTK settings.
-INCLUDE(${CMAKE_ROOT}/Modules/FindVTK.cmake)
-IF(VTK_FOUND)
-  INCLUDE(${VTK_USE_FILE})
-ELSE(VTK_FOUND)
-  MESSAGE(FATAL_ERROR "Set VTK_DIR.")
-ENDIF(VTK_FOUND)
+## Setup vtkInstantiator registration for this library's classes.
+#VTK_MAKE_INSTANTIATOR3(vtk${KIT}Instantiator KitInstantiator_SRCS
+#                       ${Kit_SRCS}
+#                       VTK_${KIT}_EXPORT
+#                       ${ATAMAIVTK_BINARY_DIR} "")
 
-SET (LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH
-     "Single output directory for building all libraries.")
+#ADD_LIBRARY(vtk${KIT} ${Kit_SRCS} ${Kit_EXTRA_SRCS} ${KitInstantiator_SRCS})
+ADD_LIBRARY(vtk${KIT} ${Kit_SRCS} ${Kit_EXTRA_SRCS})
 
-SET (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin CACHE PATH
-     "Single output directory for building all executables.")
+# Allow the user to customize their build with some local options
+#
+SET(LOCALUSERMACRODEFINED 0)
+INCLUDE (${ATAMAIVTK_BINARY_DIR}/${KIT}/LocalUserOptions.cmake OPTIONAL)
+INCLUDE (${ATAMAIVTK_SOURCE_DIR}/${KIT}/LocalUserOptions.cmake OPTIONAL)
 
-MARK_AS_ADVANCED(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
+# if we are wrapping into Tcl then add the library and extra
+# source files
+#
+IF (VTK_WRAP_TCL)
+  VTK_WRAP_TCL2(vtk${KIT}TCL SOURCES KitTCL_SRCS 
+                ${Kit_SRCS}
+                COMMANDS ${Kit_TCL_EXTRA_CMDS})
+  ADD_LIBRARY(vtk${KIT}TCL ${KitTCL_SRCS} ${Kit_TCL_EXTRA_SRCS})
+  TARGET_LINK_LIBRARIES (vtk${KIT}TCL vtk${KIT} ${KIT_TCL_LIBS})
+  INSTALL_TARGETS(/lib/vtk vtk${KIT}TCL)
+ENDIF (VTK_WRAP_TCL)
 
-IF(VTK_FOUND)
-  # If this is a build tree, provide an option for putting this
-  # project's executables and libraries in with VTK's.
-  IF (EXISTS ${VTK_DIR}/bin)
-    OPTION(USE_VTK_OUTPUT_PATHS
-     "Use VTK's output directory for this project's executables and libraries."
-     OFF)
-    MARK_AS_ADVANCED (USE_VTK_OUTPUT_PATHS)
-    IF (USE_VTK_OUTPUT_PATHS)
-      SET (LIBRARY_OUTPUT_PATH ${VTK_DIR}/bin)
-      SET (EXECUTABLE_OUTPUT_PATH ${VTK_DIR}/bin)
-    ENDIF (USE_VTK_OUTPUT_PATHS)
-  ENDIF (EXISTS ${VTK_DIR}/bin)
+# if we are wrapping into Python then add the library and extra
+# source files
+#
+IF (VTK_WRAP_PYTHON)
+  VTK_WRAP_PYTHON2(vtk${KIT}Python KitPython_SRCS ${Kit_SRCS})
+  IF (APPLE)
+    ADD_LIBRARY(vtk${KIT}PythonD ${KitPython_SRCS} ${Kit_PYTHON_EXTRA_SRCS})
+    ADD_LIBRARY(vtk${KIT}Python MODULE vtk${KIT}PythonInit.cxx)
+    TARGET_LINK_LIBRARIES(vtk${KIT}PythonD vtk${KIT} ${KIT_PYTHON_LIBS} ${PYTHON_LIBRARY})
+    TARGET_LINK_LIBRARIES(vtk${KIT}Python vtk${KIT}PythonD)
+    INSTALL_TARGETS(/lib/vtk vtk${KIT}PythonD)
+  ELSE (APPLE)
+    ADD_LIBRARY(vtk${KIT}Python MODULE ${KitPython_SRCS} ${Kit_PYTHON_EXTRA_SRCS})
+    TARGET_LINK_LIBRARIES (vtk${KIT}Python vtk${KIT} ${KIT_PYTHON_LIBS})
+  ENDIF(APPLE)
+  IF(WIN32)
+    TARGET_LINK_LIBRARIES (vtk${KIT}Python
+                           debug ${PYTHON_DEBUG_LIBRARY}
+                           optimized ${PYTHON_LIBRARY})
+  ENDIF(WIN32)
+  INSTALL_TARGETS(/lib/vtk vtk${KIT}Python)
+ENDIF (VTK_WRAP_PYTHON)
 
-  # Create the library.
-  ADD_LIBRARY(${PROJECT_NAME} ${vtkThresholdSegmentation_SRCS} ${vtkThresholdSegmentationInstantiator_SRCS})
-  TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${vtkThresholdSegmentation_LIBS})
-  
-  # Create Python wrappers if VTK is wrapped in Python.
-  IF(VTK_WRAP_PYTHON)
-    VTK_WRAP_PYTHON2(${PROJECT_NAME}Python vtkThresholdSegmentationPYTHON_SRCS ${vtkThresholdSegmentation_SRCS})
-    IF (APPLE)
-      ADD_LIBRARY(${PROJECT_NAME}PythonD ${vtkThresholdSegmentationPYTHON_SRCS})
-      ADD_LIBRARY(${PROJECT_NAME}Python MODULE ${PROJECT_NAME}PythonInit.cxx)
-      TARGET_LINK_LIBRARIES(${PROJECT_NAME}PythonD ${PROJECT_NAME})
-      FOREACH(c ${vtkThresholdSegmentation_LIBS})
-        TARGET_LINK_LIBRARIES(${PROJECT_NAME}PythonD ${c}PythonD)
-      ENDFOREACH(c)
-      TARGET_LINK_LIBRARIES(${PROJECT_NAME}Python ${PROJECT_NAME}PythonD)
-    ELSE (APPLE)
-      ADD_LIBRARY(${PROJECT_NAME}Python SHARED ${vtkThresholdSegmentationPYTHON_SRCS})
-      TARGET_LINK_LIBRARIES (${PROJECT_NAME}Python ${PROJECT_NAME})
-      FOREACH(c ${vtkThresholdSegmentation_LIBS})
-        TARGET_LINK_LIBRARIES(${PROJECT_NAME}Python ${c}Python)
-      ENDFOREACH(c)
-    ENDIF(APPLE)
+# if we are wrapping into Java then add the library and extra
+# source files
+#
+IF (VTK_WRAP_JAVA)
+  VTK_WRAP_JAVA2(vtk${KIT}Java KitJava_SRCS ${Kit_SRCS})
+  ADD_LIBRARY(vtk${KIT}Java SHARED ${KitJava_SRCS} ${Kit_JAVA_EXTRA_SRCS})
+  TARGET_LINK_LIBRARIES(vtk${KIT}Java vtk${KIT} ${KIT_JAVA_LIBS})
+  INSTALL_TARGETS(/lib/vtk vtk${KIT}Java)
+ENDIF (VTK_WRAP_JAVA)
 
-  ENDIF(VTK_WRAP_PYTHON)
+TARGET_LINK_LIBRARIES(vtk${KIT} ${KIT_LIBS})
 
-  # SUBDIRS(Testing)
-ENDIF(VTK_FOUND)
+INSTALL_TARGETS(/lib/vtk vtk${KIT})
+INSTALL_FILES(/include/vtk .h ${Kit_SRCS})
+
+# If the user defined a custom macro, execute it now and pass in all the srcs
+#
+IF(LOCALUSERMACRODEFINED)
+  LocalUserOptionsMacro( "${Kit_SRCS}"       "${Kit_EXTRA_SRCS}"
+                         "${KitTCL_SRCS}"    "${Kit_TCL_EXTRA_SRCS}"
+                         "${KitJava_SRCS}"   "${Kit_JAVA_EXTRA_SRCS}"
+                         "${KitPython_SRCS}" "${Kit_PYTHON_EXTRA_SRCS}")
+ENDIF(LOCALUSERMACRODEFINED)
+
+# End of common section

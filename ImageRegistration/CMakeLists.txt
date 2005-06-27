@@ -1,21 +1,31 @@
-PROJECT(ATAMAIIMAGING)
+PROJECT(ATAMAIREGISTRATION)
 
-SET(KIT AtamaiImaging)
-SET(UKIT ATAMAIIMAGING)
-SET(KIT_TCL_LIBS vtkImagingTCL )
+SET(KIT AtamaiRegistration)
+SET(UKIT ATAMAIREGISTRATION)
+SET(KIT_TCL_LIBS vtkHybridTCL )
 IF(APPLE)
-  SET(KIT_PYTHON_LIBS vtkImagingPythonD)
+  SET(KIT_PYTHON_LIBS vtkHybridPythonD)
 ELSE(APPLE)
-  SET(KIT_PYTHON_LIBS vtkImagingPython)
+  SET(KIT_PYTHON_LIBS vtkHybridPython)
 ENDIF(APPLE)
-SET(KIT_JAVA_LIBS vtkImagingJava)
-SET(KIT_LIBS vtkImaging)
+SET(KIT_JAVA_LIBS vtkHybridJava)
+SET(KIT_LIBS vtkHybrid)
 
-# Set your list of sources here.  Do not change the name of the
-# Kit_SRCS variable.
-SET(Kit_SRCS
-vtkImageCompositeFilter.cxx
+
+SET ( Kit_SRCS
+vtkCalcCentroid.cxx
+vtkImage3DNoiseSource.cxx
+vtkImageDataStatistics.cxx
+vtkImageMutualInformation.cxx
+vtkImageSingleMutualInformation.cxx
+vtkCalcCrossCorrelation.cxx
+vtkImageAmoebaGrid.cxx
+vtkImageGridStatistics.cxx
+vtkFunctionMinimizer.cxx
+vtkImageCrossCorrelation.cxx
+vtkImageMean3D.cxx
 )
+
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)
