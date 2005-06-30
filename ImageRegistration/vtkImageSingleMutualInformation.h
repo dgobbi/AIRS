@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/06/30 15:55:20 $
+  Version:   $Revision: 1.2 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -38,6 +38,14 @@
 #ifndef __vtkImageSingleMutualInformation_h
 #define __vtkImageSingleMutualInformation_h
 
+
+#ifndef vtkFloatingPointType
+
+#define vtkFloatingPointType vtkFloatingPointType
+
+typedef float vtkFloatingPointType;
+
+#endif
 
 #include "vtkImageToImageFilter.h"
 
