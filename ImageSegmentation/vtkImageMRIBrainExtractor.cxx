@@ -99,6 +99,7 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 {
   this->brainMesh = vtkPolyData::New();
   this->OriginalPoints = vtkPoints::New();
+  this->BackgroundValue = NULL;
   // Defaults
   this->BT = 0.5; 
   this->NumberOfIterations = 1000;
@@ -840,7 +841,16 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
   imageStencil->SetStencil( theStencil->GetOutput() );
   imageStencil->SetInput(inData);
-  imageStencil->SetBackgroundValue(T2);
+
+  if (self->GetBackgroundValue() != NULL)
+    {
+    imageStencil->SetBackgroundValue(self->GetBackgroundValue());
+    }
+  else
+    {
+    //imageStencil->SetBackgroundValue(inData->GetScalarTypeMin());
+    imageStencil->SetBackgroundValue(T2);
+    }
   imageStencil->Update();
 
   outData->DeepCopy(imageStencil->GetOutput());
