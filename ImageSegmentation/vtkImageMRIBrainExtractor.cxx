@@ -407,7 +407,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   inData->GetOrigin(origin);
 
   // vtkImageData-based parameters
-  vtkBECalculateInitialParameters(inData, inPtr, outExt, T2, T98, TH, Tm, COG, R); 
+  vtkBECalculateInitialParameters(inData, inPtr, outExt, T2, T98, TH, Tm, COG, R);
 
   // vtkPolyData time
   double RSphere;
@@ -848,7 +848,6 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
     }
   else
     {
-    //imageStencil->SetBackgroundValue(inData->GetScalarTypeMin());
     imageStencil->SetBackgroundValue(T2);
     }
   imageStencil->Update();
@@ -856,6 +855,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   outData->DeepCopy(imageStencil->GetOutput());
   theStencil->Delete();
   imageStencil->Delete();
+
+  outData->Update();
 
   // Clean up
   brainPolyData->Delete();
