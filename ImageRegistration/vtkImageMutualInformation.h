@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/19 20:33:02 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2005/07/19 20:49:38 $
+  Version:   $Revision: 1.4 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -38,15 +38,12 @@
 #ifndef __vtkImageMutualInformation_h
 #define __vtkImageMutualInformation_h
 
+// #ifndef vtkFloatingPointType
+// #define vtkFloatingPointType vtkFloatingPointType
+// typedef float vtkFloatingPointType;
+// #endif
+
 #include "vtkImageTwoInputFilter.h"
-
-#ifndef vtkFloatingPointType
-
-#define vtkFloatingPointType vtkFloatingPointType
-
-typedef float vtkFloatingPointType;
-
-#endif
 
 class vtkImageStencilData;
 
