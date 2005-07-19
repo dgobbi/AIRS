@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.h,v $
   Language:  C++
-  Date:      $Date: 2005/06/30 15:55:20 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2005/07/19 20:33:02 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -47,6 +47,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __vtkCalcCentroid_h
 #define __vtkCalcCentroid_h
 
+#include "vtkObject.h"
+#include "vtkImageData.h"
+
 #ifndef vtkFloatingPointType
 
 #define vtkFloatingPointType vtkFloatingPointType
@@ -54,9 +57,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef float vtkFloatingPointType;
 
 #endif
-
-#include "vtkObject.h"
-#include "vtkImageData.h"
 
 class VTK_EXPORT vtkCalcCentroid : public vtkObject
 {
