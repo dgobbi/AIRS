@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/05/16 14:17:07 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2005/07/20 15:35:27 $
+  Version:   $Revision: 1.3 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.2 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.3 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -261,25 +261,25 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
   for (outIdx = 0; outIdx < outExtent[1]; outIdx++)
     {
     if (xHist[outIdx]>0)
-      xEntropy += (xHist[outIdx]*log(xHist[outIdx]));
+      xEntropy += (xHist[outIdx]*log((double)(xHist[outIdx])));
     }
   for (outIdy = 0; outIdy < outExtent[3]; outIdy++)
     {
     if (yHist[outIdy]>0)
-      yEntropy += (yHist[outIdy]*log(yHist[outIdy]));
+      yEntropy += (yHist[outIdy]*log((double)(yHist[outIdy])));
     }
 
   outPtrC = outPtr;
   for (outIdx = 0; outIdx < outIncs[2]; outIdx++)
     {
     if ((*outPtrC)>0)
-      xyEntropy += ((*outPtrC) * log(*outPtrC));
+      xyEntropy += ((*outPtrC) * log((double)(*outPtrC)));
     outPtrC++;
     }
 
-  xEntropy  = -   xEntropy * log(xEntropy)  / (double)voxelCount + log(voxelCount);
-  yEntropy  = -   yEntropy * log(yEntropy)  / (double)voxelCount + log(voxelCount);
-  xyEntropy = -  xyEntropy * log(xyEntropy) / (double)voxelCount + log(voxelCount);
+  xEntropy  = -   xEntropy * log((double)xEntropy)  / (double)voxelCount + log((double)voxelCount);
+  yEntropy  = -   yEntropy * log((double)yEntropy)  / (double)voxelCount + log((double)voxelCount);
+  xyEntropy = -  xyEntropy * log((double)xyEntropy) / (double)voxelCount + log((double)voxelCount);
 
   *NormalizedMI = (xEntropy+yEntropy)/xyEntropy;
 

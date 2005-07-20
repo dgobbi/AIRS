@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/05/17 01:43:38 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2005/07/20 15:35:27 $
+  Version:   $Revision: 1.3 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkObjectFactory.h"
 #include "vtkCommand.h"
 
+#include <math.h>
 
 //------------------------------------------------------------------------------
 vtkImageGridStatistics* vtkImageGridStatistics::New()
@@ -118,9 +119,9 @@ static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
 	{
 	  for (inIdxX = wholeInExt[0]; inIdxX <= wholeInExt[1]; inIdxX++)
 	    {
-	      temp = sqrt( curPtr[0] * curPtr[0] + 
-			   curPtr[1] * curPtr[1] + 
-			   curPtr[2] * curPtr[2] );
+	      temp = sqrt( (double)(curPtr[0] * curPtr[0] + 
+				    curPtr[1] * curPtr[1] + 
+				    curPtr[2] * curPtr[2]) );
 	      sum += temp; 
 	      sum_squared += temp*temp;
               curPtr += 3;
