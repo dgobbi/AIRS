@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCrossCorrelation.h,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.2 $
 
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -57,9 +57,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class VTK_EXPORT vtkCalcCrossCorrelation : public vtkProcessObject
 {
 public:
-  // Description:
-  // Constructs with initial values of zero.
+  vtkTypeMacro(vtkCalcCrossCorrelation,vtkProcessObject);
   static vtkCalcCrossCorrelation *New();
+
+  void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
   // Use a stencil to specify which voxels to accumulate.
@@ -71,9 +72,6 @@ public:
   vtkSetMacro(ReverseStencil, int);
   vtkBooleanMacro(ReverseStencil, int);
   vtkGetMacro(ReverseStencil, int);
-
-  vtkTypeMacro(vtkCalcCrossCorrelation,vtkProcessObject);
-  void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
   // Compute and return the cross correlation.

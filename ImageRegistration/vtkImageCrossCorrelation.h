@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/19 20:51:00 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.4 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -58,8 +58,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class VTK_EXPORT vtkImageCrossCorrelation : public vtkImageTwoInputFilter
 {
 public:
-  static vtkImageCrossCorrelation *New();
   vtkTypeMacro(vtkImageCrossCorrelation,vtkImageTwoInputFilter);
+  static vtkImageCrossCorrelation *New();
+
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:

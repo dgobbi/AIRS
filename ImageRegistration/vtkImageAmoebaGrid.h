@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.h,v $
   Language:  C++
-  Date:      $Date: 2005/06/30 15:55:20 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.3 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -69,8 +69,9 @@ typedef float vtkFloatingPointType;
 class VTK_EXPORT vtkImageAmoebaGrid : public vtkImageMultipleInputFilter
 {
 public:
-  static vtkImageAmoebaGrid *New();
   vtkTypeMacro(vtkImageAmoebaGrid,vtkImageMultipleInputFilter);
+  static vtkImageAmoebaGrid *New();
+
   void PrintSelf(ostream& os, vtkIndent indent);
 
 

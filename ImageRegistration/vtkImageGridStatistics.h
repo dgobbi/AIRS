@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.h,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -54,9 +54,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class VTK_EXPORT vtkImageGridStatistics : public vtkProcessObject
 {
 public:
+  vtkTypeMacro(vtkImageGridStatistics,vtkProcessObject);
   static vtkImageGridStatistics *New();
 
-  vtkTypeMacro(vtkImageGridStatistics,vtkProcessObject);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:

@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 16:01:41 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.6 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -50,8 +50,9 @@ class vtkImageStencilData;
 class VTK_EXPORT vtkImageSingleMutualInformation : public vtkImageToImageFilter
 {
 public:
-  static vtkImageSingleMutualInformation *New();
   vtkTypeRevisionMacro(vtkImageSingleMutualInformation,vtkImageToImageFilter);
+  static vtkImageSingleMutualInformation *New();
+
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:

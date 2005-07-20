@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImage3DNoiseSource.h,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2005/07/20 16:24:51 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -59,8 +59,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class VTK_EXPORT vtkImage3DNoiseSource : public vtkImageSource 
 {
 public:
-  static vtkImage3DNoiseSource *New();
   vtkTypeMacro(vtkImage3DNoiseSource,vtkImageSource);
+  static vtkImage3DNoiseSource *New();
+
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:

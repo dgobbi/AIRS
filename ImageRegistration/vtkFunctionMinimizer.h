@@ -6,9 +6,9 @@
 class VTK_EXPORT vtkFunctionMinimizer : public vtkObject
 {
 public:
+  vtkTypeMacro(vtkFunctionMinimizer,vtkObject);
   static vtkFunctionMinimizer *New();
 
-  vtkTypeMacro(vtkFunctionMinimizer,vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
