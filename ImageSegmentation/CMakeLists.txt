@@ -29,6 +29,10 @@ SET(Kit_JAVA_EXTRA_SRCS)
 # -----------------------------------------------------------------
 # Start of common section
 
+# Need to include class headers and the configuration header.
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR})
+
 # Create the header to configure the classes.
 CONFIGURE_FILE(${PROJECT_SOURCE_DIR}/vtk${KIT}Configure.h.in
                ${PROJECT_BINARY_DIR}/vtk${KIT}Configure.h
