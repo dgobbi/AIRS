@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/19 20:49:38 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2005/07/20 16:01:41 $
+  Version:   $Revision: 1.5 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -47,7 +47,7 @@
 
 class vtkImageStencilData;
 
-class VTK_IMAGING_EXPORT vtkImageMutualInformation : public vtkImageTwoInputFilter
+class VTK_EXPORT vtkImageMutualInformation : public vtkImageTwoInputFilter
 {
 public:
   static vtkImageMutualInformation *New();
