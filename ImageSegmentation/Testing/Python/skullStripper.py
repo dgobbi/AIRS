@@ -14,7 +14,7 @@ else:
 import paths
 import time
 from Numeric import power
-from libvtkBrainExtractorPython import *
+from libvtkAtamaiSegmentationPython import *
 from vtkMINCReader import *
 from vtkMINCWriter import *
 #from vtkANALYZEReader import *
