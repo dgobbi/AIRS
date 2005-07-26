@@ -54,9 +54,16 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #include <math.h>
 #include <iostream>
+
+#if ((VTK_MAJOR_VERSION == 4)&&(VTK_MINOR_VERSION <= 2))
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#else
 #include <vtkstd/vector>
 #include <vtkstd/algorithm>
 #include <vtkstd/numeric>
+#endif
 
 // A convenience class for using C arrays in STL vectors
 class myVertIds
