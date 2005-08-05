@@ -147,14 +147,6 @@ public:
   // Description:
   // The points on the BrainMesh before deformation
   vtkSetObjectMacro(OriginalPoints, vtkPoints);
-
-  // Description:
-  // The background value used by the stencil.
-  vtkSetMacro(BackgroundValue, int);
-
-  // Description:
-  // The background value used by the stencil.
-  vtkGetMacro(BackgroundValue, int);
   
 protected:
   vtkImageMRIBrainExtractor();
@@ -170,7 +162,6 @@ protected:
   double D2;
   double RMin;
   double RMax;
-  int BackgroundValue; // fill value for stencil
 
   vtkPoints *BrainPoints;
   vtkPoints *OriginalPoints;
