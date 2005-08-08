@@ -26,6 +26,10 @@ SET(Kit_TCL_EXTRA_SRCS)
 SET(Kit_PYTHON_EXTRA_SRCS)
 SET(Kit_JAVA_EXTRA_SRCS)
 
+# GL: vtkImageMRIBrainExtractor runs ~1.5x slower when compiled with -O3 so,
+#     until that gets figured out, force gcc to use -O2.
+SET(CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE STRING "for build with -O2" FORCE)
+
 # -----------------------------------------------------------------
 # Start of common section
 
