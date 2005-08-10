@@ -18,6 +18,7 @@ SET(Kit_SRCS
   vtkImageMRIBrainExtractor.cxx
   vtkAtamaiPolyDataToImageStencil.cxx
   vtkAtamaiPolyDataToImageStencil2.cxx
+  vtkImageK9BrainExtractor.cxx
 )
 
 SET(Kit_EXTRA_SRCS)
