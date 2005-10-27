@@ -15,6 +15,7 @@ SET(KIT_LIBS vtkImaging)
 # Kit_SRCS variable.
 SET(Kit_SRCS
 vtkImageCompositeFilter.cxx
+vtkImageProjection.cxx
 )
 
 SET(Kit_EXTRA_SRCS)
