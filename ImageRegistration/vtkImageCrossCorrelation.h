@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/21 20:37:31 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2005/10/30 22:27:01 $
+  Version:   $Revision: 1.6 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -48,12 +48,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __vtkImageCrossCorrelation_h
 #define __vtkImageCrossCorrelation_h
 
+#include "vtkImageTwoInputFilter.h"
+
+// For backwards compatibility with VTK 4.2
 #ifndef vtkFloatingPointType
 #define vtkFloatingPointType vtkFloatingPointType
 typedef float vtkFloatingPointType;
 #endif
-
-#include "vtkImageTwoInputFilter.h"
 
 class VTK_EXPORT vtkImageCrossCorrelation : public vtkImageTwoInputFilter
 {
