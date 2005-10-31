@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 15:35:27 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2005/10/31 21:49:28 $
+  Version:   $Revision: 1.4 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.3 $");
+vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.4 $");
 vtkStandardNewMacro(vtkImageSingleMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -127,7 +127,7 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 				      double *NormalizedMI,
 				      double *MeanVoxel)
 {
-  int idX, idY, idZ, idxC;
+  int idX, idY, idZ;
   int iter, pmin0, pmax0, min0, max0, min1, max1, min2, max2;
   int inInc0, inInc1, inInc2;
   T *tempPtr1;
@@ -331,14 +331,9 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
 
 
 //----------------------------------------------------------------------------
-void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData **inputs, 
+void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData *input, 
 							 vtkImageData *output)
 {
-
-  // the two inputs are required to be of the same data type and extents.
-
-  inputs[0]->Update();
-
   output->SetWholeExtent(this->ImageAComponentExtent[0],
 			 this->ImageAComponentExtent[1],
 			 this->ImageAComponentExtent[0],
@@ -346,7 +341,7 @@ void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData **inputs,
   output->SetOrigin(this->ImageAComponentOrigin,
 		    this->ImageAComponentOrigin,0.0f);
   output->SetSpacing(this->ImageAComponentSpacing,
-		     this->ImageAComponentSpacing,0.0f);
+		     this->ImageAComponentSpacing,1.0f);
   output->SetNumberOfScalarComponents(1);
   output->SetScalarType(VTK_INT);
 
@@ -354,20 +349,24 @@ void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData **inputs,
   vtkImageStencilData *stencil = this->GetStencil();
   if (stencil)
     {
-    stencil->SetSpacing(inputs[0]->GetSpacing());
-    stencil->SetOrigin(inputs[0]->GetOrigin());
+    stencil->SetSpacing(input->GetSpacing());
+    stencil->SetOrigin(input->GetOrigin());
     }
 }
 
 //----------------------------------------------------------------------------
 // Get ALL of the input.
 void vtkImageSingleMutualInformation::ComputeInputUpdateExtent(int inExt[6],
-							       int outExt[6],
-							       int vtkNotUsed(whichInput))
+							       int outExt[6])
 {
   int *wholeExtent = this->GetInput()->GetWholeExtent();
 
-  memcpy(inExt, wholeExtent, 6*sizeof(int));
+  inExt[0] = wholeExtent[0];
+  inExt[1] = wholeExtent[1];
+  inExt[2] = wholeExtent[2];
+  inExt[3] = wholeExtent[3];
+  inExt[4] = wholeExtent[4];
+  inExt[5] = wholeExtent[5];
 }
 
 

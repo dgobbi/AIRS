@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 15:35:27 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2005/10/31 21:49:28 $
+  Version:   $Revision: 1.4 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.3 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.4 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -388,12 +388,7 @@ void vtkImageMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out))
 void vtkImageMutualInformation::ExecuteInformation(vtkImageData **inputs, 
 						   vtkImageData *output)
 {
-
   // the two inputs are required to be of the same data type and extents.
-
-  inputs[0]->Update();
-  inputs[1]->Update();
-
   output->SetWholeExtent(this->ImageAComponentExtent[0],
 			 this->ImageAComponentExtent[1],
 			 this->ImageBComponentExtent[0],
@@ -401,7 +396,7 @@ void vtkImageMutualInformation::ExecuteInformation(vtkImageData **inputs,
   output->SetOrigin(this->ImageAComponentOrigin,
 		    this->ImageBComponentOrigin,0.0f);
   output->SetSpacing(this->ImageAComponentSpacing,
-		     this->ImageBComponentSpacing,0.0f);
+		     this->ImageBComponentSpacing,1.0f);
   output->SetNumberOfScalarComponents(1);
   output->SetScalarType(VTK_INT);
 

@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/08/05 15:14:30 $
-  Version:   $Revision: 1.8 $
+  Date:      $Date: 2005/10/31 21:49:28 $
+  Version:   $Revision: 1.9 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -110,10 +110,11 @@ protected:
   float ImageAComponentOrigin;
   int ImageAComponentExtent[2];
 
-  void ExecuteInformation(vtkImageData **inputs, vtkImageData *output);
-  void ComputeInputUpdateExtent(int inExt[6], int outExt[6], 
-				int vtkNotUsed(whichInput));
-  void ExecuteInformation(){this->vtkImageToImageFilter::ExecuteInformation();};
+  void ExecuteInformation() {
+    this->vtkImageToImageFilter::ExecuteInformation(); };
+  void ExecuteInformation(vtkImageData *input, vtkImageData *output);
+  void ComputeInputUpdateExtent(int inExt[6], int outExt[6]);
+
   void ExecuteData(vtkDataObject *out);
 
   double NormalizedMI;
