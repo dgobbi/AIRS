@@ -24,6 +24,9 @@ SET(Kit_TCL_EXTRA_SRCS)
 SET(Kit_PYTHON_EXTRA_SRCS)
 SET(Kit_JAVA_EXTRA_SRCS)
 
+# for testing
+SUBDIRS(Testing)
+
 # -----------------------------------------------------------------
 # Start of common section
 
