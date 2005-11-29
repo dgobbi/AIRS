@@ -16,6 +16,7 @@ SET(KIT_LIBS vtkImaging)
 SET(Kit_SRCS
 vtkImageCompositeFilter.cxx
 vtkImageProjection.cxx
+vtkImageReslice2.cxx
 )
 
 SET(Kit_EXTRA_SRCS)
