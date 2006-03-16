@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageStencilData.h"
 #include "vtkImageData.h"
 
-//vtkCxxRevisionMacro(vtkImageRangeCalculator, "$Revision: 1.1 $");
+//vtkCxxRevisionMacro(vtkImageRangeCalculator, "$Revision: 1.2 $");
 vtkStandardNewMacro(vtkImageRangeCalculator);
 
 //----------------------------------------------------------------------------
@@ -75,7 +75,7 @@ void vtkImageRangeCalculator::SetNumberOfThreads(int i)
 //----------------------------------------------------------------------------
 double* vtkImageRangeCalculatorExecute(vtkImageRangeCalculator* self, 
 				      vtkImageData *inData, void *inPtr,
-				      int inExt[6], double Range[2])
+				      int inExt[6], double range[2])
 {
   // TODO:
   // - Add support for 2D and 3D histograms
@@ -83,14 +83,10 @@ double* vtkImageRangeCalculatorExecute(vtkImageRangeCalculator* self,
 
   int numscalars;
   int idX, idY, idZ;
-  int idXmin, idXmax, iter;
-  vtkIdType inIncX, inIncY, inIncZ;
   int scalarSize;
   vtkIdType inInc[3];
   unsigned long count = 0;
   unsigned long target;
-  double point[4];
-  double f;
   vtkFloatingPointType *inSpacing, *inOrigin;
 
   // for conversion to data coordinates
@@ -116,7 +112,6 @@ double* vtkImageRangeCalculatorExecute(vtkImageRangeCalculator* self,
 
   // Loop 1: Find the total area
   int *tmpPtr1 = tmpPtr;
-  int nbins = inExt[1]-inExt[2]; // ASSUMING 1D
   int area = 0;
   for (idZ = inExt[4]; idZ <= inExt[5]; idZ++)
     {
@@ -183,9 +178,10 @@ double* vtkImageRangeCalculatorExecute(vtkImageRangeCalculator* self,
       }
     }
  
-  Range[0] = (minBin+inOrigin[0])*inSpacing[0];
-  Range[1] = (maxBin+inOrigin[0])*inSpacing[0];
+  range[0] = (minBin+inOrigin[0])*inSpacing[0];
+  range[1] = (maxBin+inOrigin[0])*inSpacing[0];
 
+  return range;
 }
 
 // ---------------------------------------------------------------------------
