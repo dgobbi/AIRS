@@ -17,6 +17,7 @@ SET(Kit_SRCS
 vtkImageCompositeFilter.cxx
 vtkImageProjection.cxx
 vtkImageReslice2.cxx
+vtkImageRangeCalculator.cxx
 )
 
 SET(Kit_EXTRA_SRCS)
