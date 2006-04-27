@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/10/31 21:49:28 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2006/04/27 02:48:00 $
+  Version:   $Revision: 1.5 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.4 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.5 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -277,9 +277,9 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
     outPtrC++;
     }
 
-  xEntropy  = -   xEntropy * log((double)xEntropy)  / (double)voxelCount + log((double)voxelCount);
-  yEntropy  = -   yEntropy * log((double)yEntropy)  / (double)voxelCount + log((double)voxelCount);
-  xyEntropy = -  xyEntropy * log((double)xyEntropy) / (double)voxelCount + log((double)voxelCount);
+  xEntropy  = -   xEntropy / (double)voxelCount + log((double)voxelCount);
+  yEntropy  = -   yEntropy / (double)voxelCount + log((double)voxelCount);
+  xyEntropy = -  xyEntropy / (double)voxelCount + log((double)voxelCount);
 
   *NormalizedMI = (xEntropy+yEntropy)/xyEntropy;
 
@@ -443,6 +443,5 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ComponentExtent: ( "
      << this->ImageAComponentExtent[0] << "," << this->ImageAComponentExtent[1] << " "
      << this->ImageBComponentExtent[0] << "," << this->ImageBComponentExtent[1] << " "
-     << 0 << "," << 1 << " }\n";
+     << 0 << "," << 0 << " )\n";
 }
-
