@@ -16,7 +16,6 @@ class ImageRangeCalculate(Testing.vtkTest):
         Testing.vtkTest.__init__(self, test)
 
     def test(self):
-
         # setup some test data
         source = vtk.vtkImageGaussianSource()
         source.SetWholeExtent(0, 63, 0, 63, 0, 63)
@@ -42,9 +41,12 @@ class ImageRangeCalculate(Testing.vtkTest):
         functionToStencil = vtk.vtkImplicitFunctionToImageStencil()
         functionToStencil.SetInput(sphere)
         
-        functionToStencil.Update() # REQUIRED!
-
         stencilData = functionToStencil.GetOutput()
+
+        # This is the fix for AtamaiVTK bug #9:
+        stencilData.SetSpacing(imageData.GetSpacing())
+        stencilData.SetOrigin(imageData.GetOrigin())
+        stencilData.SetUpdateExtent(imageData.GetUpdateExtent())
 
         # accumulate the histogram
         accumulate = vtk.vtkImageAccumulate()
@@ -72,7 +74,6 @@ class ImageRangeCalculate(Testing.vtkTest):
         
         correctResult = (dataRange[0] == 28.0 and dataRange[1] == 109.0)
         self.failUnless( correctResult, "Data range is incorrect")
-        
-        
+
 if __name__ == "__main__":
     Testing.main([(ImageRangeCalculate, 'test')])
