@@ -25,11 +25,13 @@ SET(Kit_SRCS
 # /usr/include/stdlib.h:145: note: candidates are: int abs(int)
 # /usr/include/c++/4.0.0/cstdlib:130: note:                 long int std::abs(long int)
 # /usr/include/c++/4.0.0/cstdlib:169: note:                 long long int __gnu_cxx::abs(long long int)
-IF(NOT APPLE AND ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
-  SET(Kit_SRCS ${Kit_SRCS}
-    vtkAtamaiPolyDataToImageStencil.cxx
-    )
-ENDIF(NOT APPLE AND ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
+IF (NOT APPLE)
+  IF (NOT ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
+    SET(Kit_SRCS ${Kit_SRCS}
+      vtkAtamaiPolyDataToImageStencil.cxx
+      )
+  ENDIF (NOT ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
+ENDIF (NOT APPLE)
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)
