@@ -16,10 +16,20 @@ SET(KIT_LIBS vtkHybrid)
 SET(Kit_SRCS
   vtkImageFloodFill.cxx
   vtkImageMRIBrainExtractor.cxx
-  vtkAtamaiPolyDataToImageStencil.cxx
   vtkAtamaiPolyDataToImageStencil2.cxx
   vtkImageK9BrainExtractor.cxx
 )
+
+# vtkAtamaiPolyDataToImageStencil gives this error:
+# call of overloaded 'abs(double)' is ambiguous
+# /usr/include/stdlib.h:145: note: candidates are: int abs(int)
+# /usr/include/c++/4.0.0/cstdlib:130: note:                 long int std::abs(long int)
+# /usr/include/c++/4.0.0/cstdlib:169: note:                 long long int __gnu_cxx::abs(long long int)
+IF(NOT APPLE AND ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
+  SET(Kit_SRCS ${Kit_SRCS}
+    vtkAtamaiPolyDataToImageStencil.cxx
+    )
+ENDIF(NOT APPLE AND ${CMAKE_SYSTEM_PROCESSOR} EQUAL i386)
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)
