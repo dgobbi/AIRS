@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkObjectFactory.h"
 #include "vtkImageData.h"
 #include "vtkImageAccumulate.h"
-#include "vtkAtamaiPolyDataToImageStencil.h"
+//#include "vtkAtamaiPolyDataToImageStencil.h"
 #include "vtkAtamaiPolyDataToImageStencil2.h"
 #include "vtkImageStencil.h"
 #include "vtkPolyData.h"
