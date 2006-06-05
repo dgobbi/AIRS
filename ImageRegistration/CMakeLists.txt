@@ -14,6 +14,7 @@ SET(KIT_LIBS vtkHybrid)
 
 SET ( Kit_SRCS
 vtkCalcCentroid.cxx
+vtkCenteredTransform.cxx
 vtkImage3DNoiseSource.cxx
 vtkImageDataStatistics.cxx
 vtkImageMutualInformation.cxx
