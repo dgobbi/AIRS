@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCenteredTransform.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/06/05 22:00:49 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/06/12 00:38:26 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 2006 Atamai, Inc.
 All rights reserved.
@@ -29,7 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkPoints.h"
 #include "vtkMatrix4x4.h"
 
-vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.1 $");
+vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.2 $");
 vtkStandardNewMacro(vtkCenteredTransform);
 
 //----------------------------------------------------------------------------
@@ -81,7 +81,7 @@ void vtkCenteredTransform::PrintSelf(ostream& os, vtkIndent indent)
 
 //----------------------------------------------------------------------------
 template<class F>
-void vtkCenteredTransformCreateRotationMatrix(const F rotation[3], F matrix[3][3])
+void vtkCenteredTransformMatrixFromAngles(const F rotation[3], F matrix[3][3])
 { 
   double rx[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
   double ry[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
@@ -111,6 +111,51 @@ void vtkCenteredTransformCreateRotationMatrix(const F rotation[3], F matrix[3][3
 }
 
 //----------------------------------------------------------------------------
+template<class F>
+void vtkCenteredTransformAnglesFromMatrix(const F matrix[3][3], F rotation[3])
+{ 
+  // use the 2nd and 3rd rows of the matrix to compute the angles
+  double x2 = matrix[2][0];
+  double y2 = matrix[2][1];
+  double z2 = matrix[2][2];
+
+  double x3 = matrix[1][0];
+  double y3 = matrix[1][1];
+  double z3 = matrix[1][2];
+
+  // first find the rotation about the y axis
+  double d1 = sqrt(x2*x2 + z2*z2);
+
+  double cosTheta = z2/d1;
+  double sinTheta = x2/d1;
+
+  double theta = atan2(sinTheta, cosTheta);
+
+  // now find rotation about x axis
+  double d = sqrt(x2*x2 + y2*y2 + z2*z2);
+
+  double sinPhi = y2/d;
+  double cosPhi = (x2*x2 + z2*z2)/(d1*d);
+
+  double phi = atan2(sinPhi, cosPhi);
+
+  // finally, find rotation about z axis
+  double x3p = x3*cosTheta - z3*sinTheta;
+  double y3p = - sinPhi*sinTheta*x3 + cosPhi*y3 - sinPhi*cosTheta*z3;
+  double d2 = sqrt(x3p*x3p + y3p*y3p);
+
+  double cosAlpha = y3p/d2;
+  double sinAlpha = x3p/d2;
+
+  double alpha = atan2(sinAlpha, cosAlpha);
+
+  // write out the result
+  rotation[0] = phi/vtkMath::DoubleDegreesToRadians();
+  rotation[1] = -theta/vtkMath::DoubleDegreesToRadians();
+  rotation[2] = alpha/vtkMath::DoubleDegreesToRadians();
+}
+
+//----------------------------------------------------------------------------
 // Update the 4x4 matrix. 
  void vtkCenteredTransform::InternalUpdate()
 {
@@ -134,13 +179,13 @@ void vtkCenteredTransformCreateRotationMatrix(const F rotation[3], F matrix[3][3
   sc[2][2] = this->IsotropicScale;
 
   // compute the rotation matrix
-  vtkCenteredTransformCreateRotationMatrix(this->RotationAnglesYXZ, tmp2);
+  vtkCenteredTransformMatrixFromAngles(this->RotationAnglesYXZ, tmp2);
   
   // multiply by the scale factor
   vtkMath::Multiply3x3(tmp2, sc, final3x3);
   vtkMath::Multiply3x3(final3x3, centertranslation, tmpvec);
 
-  // copy the elements to vtkMatrix4x4
+  // copy the rotation elements the to vtkMatrix4x4
   this->Matrix->Element[0][0] = final3x3[0][0];
   this->Matrix->Element[0][1] = final3x3[0][1];
   this->Matrix->Element[0][2] = final3x3[0][2];
@@ -150,10 +195,19 @@ void vtkCenteredTransformCreateRotationMatrix(const F rotation[3], F matrix[3][3
   this->Matrix->Element[2][0] = final3x3[2][0];
   this->Matrix->Element[2][1] = final3x3[2][1];
   this->Matrix->Element[2][2] = final3x3[2][2];
+  
+  // copy the translation to the vtkMatrix4x4
+  this->Matrix->Element[0][3] = 
+    tmpvec[0] + this->Center[0] + this->Translation[0];
+  this->Matrix->Element[1][3] =
+    tmpvec[1] + this->Center[1] + this->Translation[1];
+  this->Matrix->Element[2][3] =
+    tmpvec[2] + this->Center[2] + this->Translation[2];
 
-  this->Matrix->Element[0][3] = tmpvec[0] + this->Center[0] + this->Translation[0];
-  this->Matrix->Element[1][3] = tmpvec[1] + this->Center[1] + this->Translation[1];
-  this->Matrix->Element[2][3] = tmpvec[2] + this->Center[2] + this->Translation[2];
+  // set the bottom row of the matrix to (0,0,0,1)
+  this->Matrix->Element[3][0] = 0.0;
+  this->Matrix->Element[3][1] = 0.0;
+  this->Matrix->Element[3][2] = 0.0;
   this->Matrix->Element[3][3] = 1.0;
   
   this->Matrix->Modified();
@@ -207,50 +261,12 @@ void vtkCenteredTransform::Inverse()
     }
 
   // create original rotation matrix
-  vtkCenteredTransformCreateRotationMatrix(this->RotationAnglesYXZ, matrix);
+  vtkCenteredTransformMatrixFromAngles(this->RotationAnglesYXZ, matrix);
   // invert it by transposing it
   vtkMath::Transpose3x3(matrix, matrix);
-
-  // use the 2nd and 3rd rows of the matrix to compute the angles
-  double x2 = matrix[2][0];
-  double y2 = matrix[2][1];
-  double z2 = matrix[2][2];
-
-  double x3 = matrix[1][0];
-  double y3 = matrix[1][1];
-  double z3 = matrix[1][2];
-
- // first find the rotation about the y axis
-  double d1 = sqrt(x2*x2 + z2*z2);
-
-  double cosTheta = z2/d1;
-  double sinTheta = x2/d1;
-
-  double theta = atan2(sinTheta, cosTheta);
-
-  // now find rotation about x axis
-  double d = sqrt(x2*x2 + y2*y2 + z2*z2);
-
-  double sinPhi = y2/d;
-  double cosPhi = (x2*x2 + z2*z2)/(d1*d);
-
-  double phi = atan2(sinPhi, cosPhi);
-
-  // finally, find rotation about z axis
-  double x3p = x3*cosTheta - z3*sinTheta;
-  double y3p = - sinPhi*sinTheta*x3 + cosPhi*y3 - sinPhi*cosTheta*z3;
-  double d2 = sqrt(x3p*x3p + y3p*y3p);
-
-  double cosAlpha = y3p/d2;
-  double sinAlpha = x3p/d2;
-
-  double alpha = atan2(sinAlpha, cosAlpha);
+  // get the new rotation angles
+  vtkCenteredTransformAnglesFromMatrix(matrix, this->RotationAnglesYXZ);
   
-  // set the values of the Angles of Rotation
-  this->RotationAnglesYXZ[0] = phi/vtkMath::DoubleDegreesToRadians();
-  this->RotationAnglesYXZ[1] = -theta/vtkMath::DoubleDegreesToRadians();
-  this->RotationAnglesYXZ[2] = alpha/vtkMath::DoubleDegreesToRadians();
-
   this->Modified();
   
   this->InternalUpdate();
