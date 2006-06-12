@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCenteredTransform.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/06/12 00:38:26 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2006/06/12 10:04:19 $
+  Version:   $Revision: 1.3 $
 
 Copyright (c) 2006 Atamai, Inc.
 All rights reserved.
@@ -29,7 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkPoints.h"
 #include "vtkMatrix4x4.h"
 
-vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.2 $");
+vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.3 $");
 vtkStandardNewMacro(vtkCenteredTransform);
 
 //----------------------------------------------------------------------------
@@ -80,8 +80,8 @@ void vtkCenteredTransform::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-template<class F>
-void vtkCenteredTransformMatrixFromAngles(const F rotation[3], F matrix[3][3])
+void vtkCenteredTransformMatrixFromAngles(const double rotation[3],
+                                          double matrix[3][3])
 { 
   double rx[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
   double ry[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
@@ -111,8 +111,8 @@ void vtkCenteredTransformMatrixFromAngles(const F rotation[3], F matrix[3][3])
 }
 
 //----------------------------------------------------------------------------
-template<class F>
-void vtkCenteredTransformAnglesFromMatrix(const F matrix[3][3], F rotation[3])
+void vtkCenteredTransformAnglesFromMatrix(const double matrix[3][3],
+                                          double rotation[3])
 { 
   // use the 2nd and 3rd rows of the matrix to compute the angles
   double x2 = matrix[2][0];
