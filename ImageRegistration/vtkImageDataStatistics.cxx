@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageDataStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/07/28 13:14:31 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -120,7 +120,7 @@ static void vtkImageDataStatisticsExecute(vtkImageDataStatistics *self,
 	if (*curPtr)
 	  {
 	  sum += *curPtr;
-	  sum_squared += *curPtr* *curPtr++;
+	  sum_squared += (double)*curPtr*(double)*curPtr++;
 	  (*Count)++;
 	  }
 	else

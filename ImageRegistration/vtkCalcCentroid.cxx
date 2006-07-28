@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/05/16 14:17:07 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/07/28 13:14:30 $
+  Version:   $Revision: 1.4 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -199,6 +199,7 @@ float *vtkCalcCentroid::GetCovarianceMatrix()
 void vtkCalcCentroid::ComputeCentroid()
 {
   float centroid[3];
+  centroid[0] = centroid[1] = centroid[0] = 0.0; 
   
   // make sure input is available
   if ( ! this->Input )

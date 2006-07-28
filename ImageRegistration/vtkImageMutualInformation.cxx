@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/04/27 02:48:00 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2006/07/28 13:14:31 $
+  Version:   $Revision: 1.6 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.5 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.6 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -160,7 +160,7 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
 				      int *outPtr,
 				      double *NormalizedMI)
 {
-  int idX, idY, idZ, idxC;
+  int idX, idY, idZ;
   int iter, pmin0, pmax0, min0, max0, min1, max1, min2, max2;
   int inInc0, inInc1, inInc2;
   T *tempPtr1, *tempPtr2;

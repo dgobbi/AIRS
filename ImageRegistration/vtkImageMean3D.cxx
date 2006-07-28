@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/07/28 13:14:31 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -149,6 +149,9 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
   float smoothThreshold = self->GetSmoothThreshold();
   float centerWeighting = self->GetCenterWeighting();
   float surroundWeighting = self->GetSurroundWeighting();
+
+  // avoid compiler warnings
+  centerPixelX = centerPixelY = centerPixelZ = (T)0;
   
   // Get information to march through data
   inData->GetIncrements(inInc0, inInc1, inInc2); 
