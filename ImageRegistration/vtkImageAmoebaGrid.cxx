@@ -4,8 +4,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/28 13:14:31 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/07/31 17:10:06 $
+  Version:   $Revision: 1.4 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -688,6 +688,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
 
   // the array holding all the interpolated values
   unsigned char *modelPoints = pb->modelPoints; 
+  double value1, value2;
   pb->sqrt_mod_sum_squared = 0.0;
   do
     {
@@ -700,7 +701,10 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
 		   ifxryrz* *p100++ + ifxryfz* *p101++ + 
 		   ifxfyrz* *p110++ + ifxfyfz* *p111++);
 	*modelPoints = modData >>=9; // divide by 512
-	pb->sqrt_mod_sum_squared += (double)*modelPoints*(double)*modelPoints++;
+	//pb->sqrt_mod_sum_squared += *modelPoints * *modelPoints++;
+	value1 = (double)*modelPoints;
+	value2 = (double)*modelPoints++;
+	pb->sqrt_mod_sum_squared += value1*value2;
 	}
       while (--idxX);
       p000 += modContIncY; p001 += modContIncY; 
