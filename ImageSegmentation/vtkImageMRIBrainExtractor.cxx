@@ -402,8 +402,6 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   double T2, T98, TH, Tm; 
   double COG[3], R;
 
-  char debugmsg;
-
   int extent[6];
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
   float origin[3], spacing[3];

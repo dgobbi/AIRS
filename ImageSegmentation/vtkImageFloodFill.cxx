@@ -27,7 +27,7 @@
 #include <stack>
 #include "math.h"
 
-vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.1 $");
+vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.2 $");
 vtkStandardNewMacro(vtkImageFloodFill);
 vtkCxxSetObjectMacro(vtkImageFloodFill, SeedPoints, vtkPoints);
 
@@ -382,7 +382,7 @@ void vtkImageFloodFillApplyMaskStencil(vtkImageFloodFill *self,
 {
   // if there is a stencil, use it to initialize the mask
   int idX, idY, idZ;
-  int counter;
+  unsigned char value;
 
   for (idZ = extent[4]; idZ <= extent[5]; idZ++)
     {
@@ -403,7 +403,9 @@ void vtkImageFloodFillApplyMaskStencil(vtkImageFloodFill *self,
             }
           for (idX = r1; idX <= r2; idX++)
             {
-            *ptr++ = *ptr;
+            //*ptr++ = *ptr;
+	    value = *ptr;
+	    *ptr++ = value;
             }
           c1 = r2 + 1;
           }
@@ -439,7 +441,6 @@ void vtkImageFloodFillExecute(vtkImageFloodFill *self,
   OT  inValue;
   int replaceOut = self->GetReplaceOut();
   OT  outValue;
-  IT  temp;
   int nComponents = outData->GetNumberOfScalarComponents();
   int activeComponent = self->GetActiveComponent();
   activeComponent = activeComponent % nComponents;
@@ -750,7 +751,6 @@ void vtkImageFloodFill::ExecuteData(vtkDataObject *out)
   vtkImageData *inData = this->GetInput();
   vtkImageData *maskData = this->GetImageMask();
   int outExt[6];
-  int inExt[6];
   outData->GetUpdateExtent(outExt);
   void *inPtr = inData->GetScalarPointerForExtent(outExt);
   void *outPtr = outData->GetScalarPointerForExtent(outExt);
