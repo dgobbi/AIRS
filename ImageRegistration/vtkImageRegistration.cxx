@@ -5,8 +5,8 @@
   Creator:   Kevin Wang <kwang@atamai.com>
   Language:  C++
   Author:    $Author: kwang $
-  Date:      $Date: 2006/07/18 15:25:40 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/08/28 18:16:20 $
+  Version:   $Revision: 1.2 $
 
 ==========================================================================
 
@@ -302,6 +302,15 @@ vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(2, stencil);
+#else
+  if (stencil)
+    {
+    this->SetNthInputConnection(0, 2, stencil->GetProducerPort());
+    }
+  else
+    {
+    this->SetNthInputConnection(0, 2, 0);
+    }
 #endif
 }
 
@@ -318,6 +327,12 @@ vtkImageRegistration::GetFixedImageStencil()
     {
     return (vtkImageStencilData *)(this->Inputs[2]);
     }
+#else
+  if (this->GetNumberOfInputConnections(0) < 3)
+    {
+    return NULL;
+    }
+  return vtkImageStencilData::SafeDownCast(this->GetExecutive()->GetInputData(0, 2));
 #endif
 }
 
@@ -338,7 +353,7 @@ const char*
 vtkImageRegistration::GetOptimizerParameterName(int optimizer, int parameter)
 {
   int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( optimizer < 0 || optimizer > VTK_NUMBER_OF_OPTIMIZERS )
     {
@@ -371,7 +386,7 @@ void
 vtkImageRegistration::SetOptimizerParameter(const char * name, double value)
 {
   unsigned int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( this->OptimizerType < 0 ||  this->OptimizerType 
        >= VTK_NUMBER_OF_OPTIMIZERS )
@@ -428,7 +443,7 @@ const char*
 vtkImageRegistration::GetMetricParameterName(int metric, int parameter)
 {
   int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( metric < 0 || metric > VTK_NUMBER_OF_METRICS )
     {
@@ -464,7 +479,7 @@ void
 vtkImageRegistration::SetMetricParameter(const char * name , double value)
 {
   int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( this->MetricType < 0 ||
        this->MetricType >= VTK_NUMBER_OF_METRICS )
@@ -538,7 +553,7 @@ const char *
 vtkImageRegistration::GetTransformParameterName(int transform, int parameter)
 {
   int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( transform < 0 || transform > VTK_NUMBER_OF_TRANSFORMS )
     {
@@ -572,7 +587,7 @@ void
 vtkImageRegistration::SetTransformParameter(const char * name, double value)
 {
   int i, numberOfParameters;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( this->TransformType < 0 ||  this->TransformType 
        >= VTK_NUMBER_OF_TRANSFORMS )
@@ -621,7 +636,7 @@ vtkImageRegistration::GetTransformParameter(const char * name)
 {
   int i, numberOfParameters;
   double value = 0.0;
-  const char ** tempNames;
+  const char ** tempNames = NULL;
 
   if ( this->TransformType < 0 ||
        this->TransformType >= VTK_NUMBER_OF_TRANSFORMS )
@@ -818,8 +833,6 @@ vtkImageRegistration::InitializeMetricAndParameters()
 static void vtkEvaluateFunction(void * arg)
 {
   double val = 0.0;
-  int TransformType;
-  int MetricType;
   vtkImageRegistration::RegistrationInfo* registrationInfo = 
     static_cast<vtkImageRegistration::RegistrationInfo*>(arg);
   vtkImageRegistration* registration = registrationInfo->ImageRegistration;
