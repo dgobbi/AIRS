@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/28 13:14:31 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.7 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.6 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.7 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -162,10 +162,11 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
 {
   int idX, idY, idZ;
   int iter, pmin0, pmax0, min0, max0, min1, max1, min2, max2;
-  int inInc0, inInc1, inInc2;
+  vtkIdType inInc0, inInc1, inInc2;
   T *tempPtr1, *tempPtr2;
   int *outPtrC;
-  int  outIdx, outIdy, *outExtent, *outIncs;
+  int  outIdx, outIdy, *outExtent;
+  vtkIdType outIncs[3];
   vtkFloatingPointType *origin, *spacing;
   unsigned long count = 0;
   unsigned long target;
@@ -191,7 +192,7 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
   inData1->GetWholeExtent(min0, max0, min1, max1, min2, max2);
   inData1->GetIncrements(inInc0, inInc1, inInc2);
   outExtent = outData->GetExtent();
-  outIncs = outData->GetIncrements();
+  outData->GetIncrements(outIncs);
   origin = outData->GetOrigin();
   spacing = outData->GetSpacing();
 

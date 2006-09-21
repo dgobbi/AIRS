@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/10/31 21:49:28 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.5 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.4 $");
+vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.5 $");
 vtkStandardNewMacro(vtkImageSingleMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -129,10 +129,11 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 {
   int idX, idY, idZ;
   int iter, pmin0, pmax0, min0, max0, min1, max1, min2, max2;
-  int inInc0, inInc1, inInc2;
+  vtkIdType inInc0, inInc1, inInc2;
   T *tempPtr1;
   int *outPtrC;
-  int  outIdx, outIdy, *outExtent, *outIncs;
+  int  outIdx, outIdy, *outExtent;
+  vtkIdType outIncs[3];
   vtkFloatingPointType *origin, *spacing;
   float sum = 0.0;
   unsigned long totalVoxels = 0;
@@ -160,7 +161,7 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
   inData1->GetWholeExtent(min0, max0, min1, max1, min2, max2);
   inData1->GetIncrements(inInc0, inInc1, inInc2);
   outExtent = outData->GetExtent();
-  outIncs = outData->GetIncrements();
+  outData->GetIncrements(outIncs);
   origin = outData->GetOrigin();
   spacing = outData->GetSpacing();
 

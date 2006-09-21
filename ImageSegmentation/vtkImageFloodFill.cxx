@@ -27,7 +27,7 @@
 #include <stack>
 #include "math.h"
 
-vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.2 $");
+vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.3 $");
 vtkStandardNewMacro(vtkImageFloodFill);
 vtkCxxSetObjectMacro(vtkImageFloodFill, SeedPoints, vtkPoints);
 
@@ -559,9 +559,9 @@ void vtkImageFloodFillExecute(vtkImageFloodFill *self,
     }
   
   // Perform the flood fill within the extent
-  int inInc[3];
-  int outInc[3];
-  int maskInc[3];
+  vtkIdType inInc[3];
+  vtkIdType outInc[3];
+  vtkIdType maskInc[3];
   inData->GetIncrements(inInc);
   outData->GetIncrements(outInc);
   maskInc[0] = 1;

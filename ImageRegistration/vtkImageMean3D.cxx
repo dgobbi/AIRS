@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/28 13:14:31 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -129,8 +129,8 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
   unsigned long target;
   // For looping though output (and input) pixels.
   int outIdx0, outIdx1, outIdx2;
-  int inInc0, inInc1, inInc2;
-  int outIncX, outIncY, outIncZ;
+  vtkIdType inInc0, inInc1, inInc2;
+  vtkIdType outIncX, outIncY, outIncZ;
   T *inPtr0, *inPtr1, *inPtr2;
   // For looping through hood pixels
   int hoodMin0, hoodMax0, hoodMin1, hoodMax1, hoodMin2, hoodMax2;

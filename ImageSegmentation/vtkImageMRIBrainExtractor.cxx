@@ -559,7 +559,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   std::vector<myPoint> updatePoints(nPoints);
 
   // THE MAIN LOOP
-  int idx, incs[3];
+  vtkIdType idx;
+  vtkIdType incs[3];
   inData->GetIncrements(incs);
   inPtr = (IT *)inData->GetScalarPointerForExtent(outExt);
   iteration = 0;

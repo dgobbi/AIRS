@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.2 $
 
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -189,7 +189,7 @@ void vtkCorrelationHelper(vtkCalcCrossCorrelation *self,
 			  double *Correlation)
 {
   int idX, idY, idZ;
-  int incX, incY, incZ;
+  vtkIdType incX, incY, incZ;
   int minX, maxX, minY, maxY, minZ, maxZ;
   int pminX, pmaxX;
   int iter;

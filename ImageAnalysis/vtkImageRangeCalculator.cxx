@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageStencilData.h"
 #include "vtkImageData.h"
 
-//vtkCxxRevisionMacro(vtkImageRangeCalculator, "$Revision: 1.2 $");
+//vtkCxxRevisionMacro(vtkImageRangeCalculator, "$Revision: 1.3 $");
 vtkStandardNewMacro(vtkImageRangeCalculator);
 
 //----------------------------------------------------------------------------
@@ -99,7 +99,7 @@ double* vtkImageRangeCalculatorExecute(vtkImageRangeCalculator* self,
   target++;
   
   // Get Increments to march through data 
-  int tmpInc[3]; // in VTK 4.4 and earlier, increments are int
+  vtkIdType tmpInc[3];
   inData->GetIncrements(tmpInc);
   inInc[0] = tmpInc[0];
   inInc[1] = tmpInc[1];

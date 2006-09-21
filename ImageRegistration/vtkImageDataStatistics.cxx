@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageDataStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/31 17:10:06 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.4 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -97,7 +97,7 @@ static void vtkImageDataStatisticsExecute(vtkImageDataStatistics *self,
 					  long int *Count)
 {
   int inIdxX, inIdxY, inIdxZ;
-  int inIncX, inIncY, inIncZ;
+  vtkIdType inIncX, inIncY, inIncZ;
   int wholeInExt[6];
 
   double sum=0.0;

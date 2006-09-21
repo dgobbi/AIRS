@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2005/05/16 14:17:07 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.3 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -191,7 +191,7 @@ static void vtkImageCrossCorrelationExecute(vtkImageCrossCorrelation *self,
 					    int id)
 {
   int outIdxX, outIdxY, outIdxZ;
-  int outIncX, outIncY, outIncZ;
+  vtkIdType outIncX, outIncY, outIncZ;
 
   int inIdxX, inIdxY, inIdxZ;
   double aSum = 0.0;
@@ -212,7 +212,7 @@ static void vtkImageCrossCorrelationExecute(vtkImageCrossCorrelation *self,
   int irxryrz, irxryfz, irxfyrz, irxfyfz;
   int ifxryrz, ifxryfz, ifxfyrz, ifxfyfz;
 
-  int factY0, factY1, factZ0, factZ1;
+  vtkIdType factY0, factY1, factZ0, factZ1;
 
   wholeInExt = inData[0]->GetWholeExtent();
   int extX = wholeInExt[1] - wholeInExt[0];
@@ -231,10 +231,10 @@ static void vtkImageCrossCorrelationExecute(vtkImageCrossCorrelation *self,
   KernelRadius = self->GetKernelRadius();
 
   int kernelDiameter = (int)((KernelRadius[0]+0.5)*2.0);
-  int inIncX, inIncY, inIncZ;
+  vtkIdType inIncX, inIncY, inIncZ;
   inData[0]->GetIncrements(inIncX, inIncY, inIncZ);
-  int contInIncY = inIncY - (kernelDiameter);
-  int contInIncZ = inIncZ - (kernelDiameter)*inIncY;
+  vtkIdType contInIncY = inIncY - (kernelDiameter);
+  vtkIdType contInIncZ = inIncZ - (kernelDiameter)*inIncY;
 
   // Get increments to march through data 
   outData->GetContinuousIncrements(outExt, outIncX, outIncY, outIncZ);

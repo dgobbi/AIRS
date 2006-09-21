@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/31 17:10:06 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.6 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -77,7 +77,7 @@ static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
 					 float *centroid,
 					 int *inputExtent, float *covar)
 {
-  int inInc0, inInc1, inInc2;
+  vtkIdType inInc0, inInc1, inInc2;
   int idx0, idx1, idx2;
   T *inPtr0, *inPtr1, *inPtr2;
 
@@ -142,7 +142,7 @@ template <class T>
 static void vtkCalculateCentroid(vtkImageData *input, T *inPtr,
 				    int *inputExtent, float xyz[3])
 {
-  int inInc0, inInc1, inInc2;
+  vtkIdType inInc0, inInc1, inInc2;
   int idx0, idx1, idx2;
   T *inPtr0, *inPtr1, *inPtr2;
   

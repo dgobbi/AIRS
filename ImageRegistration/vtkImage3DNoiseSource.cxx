@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImage3DNoiseSource.cxx,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -145,13 +145,13 @@ void vtkImage3DNoiseExecute(vtkImage3DNoiseSource *self, vtkImageData *data, T *
 {
   int idxR, idxY, idxZ;
   int maxY, maxZ;
-  int outIncX, outIncY, outIncZ;
+  vtkIdType outIncX, outIncY, outIncZ;
   int rowLength;
   int *outExt;
   unsigned long count = 0;
   unsigned long target;
-  float min = self->GetMinimum();
-  float max = self->GetMaximum();
+  double min = self->GetMinimum();
+  double max = self->GetMaximum();
 
   outExt = data->GetExtent();
   

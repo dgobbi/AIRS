@@ -1,11 +1,10 @@
-
 /*=========================================================================
 
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/07/31 17:10:06 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2006/09/21 13:30:37 $
+  Version:   $Revision: 1.5 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -584,10 +583,10 @@ class _vtkAmoebaParms {
 public:
   void *modelPtr;
   float modelExtent[6];
-  int modIncs[3];
+  vtkIdType modIncs[3];
   void *patPtr;
   int *patWholeInExt;
-  int patIncs[3];
+  vtkIdType patIncs[3];
   int patext[3]; // precompute patWholeInExt([1]-[0],[3]-[2],[5]-[4])
   int scalarType;
   float *hint;
@@ -620,7 +619,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   pb->modelExtent[5] = pb->modelVector[2]+pb->kernelRadius[2];
 
   int *modelWholeExt = pb->modelData->GetWholeExtent();
-  int *modelIncs = pb->modIncs;
+  vtkIdType *modelIncs = pb->modIncs;
 
   float fx,fy,fz;
   int floorX = vtkResliceFloor(pb->modelExtent[0],fx);
@@ -647,13 +646,13 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
     return 0;
     }
   // do trilinear interpolation
-  int factX0 = gridId0X*modelIncs[0];
-  int factY0 = gridId0Y*modelIncs[1];
-  int factZ0 = gridId0Z*modelIncs[2];
+  vtkIdType factX0 = gridId0X*modelIncs[0];
+  vtkIdType factY0 = gridId0Y*modelIncs[1];
+  vtkIdType factZ0 = gridId0Z*modelIncs[2];
 
-  int factX1 = gridId1X*modelIncs[0];
-  int factY1 = gridId1Y*modelIncs[1];
-  int factZ1 = gridId1Z*modelIncs[2];
+  vtkIdType factX1 = gridId1X*modelIncs[0];
+  vtkIdType factY1 = gridId1Y*modelIncs[1];
+  vtkIdType factZ1 = gridId1Z*modelIncs[2];
     
   T *p000 = modelPtr+factX0+factY0+factZ0;
   T *p001 = modelPtr+factX0+factY0+factZ1;
@@ -682,8 +681,8 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   unsigned int ifxfyrz = (unsigned int)(fx*fyrz *512);
   unsigned int ifxfyfz = (unsigned int)(fx*fyfz *512);
 
-  int modContIncY = modelIncs[1] - (kernelDiameter);
-  int modContIncZ = modelIncs[2] - (kernelDiameter)*modelIncs[1];
+  vtkIdType modContIncY = modelIncs[1] - (kernelDiameter);
+  vtkIdType modContIncZ = modelIncs[2] - (kernelDiameter)*modelIncs[1];
   long int modData;
 
   // the array holding all the interpolated values
@@ -727,7 +726,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
 
 
 template <class T>
-static inline T GetDataAtPoint(T *dataPtr, int *dataIncs, 
+static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs, 
 			       int *dataWholeExt, float *xyz)
 {
   // change point into integer plus fraction
@@ -794,13 +793,13 @@ static inline T GetDataAtPoint(T *dataPtr, int *dataIncs,
     }
   
   // do trilinear interpolation
-  int factX0 = gridId0X*dataIncs[0];
-  int factY0 = gridId0Y*dataIncs[1];
-  int factZ0 = gridId0Z*dataIncs[2];
+  vtkIdType factX0 = gridId0X*dataIncs[0];
+  vtkIdType factY0 = gridId0Y*dataIncs[1];
+  vtkIdType factZ0 = gridId0Z*dataIncs[2];
 
-  int factX1 = gridId1X*dataIncs[0];
-  int factY1 = gridId1Y*dataIncs[1];
-  int factZ1 = gridId1Z*dataIncs[2];
+  vtkIdType factX1 = gridId1X*dataIncs[0];
+  vtkIdType factY1 = gridId1Y*dataIncs[1];
+  vtkIdType factZ1 = gridId1Z*dataIncs[2];
     
   T *p000 = dataPtr+factX0+factY0+factZ0;
   T *p001 = dataPtr+factX0+factY0+factZ1;
@@ -835,8 +834,9 @@ static inline T GetDataAtPoint(T *dataPtr, int *dataIncs,
 
 
 inline static void ComputeHint(int x, int y, int z, 
-			       float *gridPtr, int *gridIncs, int *gridWholeExt, 
-			       float *inInvSpacing, float *hint)
+                               float *gridPtr, vtkIdType *gridIncs,
+                               int *gridWholeExt, 
+                               float *inInvSpacing, float *hint)
 {
   int extX = gridWholeExt[1]-gridWholeExt[0];
   int extY = gridWholeExt[3]-gridWholeExt[2];
@@ -861,17 +861,17 @@ inline static void ComputeHint(int x, int y, int z,
   // this may well be overkill for the computation of the 
   // 'hint vector' but the results were markedly better,
   // and the cost is minimal.
-  int factX0 = id0X*gridIncs[0];
-  int factY0 = id0Y*gridIncs[1];
-  int factZ0 = id0Z*gridIncs[2];
+  vtkIdType factX0 = id0X*gridIncs[0];
+  vtkIdType factY0 = id0Y*gridIncs[1];
+  vtkIdType factZ0 = id0Z*gridIncs[2];
 
-  int factX = x*gridIncs[0];
-  int factY = y*gridIncs[1];
-  int factZ = z*gridIncs[2];
+  vtkIdType factX = x*gridIncs[0];
+  vtkIdType factY = y*gridIncs[1];
+  vtkIdType factZ = z*gridIncs[2];
 
-  int factX1 = id1X*gridIncs[0];
-  int factY1 = id1Y*gridIncs[1];
-  int factZ1 = id1Z*gridIncs[2];
+  vtkIdType factX1 = id1X*gridIncs[0];
+  vtkIdType factY1 = id1Y*gridIncs[1];
+  vtkIdType factZ1 = id1Z*gridIncs[2];
     
   float *p00 = gridPtr+factX0+factY0+factZ0;
   float *p01 = gridPtr+factX0+factY0+factZ;
@@ -927,7 +927,7 @@ inline static void ComputeHint(int x, int y, int z,
 
 template <class F, class T>
 inline static void CorrelationWorkFunction(T *patientPtr,
-					   const int *patIncs,
+					   const vtkIdType *patIncs,
 					   const int *patWholeInExt,
 					   const int *patext,
 					   const unsigned char *modelPoints,
@@ -970,11 +970,11 @@ inline static void CorrelationWorkFunction(T *patientPtr,
     }
 
   // do trilinear interpolation
-  int factY0 = id0Y*patIncs[1];
-  int factZ0 = id0Z*patIncs[2];
+  vtkIdType factY0 = id0Y*patIncs[1];
+  vtkIdType factZ0 = id0Z*patIncs[2];
 
-  int factY1 = id1Y*patIncs[1];
-  int factZ1 = id1Z*patIncs[2];
+  vtkIdType factY1 = id1Y*patIncs[1];
+  vtkIdType factZ1 = id1Z*patIncs[2];
     
   T *p000 = patientPtr+id0X+factY0+factZ0;
   T *p001 = patientPtr+id0X+factY0+factZ1;
@@ -1003,8 +1003,8 @@ inline static void CorrelationWorkFunction(T *patientPtr,
   F fxfyrz = vtkResliceQuikMul(fx*fyrz);
   F fxfyfz = vtkResliceQuikMul(fx*fyfz);
 
-  int patContIncY = patIncs[1] - (kernelDiameter);
-  int patContIncZ = patIncs[2] - (kernelDiameter)*patIncs[1];
+  vtkIdType patContIncY = patIncs[1] - (kernelDiameter);
+  vtkIdType patContIncZ = patIncs[2] - (kernelDiameter)*patIncs[1];
 
   unsigned short patData;
 
@@ -1182,13 +1182,13 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 {
   int idX, idY, idZ;
   int r1, r2, cr1, cr2, iter, rval;
-  int outIncX, outIncY, outIncZ;
+  vtkIdType outIncX, outIncY, outIncZ;
 
   float *ShrinkFactors = self->GetShrinkFactors();
   int *patWholeInExt = patData->GetWholeExtent();
   int *modWholeInExt = modData->GetWholeExtent();
   int *gridWholeInExt = inGrid->GetWholeExtent();
-  int *inGridIncs = inGrid->GetIncrements();
+  vtkIdType *inGridIncs = inGrid->GetIncrements();
 
   float VectorBounds[3];
   self->GetVectorBounds(VectorBounds);
