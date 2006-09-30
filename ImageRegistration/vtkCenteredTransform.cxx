@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCenteredTransform.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/06/12 10:04:19 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/09/30 02:46:34 $
+  Version:   $Revision: 1.4 $
 
 Copyright (c) 2006 Atamai, Inc.
 All rights reserved.
@@ -29,7 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkPoints.h"
 #include "vtkMatrix4x4.h"
 
-vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.3 $");
+vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.4 $");
 vtkStandardNewMacro(vtkCenteredTransform);
 
 //----------------------------------------------------------------------------
@@ -270,6 +270,63 @@ void vtkCenteredTransform::Inverse()
   this->Modified();
   
   this->InternalUpdate();
+}
+
+//----------------------------------------------------------------------------
+void vtkCenteredTransform::Initialize(vtkMatrix4x4 *matrix, double center[3])
+{
+  // set the center
+  this->Center[0] = center[0];
+  this->Center[1] = center[1];
+  this->Center[2] = center[2];
+
+  // get a 3x3 matrix for the rotation and scale
+  double mat[3][3];
+  double scale[3];
+  for (int i = 0; i < 3; i++)
+    {
+    double x = matrix->GetElement(0, i);
+    double y = matrix->GetElement(1, i);
+    double z = matrix->GetElement(2, i);
+
+    scale[i] = sqrt(x*x + y*y + z*z);
+    
+    double normalizer = 1.0/scale[i];
+
+    mat[0][i] = x*normalizer;
+    mat[1][i] = y*normalizer;
+    mat[2][i] = z*normalizer;
+    }
+
+  if (fabs(scale[0]/scale[1] - 1.0) > 1e-5 ||
+      fabs(scale[0]/scale[2] - 1.0) > 1e-5)
+    {
+    vtkErrorMacro("Initialize: matrix scale is not isotropic");
+    }
+
+  // calculate the isotropic scale
+  this->IsotropicScale = sqrt((scale[0]*scale[0] +
+                               scale[1]*scale[1] +
+                               scale[2]*scale[2])/3.0);
+
+  // get the rotation angles
+  vtkCenteredTransformAnglesFromMatrix(mat, this->RotationAnglesYXZ);
+  
+  // get the translation and modify for the center
+  double vec[3];
+  vec[0] = -this->Center[0]*this->IsotropicScale;
+  vec[1] = -this->Center[1]*this->IsotropicScale;
+  vec[2] = -this->Center[2]*this->IsotropicScale;
+
+  vtkMath::Multiply3x3(mat, vec, vec);
+
+  vec[0] += this->Center[0];
+  vec[1] += this->Center[1];
+  vec[2] += this->Center[2];
+  
+  this->Translation[0] = matrix->GetElement(0, 3) - vec[0];
+  this->Translation[1] = matrix->GetElement(1, 3) - vec[1];
+  this->Translation[2] = matrix->GetElement(2, 3) - vec[2];
 }
 
 //----------------------------------------------------------------------------

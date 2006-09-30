@@ -3,8 +3,8 @@
   Program:   AtamaiRegistration for VTK
   Module:    $RCSfile: vtkCenteredTransform.h,v $
   Language:  C++
-  Date:      $Date: 2006/06/05 22:00:49 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/09/30 02:46:34 $
+  Version:   $Revision: 1.2 $
 
 Copyright (c) 2006 Atamai, Inc.
 All rights reserved.
@@ -48,18 +48,30 @@ public:
   vtkTypeRevisionMacro(vtkCenteredTransform,vtkLinearTransform);
   void PrintSelf(ostream& os, vtkIndent indent);
 
+  // Description:
+  // Set the center of the centered transform.
+  vtkSetVector3Macro(Center, double);
+  vtkGetVector3Macro(Center, double);
 
   // Description:
-  //Macros that set the Set/Get Methods for the respective member variables of
-  //class vtkCenteredTransform
-  vtkSetVector3Macro(Center, double)
-  vtkGetVector3Macro(Center, double)
-  vtkSetVector3Macro(Translation, double)
-  vtkGetVector3Macro(Translation, double)
-  vtkSetVector3Macro(RotationAnglesYXZ, double)
-  vtkGetVector3Macro(RotationAnglesYXZ, double)
-  vtkSetMacro(IsotropicScale, double)
-  vtkGetMacro(IsotropicScale, double)
+  // Set the translation for the centered transform.
+  vtkSetVector3Macro(Translation, double);
+  vtkGetVector3Macro(Translation, double);
+
+  // Description:
+  // Set the rotation angles for the centered transform.
+  vtkSetVector3Macro(RotationAnglesYXZ, double);
+  vtkGetVector3Macro(RotationAnglesYXZ, double);
+
+  // Description:
+  // Set the scale for the centered transform.
+  vtkSetMacro(IsotropicScale, double);
+  vtkGetMacro(IsotropicScale, double);
+
+  // Description:
+  // Initialize the transform, given a matrix and
+  // a value to use as the center.
+  void Initialize(vtkMatrix4x4 *matrix, double center[3]);
 
   // Description:
   // Inverts the transformation.  This method will change the values
