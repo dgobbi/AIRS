@@ -12,6 +12,12 @@ vtkImageReslice2.cxx
 vtkImageRangeCalculator.cxx
 )
 
+IF (${VTK_MAJOR_VERSION} GREATER 4)
+  SET( Kit_SRCS ${Kit_SRCS}
+    vtkImageComposite.cxx
+    )
+ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
+
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)
 SET(Kit_TCL_EXTRA_SRCS)
