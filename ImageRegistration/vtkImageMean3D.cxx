@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:34:36 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2006/11/10 22:51:17 $
+  Version:   $Revision: 1.6 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -39,14 +39,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-// This was necessary because the Python Wrapper fails if the #if
-// statements are around the class definition
-#if (VTK_MAJOR_VERSION < 5)
-#include "vtkImageMean3D_deprecated.h"
-#else
 #include "vtkImageMean3D.h"
-#endif
-
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 
