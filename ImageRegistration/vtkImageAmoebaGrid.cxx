@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.6 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -1131,6 +1131,7 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 
   switch (pb->scalarType)
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro9(CorrelationWorkFunction,
 		      (VTK_TT *)(pb->patPtr),
 		      pb->patIncs,
@@ -1141,6 +1142,18 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 		      modelDisp, 
 		      pb->sqrt_mod_sum_squared,
 		      correlation);
+#else
+    vtkTemplateMacro(
+      CorrelationWorkFunction((VTK_TT *)(pb->patPtr),
+			      pb->patIncs,
+			      pb->patWholeInExt,
+			      pb->patext,
+			      pb->modelPoints,
+			      pb->kernelDiameter,
+			      modelDisp, 
+			      pb->sqrt_mod_sum_squared,
+			      correlation));
+#endif
     default:
       cout << "CorrelationForExtentAndDisplacement: Unknown ScalarType\n";
       return;

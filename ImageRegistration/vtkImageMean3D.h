@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.h,v $
   Language:  C++
-  Date:      $Date: 2004/07/13 14:43:11 $
-  Version:   $Revision: 1.1 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.2 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -53,14 +53,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __vtkImageMean3D_h
 #define __vtkImageMean3D_h
 
+#include "vtkImageSpatialAlgorithm.h"
 
-#include "vtkImageSpatialFilter.h"
-
-class VTK_EXPORT vtkImageMean3D : public vtkImageSpatialFilter
+class VTK_EXPORT vtkImageMean3D : public vtkImageSpatialAlgorithm
 {
 public:
   static vtkImageMean3D *New();
-  vtkTypeMacro(vtkImageMean3D,vtkImageSpatialFilter);
+  vtkTypeMacro(vtkImageMean3D,vtkImageSpatialAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:

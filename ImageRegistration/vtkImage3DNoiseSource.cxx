@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImage3DNoiseSource.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -197,7 +197,11 @@ void vtkImage3DNoiseSource::ExecuteData(vtkDataObject *output)
 
   switch (this->OutputScalarType)
     {
+#if (VTK_MAJOR_VERSION < 5)
       vtkTemplateMacro3(vtkImage3DNoiseExecute, this, data, (VTK_TT *)(outPtr));
+#else
+      vtkTemplateMacro(vtkImage3DNoiseExecute(this, data, (VTK_TT *)(outPtr)));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown output ScalarType");
     }

@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.5 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -176,10 +176,17 @@ void vtkImageGridStatistics::Update()
       this->Progress = 0.0;
       switch (input->GetScalarType())
 	{
+#if (VTK_MAJOR_VERSION < 5)
 	  vtkTemplateMacro5(vtkImageGridStatisticsExecute,
 			    this, (VTK_TT *) (inPtr), input,
 			    &(this->AverageMagnitude),
 			    &(this->StandardDeviation));
+#else
+	  vtkTemplateMacro(
+	    vtkImageGridStatisticsExecute(this, (VTK_TT *) (inPtr), input,
+					  &(this->AverageMagnitude),
+					  &(this->StandardDeviation)));
+#endif
 	default:
 	  vtkErrorMacro(<< "Update: Unknown ScalarType");
 	  return;

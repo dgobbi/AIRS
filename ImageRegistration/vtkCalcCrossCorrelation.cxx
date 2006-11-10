@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.3 $
 
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -301,10 +301,18 @@ void vtkCalcCrossCorrelation::Execute()
 
   switch (input1->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro6(vtkCorrelationHelper,this,
 		      input1, (VTK_TT *)(in1Ptr),
 		      input2, (VTK_TT *)(in2Ptr),
 		      &this->CrossCorrelation);
+#else
+    vtkTemplateMacro(
+      vtkCorrelationHelper(this,
+			   input1, (VTK_TT *)(in1Ptr),
+			   input2, (VTK_TT *)(in2Ptr),
+			   &this->CrossCorrelation));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType (must be char, us char, int, us int");
       return;

@@ -885,10 +885,18 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
 
   switch (inData->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro7(vtkImageMRIBrainExtractorExecute, this, inData,
                       outData, outExt, id, 
                       static_cast<VTK_TT *>(inPtr),
                       static_cast<VTK_TT *>(outPtr));
+#else
+    vtkTemplateMacro(
+      vtkImageMRIBrainExtractorExecute(this, inData,
+				       outData, outExt, id, 
+				       static_cast<VTK_TT *>(inPtr),
+				       static_cast<VTK_TT *>(outPtr)));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;

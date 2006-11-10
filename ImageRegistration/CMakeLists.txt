@@ -2,7 +2,7 @@ PROJECT(ATAMAIREGISTRATION)
 
 SET(KIT AtamaiRegistration)
 SET(UKIT ATAMAIREGISTRATION)
-SET(KIT_LIBS vtkHybrid)
+SET(KIT_LIBS vtkHybrid vtkImaging)
 
 SET ( Kit_SRCS
 vtkCalcCentroid.cxx

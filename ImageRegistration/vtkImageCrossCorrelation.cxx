@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.4 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -424,10 +424,17 @@ void vtkImageCrossCorrelation::ThreadedExecute(vtkImageData **inData,
   
   switch (inData[0]->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro8(vtkImageCrossCorrelationExecute,
 		      this, (VTK_TT *)(inPtr1), (VTK_TT *)(inPtr2),inData,outData,
 		      (float *)(outPtr), outExt,
 		      id);
+#else
+    vtkTemplateMacro(
+      vtkImageCrossCorrelationExecute(this, (VTK_TT *)(inPtr1), (VTK_TT *)(inPtr2),inData,outData,
+				      (float *)(outPtr), outExt,
+				      id));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
       return;

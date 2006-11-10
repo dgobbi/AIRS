@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.7 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.8 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.7 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.8 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -373,11 +373,20 @@ void vtkImageMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out))
 
   switch (inData1->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro8(vtkImageMutualInformationExecute, this, 
 		      (VTK_TT *)(inPtr1), (VTK_TT *)(inPtr2),
 		      inData1,inData2, 
 		      outData, (int *)(outPtr),
 		      &this->NormalizedMI);
+#else
+    vtkTemplateMacro(
+      vtkImageMutualInformationExecute(this, 
+				       (VTK_TT *)(inPtr1), (VTK_TT *)(inPtr2),
+				       inData1,inData2, 
+				       outData, (int *)(outPtr),
+				       &this->NormalizedMI));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
       return;

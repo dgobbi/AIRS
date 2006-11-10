@@ -27,7 +27,7 @@
 #include <stack>
 #include "math.h"
 
-vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.3 $");
+vtkCxxRevisionMacro(vtkImageFloodFill, "$Revision: 1.4 $");
 vtkStandardNewMacro(vtkImageFloodFill);
 vtkCxxSetObjectMacro(vtkImageFloodFill, SeedPoints, vtkPoints);
 
@@ -767,10 +767,18 @@ void vtkImageFloodFill::ExecuteData(vtkDataObject *out)
 
   switch (inData->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro8(vtkImageFloodFillExecute, this, inData,
                       outData, maskData, outExt, id, 
                       static_cast<VTK_TT *>(inPtr),
                       static_cast<VTK_TT *>(outPtr));
+#else
+    vtkTemplateMacro(
+      vtkImageFloodFillExecute(this, inData,
+			       outData, maskData, outExt, id, 
+			       static_cast<VTK_TT *>(inPtr),
+			       static_cast<VTK_TT *>(outPtr)));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;
