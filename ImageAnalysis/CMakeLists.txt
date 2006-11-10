@@ -14,7 +14,7 @@ vtkImageRangeCalculator.cxx
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
   SET( Kit_SRCS ${Kit_SRCS}
-    #vtkImageComposite.cxx
+    vtkImageComposite.cxx
     )
 ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
 
