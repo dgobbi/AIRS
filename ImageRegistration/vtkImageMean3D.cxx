@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2006/11/10 18:31:42 $
+  Version:   $Revision: 1.4 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -39,11 +39,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#include "vtkImageData.h"
+// This was necessary because the Python Wrapper fails if the #if
+// statements are around the class definition
+//#if (VTK_MAJOR_VERSION < 5)
+//#include "vtkImageMean3D_deprecated.h"
+//#else
 #include "vtkImageMean3D.h"
+//#endif
+
+#include "vtkImageData.h"
 #include "vtkObjectFactory.h"
-
-
 
 //------------------------------------------------------------------------------
 vtkImageMean3D* vtkImageMean3D::New()
@@ -58,11 +63,6 @@ vtkImageMean3D* vtkImageMean3D::New()
   return new vtkImageMean3D;
 }
 
-
-
-
-
-
 //----------------------------------------------------------------------------
 // Construct an instance of vtkImageMean3D fitler.
 vtkImageMean3D::vtkImageMean3D()
@@ -75,7 +75,7 @@ vtkImageMean3D::vtkImageMean3D()
 //----------------------------------------------------------------------------
 void vtkImageMean3D::PrintSelf(ostream& os, vtkIndent indent)
 {
-  vtkImageSpatialFilter::PrintSelf(os, indent);
+  this->Superclass::PrintSelf(os, indent);
 
   os << indent << "NumberOfElements: " << this->NumberOfElements << endl;
   os << indent << "SmoothThreshold: " << this->SmoothThreshold << endl;
@@ -345,8 +345,13 @@ void vtkImageMean3D::ThreadedExecute(vtkImageData *inData,
   
   switch (inData->GetScalarType())
     {
+#if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro7(vtkImageMean3DExecute, this,inData, (VTK_TT *)(inPtr), 
                       outData, (VTK_TT *)(outPtr),outExt, id);
+#else
+    vtkTemplateMacro(vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr), 
+					   outData, (VTK_TT *)(outPtr),outExt, id));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;
