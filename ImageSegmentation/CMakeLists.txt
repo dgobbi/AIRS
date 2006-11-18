@@ -8,11 +8,19 @@ SET(KIT_LIBS vtkHybrid)
 # Kit_SRCS variable.
 SET(Kit_SRCS
   vtkImageFloodFill.cxx
-  vtkImageMRIBrainExtractor.cxx
   #vtkAtamaiPolyDataToImageStencil.cxx Failing on MacOSX-i386, Win32
   vtkAtamaiPolyDataToImageStencil2.cxx
   #vtkImageK9BrainExtractor.cxx - Garbage
 )
+
+IF(VTK_MAJOR_VERSION GREATER 4)
+  SET(Kit_SRCS ${Kit_SRCS}
+    vtkAtamaiMRIBrainExtractor.cxx
+    vtkImageMRIBrainExtractor.cxx) # Going to deprecate this!
+ELSE(VTK_MAJOR_VERSION GREATER 4)
+  SET(Kit_SRCS ${Kit_SRCS}
+    vtkImageMRIBrainExtractor.cxx)
+ENDIF(VTK_MAJOR_VERSION GREATER 4)
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)
