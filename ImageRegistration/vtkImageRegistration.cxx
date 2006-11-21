@@ -2,13 +2,6 @@
 
   Program:   Atamai Classes for VTK
   Module:    $RCSfile: vtkImageRegistration.cxx,v $
-  Creator:   Kevin Wang <kwang@atamai.com>
-  Language:  C++
-  Author:    $Author: kwang $
-  Date:      $Date: 2006/08/28 18:16:20 $
-  Version:   $Revision: 1.2 $
-
-==========================================================================
 
 Copyright (c) 2005 Atamai, Inc.
 All rights reserved.
@@ -56,6 +49,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkHomogeneousTransform.h"
 #include "vtkMatrixToHomogeneousTransform.h"
 #include "vtkImageReslice.h"
+#include "vtkImageGaussianSmooth.h"
+#include "vtkImageShiftScale.h"
 #include "vtkCommand.h"
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
 #else
@@ -74,9 +69,6 @@ POSSIBILITY OF SUCH DAMAGES.
 // Transform header files
 #include "vtkCenteredTransform.h"
 
-//--------------------------------------------------------------------------
-// optimizer names and optimizer parameter names
-
 const char * vtkOptimizerNames[] = {
   "vtkAmoebaMinimizer", 
   0
@@ -87,9 +79,6 @@ const char * vtkAmoebaMinimizerParameterNames[] = {
   "Tolerance",
   0
 };
-
-//--------------------------------------------------------------------------
-// metric names and metric parameter names
 
 const char * vtkMetricNames[] = {
   "vtkImageCrossCorrelation",
@@ -106,9 +95,6 @@ const char * vtkImageMutualInformationParameterNames[] = {
   "BComponentExtent",
   0          
 };
-
-//--------------------------------------------------------------------------
-// transform names and tranform parameter names
 
 const char * vtkTransformNames[] = {
   "vtkCenteredTransform",
@@ -132,9 +118,6 @@ const char * vtkCenteredTransformParameterNames[] = {
   0
 };
 
-//--------------------------------------------------------------------------
-// interpolator names
-
 const char * vtkInterpolatorNames[] = {
   "vtkNearestNeighborInterpolator",
   "vtkLinearInterpolator",
@@ -142,9 +125,40 @@ const char * vtkInterpolatorNames[] = {
   0
 };
 
+const char * vtkPreprocessorNames[] = {
+  "vtkEpilepsyMIPreprocessor",
+  "vtkEpilepsyNCPreprocessor", 
+  0
+};
+
+const char * vtkEpilepsyMIPreprocessorParameterNames[] = {
+  "Blurring",
+  "GaussScaleX",
+  "GaussScaleY",
+  "GaussScaleZ",
+  "LowBin",
+  "HighBin",
+  "ResolutionX",
+  "ResolutionY", 
+  "ResolutionZ",
+  0
+};
+
+const char * vtkEpilepsyNCPreprocessorParameterNames[] = {
+  "Blurring",
+  "GaussScaleX",
+  "GaussScaleY",
+  "GaussScaleZ",
+  "LowBin",
+  "HighBin",
+  "ResolutionX",
+  "ResolutionY", 
+  "ResolutionZ",
+  0
+};
+
 //----------------------------------------------------------------------------
-vtkImageRegistration* 
-vtkImageRegistration::New()
+vtkImageRegistration* vtkImageRegistration::New()
 {
   // First try to create the object from the vtkObjectFactory
   vtkObject* ret = 
@@ -166,22 +180,31 @@ vtkImageRegistration::vtkImageRegistration()
   this->MetricType                = VTK_TYPE_INVALID;
   this->InterpolatorType          = VTK_TYPE_INVALID;
   this->TransformType             = VTK_TYPE_INVALID;
+  this->PreprocessorType          = VTK_TYPE_INVALID;
 
   this->Transform                 = NULL; 
-  this->Interpolator              = NULL; 
   this->Metric                    = NULL; 
   this->Optimizer                 = NULL; 
 
-  LastTransform                   = vtkMatrixToHomogeneousTransform::New();
+  this->SourceBlur                = NULL;
+  this->TargetBlur                = NULL;
+  this->SourceReslice             = NULL;
+  this->TargetReslice             = NULL;
+  this->SourceRescale             = NULL;
+  this->TargetRescale             = NULL;
+
+  this->LastTransform             = vtkTransform::New();
 
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
   this->OptimizerParameters       = std::vector<double>();
   this->MetricParameters          = std::vector<double>();
   this->TransformParameters       = std::vector<double>();
+  this->PreprocessorParameters    = std::vector<double>();
 #else
   this->OptimizerParameters       = vtkstd::vector<double>();
   this->MetricParameters          = vtkstd::vector<double>();
   this->TransformParameters       = vtkstd::vector<double>();
+  this->PreprocessorParameters    = vtkstd::vector<double>();
 #endif
 
   this->Value                     = 0.0;
@@ -208,11 +231,49 @@ vtkImageRegistration::~vtkImageRegistration()
     {
     LastTransform->Delete();
     }
+  if ( this->SourceBlur != NULL )
+    {
+    SourceBlur->Delete();
+    }
+  if ( this->TargetBlur != NULL )
+    {
+    TargetBlur->Delete();
+    }
+  if ( this->SourceRescale != NULL )
+    {
+    SourceRescale->Delete();
+    }
+  if ( this->TargetRescale != NULL )
+    {
+    TargetRescale->Delete();
+    }
+  if ( this->SourceReslice != NULL )
+    {
+    SourceReslice->Delete();
+    }
+  if ( this->TargetReslice != NULL )
+    {
+    TargetReslice->Delete();
+    }
+
+  if ( this->Optimizer != NULL )
+    {
+    Optimizer->Delete();
+    }
+
+  if ( this->Transform != NULL )
+    {
+    Transform->Delete();
+    }
+  if ( this->Metric != NULL )
+    {
+    Metric->Delete();
+    }
+
 }
   
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
+void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkProcessObject::PrintSelf(os,indent);
   
@@ -220,11 +281,11 @@ vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Metric: " << this->MetricType << "\n";
   os << indent << "Interpolator: " << this->InterpolatorType << "\n";
   os << indent << "Transform: " << this->TransformType << "\n";
+  os << indent << "Preprocessor: " << this->PreprocessorType << "\n";
 }  
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetFixedImage(vtkImageData *input)
+void vtkImageRegistration::SetFixedImage(vtkImageData *input)
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(0, input);
@@ -241,8 +302,7 @@ vtkImageRegistration::SetFixedImage(vtkImageData *input)
 }
 
 //----------------------------------------------------------------------------
-vtkImageData*
-vtkImageRegistration::GetFixedImage()
+vtkImageData* vtkImageRegistration::GetFixedImage()
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   if (this->GetNumberOfInputs() < 1)    
@@ -260,8 +320,7 @@ vtkImageRegistration::GetFixedImage()
 }
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetMovingImage(vtkImageData *input)
+void vtkImageRegistration::SetMovingImage(vtkImageData *input)
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(1, input);
@@ -278,8 +337,7 @@ vtkImageRegistration::SetMovingImage(vtkImageData *input)
 }
 
 //----------------------------------------------------------------------------
-vtkImageData*
-vtkImageRegistration::GetMovingImage()
+vtkImageData* vtkImageRegistration::GetMovingImage()
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   if (this->GetNumberOfInputs() < 2)    
@@ -297,8 +355,7 @@ vtkImageRegistration::GetMovingImage()
 }
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
+void vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(2, stencil);
@@ -315,8 +372,7 @@ vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
 }
 
 //----------------------------------------------------------------------------
-vtkImageStencilData*
-vtkImageRegistration::GetFixedImageStencil()
+vtkImageStencilData* vtkImageRegistration::GetFixedImageStencil()
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   if (this->NumberOfInputs < 3)
@@ -337,8 +393,7 @@ vtkImageRegistration::GetFixedImageStencil()
 }
 
 //----------------------------------------------------------------------------
-const char*
-vtkImageRegistration::GetOptimizerName(int i)
+const char* vtkImageRegistration::GetOptimizerName(int i)
 {
   if ( i < 0 || i > VTK_NUMBER_OF_OPTIMIZERS )
     {
@@ -349,8 +404,8 @@ vtkImageRegistration::GetOptimizerName(int i)
 }
 
 //----------------------------------------------------------------------------
-const char* 
-vtkImageRegistration::GetOptimizerParameterName(int optimizer, int parameter)
+const char* vtkImageRegistration::GetOptimizerParameterName(int optimizer, 
+                                                            int parameter)
 {
   int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -382,8 +437,8 @@ vtkImageRegistration::GetOptimizerParameterName(int optimizer, int parameter)
 }
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetOptimizerParameter(const char * name, double value)
+void vtkImageRegistration::SetOptimizerParameter(const char * name, 
+                                                 double value)
 {
   unsigned int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -427,8 +482,7 @@ vtkImageRegistration::SetOptimizerParameter(const char * name, double value)
 }
 
 //----------------------------------------------------------------------------
-const char*
-vtkImageRegistration::GetMetricName(int i)
+const char* vtkImageRegistration::GetMetricName(int i)
 {
   if ( i < 0 || i > VTK_NUMBER_OF_METRICS )
     {
@@ -439,8 +493,8 @@ vtkImageRegistration::GetMetricName(int i)
 }
 
 //----------------------------------------------------------------------------
-const char*
-vtkImageRegistration::GetMetricParameterName(int metric, int parameter)
+const char* vtkImageRegistration::GetMetricParameterName(int metric, 
+                                                         int parameter)
 {
   int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -475,8 +529,7 @@ vtkImageRegistration::GetMetricParameterName(int metric, int parameter)
 }
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetMetricParameter(const char * name , double value)
+void vtkImageRegistration::SetMetricParameter(const char * name , double value)
 {
   int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -526,8 +579,99 @@ vtkImageRegistration::SetMetricParameter(const char * name , double value)
 }
 
 //----------------------------------------------------------------------------
-const char*
-vtkImageRegistration::GetInterpolatorName(int i)
+const char* vtkImageRegistration::GetPreprocessorName(int i)
+{
+  if ( i < 0 || i > VTK_NUMBER_OF_PREPROCESSORS )
+    {
+    return NULL;
+    }
+ 
+  return vtkPreprocessorNames[i];
+}
+
+//----------------------------------------------------------------------------
+const char* vtkImageRegistration::GetPreprocessorParameterName(int preprocessor, 
+                                                               int parameter)
+{
+  int i, numberOfParameters;
+  const char ** tempNames = NULL;
+
+  if ( preprocessor < 0 || preprocessor > VTK_NUMBER_OF_PREPROCESSORS )
+    {
+    return NULL;
+    }
+  
+  switch ( preprocessor )
+    {
+    case VTK_OPTIMIZER_AMOEBA:
+      tempNames = vtkEpilepsyMIPreprocessorParameterNames;
+      break;
+    }     
+
+  numberOfParameters = 0;
+  for ( i = 0; tempNames[i] != 0; i++)
+    {
+    numberOfParameters++;
+    }
+  
+  if ( parameter < 0 || parameter > numberOfParameters )
+    {
+    return NULL;
+    }
+    
+  return tempNames[parameter];
+}
+
+//----------------------------------------------------------------------------
+void vtkImageRegistration::SetPreprocessorParameter(const char * name, 
+                                                 double value)
+{
+  unsigned int i, numberOfParameters;
+  const char ** tempNames = NULL;
+
+  if ( this->PreprocessorType < 0 ||  this->PreprocessorType 
+       >= VTK_NUMBER_OF_PREPROCESSORS )
+    {
+    vtkErrorMacro( << "SetPreprocessorParameter: set preprocessor type before set optimizer parameters");
+    return ;
+    }
+  
+  switch ( this->PreprocessorType )
+    {
+    case VTK_PREPROCESSOR_MI:
+      tempNames = vtkEpilepsyMIPreprocessorParameterNames;
+      break;
+    case VTK_PREPROCESSOR_NC:
+      tempNames = vtkEpilepsyNCPreprocessorParameterNames;
+      break;
+    }     
+
+  numberOfParameters = 0;
+  for ( i = 0; tempNames[i] != 0; i++ )
+    {
+    numberOfParameters++;
+    }
+  
+  if ( this->PreprocessorParameters.size() != numberOfParameters ) 
+    {
+    this->PreprocessorParameters.resize( numberOfParameters );
+    }
+  
+  for ( i = 0; i < numberOfParameters; i++ )
+    {
+    if ( strcmp( name, tempNames[i] ) == 0 )
+      {
+      if ( this->PreprocessorParameters[i] != value )
+        {
+        this->PreprocessorParameters[i] = value;
+        this->Modified();
+        }
+      }
+    } 
+}
+
+//----------------------------------------------------------------------------
+const char* vtkImageRegistration::GetInterpolatorName(int i)
 {
   if ( i < 0 || i > VTK_NUMBER_OF_INTERPOLATORS )
     {
@@ -549,8 +693,8 @@ vtkImageRegistration::GetTransformName(int i)
   return vtkTransformNames[i];
 }
 
-const char *
-vtkImageRegistration::GetTransformParameterName(int transform, int parameter)
+const char * vtkImageRegistration::GetTransformParameterName(int transform, 
+                                                             int parameter)
 {
   int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -583,8 +727,8 @@ vtkImageRegistration::GetTransformParameterName(int transform, int parameter)
 
 
 //----------------------------------------------------------------------------
-void 
-vtkImageRegistration::SetTransformParameter(const char * name, double value)
+void vtkImageRegistration::SetTransformParameter(const char * name, 
+                                                 double value)
 {
   int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -631,8 +775,7 @@ vtkImageRegistration::SetTransformParameter(const char * name, double value)
 }
 
 //----------------------------------------------------------------------------
-double 
-vtkImageRegistration::GetTransformParameter(const char * name)
+double vtkImageRegistration::GetTransformParameter(const char * name)
 {
   int i, numberOfParameters;
   double value = 0.0;
@@ -674,9 +817,9 @@ vtkImageRegistration::GetTransformParameter(const char * name)
 }
 
 //----------------------------------------------------------------------------
-vtkAbstractTransform*
-vtkImageRegistration::GetLastTransform()
+vtkTransform* vtkImageRegistration::GetLastTransform()
 {
+  this->LastTransform->Identity();
   switch ( this->TransformType )
     {
     case VTK_TRANSFORM_CENTERED:
@@ -686,7 +829,7 @@ vtkImageRegistration::GetLastTransform()
       vtkAmoebaMinimizer *optimizer = 
         dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer);
 
-      for(int i = 0; i < 10; i++)
+      for(int i = 3; i < 10; i++)
         {
         this->TransformParameters[i] = optimizer->GetParameterValue(
           this->GetTransformParameterName(this->TransformType, i));
@@ -703,25 +846,25 @@ vtkImageRegistration::GetLastTransform()
                                        this->TransformParameters[8] );
       transform->SetIsotropicScale( this->TransformParameters[9] );
       transform->Update();
+      this->LastTransform->SetMatrix(transform->GetMatrix());
       }
+      break;
     default:
       vtkErrorMacro(<< "GetLastTransform: Unknown TransformType");
     }     
 
-  return static_cast<vtkAbstractTransform*>(this->Transform);
+  return this->LastTransform;
 }
 
 //--------------------------------------------------------------------------
-// Template function 
-void 
-vtkImageRegistration::InitializeTransformAndParameters()
+void vtkImageRegistration::InitializeTransform()
 {
   if (this->Transform != NULL)
     {
     this->Transform->Delete();
     this->Transform = NULL;
     }
-
+  
   switch (this->TransformType)
     {
     case VTK_TRANSFORM_CENTERED:
@@ -739,6 +882,7 @@ vtkImageRegistration::InitializeTransformAndParameters()
                                        this->TransformParameters[7],
                                        this->TransformParameters[8] );
       transform->SetIsotropicScale( this->TransformParameters[9] );
+      transform->Update();
       this->Transform = transform;
       }
       break;
@@ -749,54 +893,206 @@ vtkImageRegistration::InitializeTransformAndParameters()
 }
 
 //--------------------------------------------------------------------------
-// Template function 
-void 
-vtkImageRegistration::InitializeInterpolator()
+void vtkImageRegistration::InitializePreprocessor(void)
 {
-  if (this->Interpolator == NULL)
+  int sourceDim[3], targetDim[3], resolution[3];
+  double sourceSpacing[3], targetSpacing[3];
+  double targetOrigin[3];
+  double targetScale[3];
+
+  if (this->SourceBlur != NULL)
     {
-    this->Interpolator = vtkImageReslice::New();
+    this->SourceBlur->Delete();
+    this->SourceBlur = NULL;
     }
-  this->Interpolator->SetInput(this->GetMovingImage());
-  this->Interpolator->SetInformationInput(this->GetFixedImage());
-  this->Interpolator->SetResliceTransform(this->Transform);
+  this->SourceBlur = vtkImageGaussianSmooth::New();
+  
+  if (this->TargetBlur != NULL)
+    {
+    this->TargetBlur->Delete();
+    this->TargetBlur = NULL;
+    }
+  this->TargetBlur = vtkImageGaussianSmooth::New();
+
+  if (this->SourceRescale != NULL)
+    {
+    this->SourceRescale->Delete();
+    this->SourceRescale = NULL;
+    }
+  this->SourceRescale = vtkImageShiftScale::New();
+
+  if (this->TargetRescale != NULL)
+    {
+    this->TargetRescale->Delete();
+    this->TargetRescale = NULL;
+    }
+  this->TargetRescale = vtkImageShiftScale::New();
+  
+  if (this->SourceReslice != NULL)
+    {
+    this->SourceReslice->Delete();
+    this->SourceReslice = NULL;
+    }
+  this->SourceReslice = vtkImageReslice::New();
+
+  if (this->TargetReslice != NULL)
+    {
+    this->TargetReslice->Delete();
+    this->TargetReslice = NULL;
+    }
+  this->TargetReslice = vtkImageReslice::New();
+
+  switch(this->PreprocessorType)
+    {
+    case VTK_PREPROCESSOR_MI:
+      {
+      this->SourceBlur->SetStandardDeviations(this->PreprocessorParameters[1], 
+                                              this->PreprocessorParameters[2],
+                                              this->PreprocessorParameters[3]);
+      this->TargetBlur->SetStandardDeviations(this->PreprocessorParameters[1], 
+                                              this->PreprocessorParameters[2],
+                                              this->PreprocessorParameters[3]);
+      }
+      break;
+    case VTK_PREPROCESSOR_NC:
+      {
+      this->SourceBlur->SetStandardDeviations(this->PreprocessorParameters[1], 
+                                              this->PreprocessorParameters[2],
+                                              this->PreprocessorParameters[3]);
+      this->TargetBlur->SetStandardDeviations(this->PreprocessorParameters[1], 
+                                              this->PreprocessorParameters[2],
+                                              this->PreprocessorParameters[3]);
+      }
+      break;
+    }
+
+  if (this->PreprocessorParameters[0] == 0)
+    {
+    this->SourceRescale->SetInput(this->GetMovingImage());
+    this->TargetRescale->SetInput(this->GetFixedImage());
+    }
+  else
+    {
+    this->SourceBlur->SetInput(this->GetMovingImage());
+    this->TargetBlur->SetInput(this->GetFixedImage());
+
+    this->SourceRescale->SetInput(this->SourceBlur->GetOutput());
+    this->TargetRescale->SetInput(this->TargetBlur->GetOutput());
+    }
+
+  this->SourceRescale->SetOutputScalarTypeToUnsignedChar();
+  this->TargetRescale->SetOutputScalarTypeToUnsignedChar();
+  this->SourceRescale->ClampOverflowOn();
+  this->TargetRescale->ClampOverflowOn();
+
+  switch(this->PreprocessorType)
+    {
+    case VTK_PREPROCESSOR_MI:
+      {
+      int lowBin = (int)(this->PreprocessorParameters[4]);
+      int highBin = (int)(this->PreprocessorParameters[5]);
+      double range[2];
+
+      this->GetMovingImage()->GetScalarRange(range);
+      this->SourceRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
+      this->SourceRescale->SetScale((highBin-lowBin)/(range[1]-range[0]));
+
+      this->GetFixedImage()->GetScalarRange(range);
+      this->TargetRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
+      this->TargetRescale->SetScale((highBin-lowBin)/(range[1]-range[0]));
+      }
+      break;
+    case VTK_PREPROCESSOR_NC:
+      {
+      int lowBin = (int)(this->PreprocessorParameters[4]);
+      int highBin = (int)(this->PreprocessorParameters[5]);
+      double range[2];
+
+      this->GetMovingImage()->GetScalarRange(range);
+      this->SourceRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
+      this->SourceRescale->SetScale((highBin-lowBin)/(range[1]-range[0]));
+
+      this->GetFixedImage()->GetScalarRange(range);
+      this->TargetRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
+      this->TargetRescale->SetScale((highBin-lowBin)/(range[1]-range[0]));
+      }
+      break;
+    }
 
   switch(this->InterpolatorType)
     {
     case VTK_INTERPOLATOR_NEAREST_NEIGHBOR:
       {
-      this->Interpolator->SetInterpolationModeToNearestNeighbor();
+      this->SourceReslice->SetInterpolationModeToNearestNeighbor();
+      this->TargetReslice->SetInterpolationModeToNearestNeighbor();
       }
       break;
     
     case VTK_INTERPOLATOR_LINEAR:
       {
-      this->Interpolator->SetInterpolationModeToLinear();
+      this->SourceReslice->SetInterpolationModeToLinear();
+      this->TargetReslice->SetInterpolationModeToLinear();
       }
       break;
 
     case VTK_INTERPOLATOR_CUBIC:
       {
-      this->Interpolator->SetInterpolationModeToCubic();
+      this->SourceReslice->SetInterpolationModeToCubic();
+      this->TargetReslice->SetInterpolationModeToCubic();
       }
       break;
     default:
       vtkErrorMacro( << "incorrect interpolater type!" );
       break;
     }
-  this->Interpolator->OptimizationOff();
-}
+  this->SourceReslice->SetInput(this->SourceRescale->GetOutput());
+  this->TargetReslice->SetInput(this->TargetRescale->GetOutput());
+  this->SourceReslice->OptimizationOff();
+  this->TargetReslice->OptimizationOff();
+  this->SourceReslice->SetResliceTransform(this->Transform);
 
+  this->GetMovingImage()->GetDimensions(sourceDim);
+  this->GetFixedImage()->GetDimensions(targetDim);
+
+  this->GetMovingImage()->GetSpacing(sourceSpacing);
+  this->GetFixedImage()->GetSpacing(targetSpacing);
+  
+  this->GetFixedImage()->GetOrigin(targetOrigin);
+
+  resolution[0] = (int)(this->PreprocessorParameters[6]);
+  resolution[1] = (int)(this->PreprocessorParameters[7]);
+  resolution[2] = (int)(this->PreprocessorParameters[8]);
+  targetScale[0] = (targetDim[0]-1.0)/(resolution[0]-1);
+  targetScale[1] = (targetDim[1]-1.0)/(resolution[1]-1);
+  targetScale[2] = (targetDim[2]-1.0)/(resolution[2]-1);
+
+  this->SourceReslice->SetOutputExtent(0, resolution[0]-1,
+                                       0, resolution[1]-1,
+                                       0, resolution[2]-1);
+  this->TargetReslice->SetOutputExtent(0, resolution[0]-1,
+                                       0, resolution[1]-1,
+                                       0, resolution[2]-1);
+  this->SourceReslice->SetOutputSpacing(targetSpacing[0]*targetScale[0],
+                                        targetSpacing[1]*targetScale[1],
+                                        targetSpacing[2]*targetScale[2]);
+  this->TargetReslice->SetOutputSpacing(targetSpacing[0]*targetScale[0],
+                                        targetSpacing[1]*targetScale[1],
+                                        targetSpacing[2]*targetScale[2]);
+
+  this->SourceReslice->SetOutputOrigin(targetOrigin);
+  this->TargetReslice->SetOutputOrigin(targetOrigin);
+}
+  
 //--------------------------------------------------------------------------
-// 
-void 
-vtkImageRegistration::InitializeMetricAndParameters()
+void vtkImageRegistration::InitializeMetric(void)
 {
   if (this->Metric != NULL)
     {
     this->Metric->Delete();
     this->Metric = NULL;
     }
+  
+  vtkImageStencilData *stencil = this->GetFixedImageStencil();
 
   switch (this->MetricType)
     {
@@ -805,8 +1101,12 @@ vtkImageRegistration::InitializeMetricAndParameters()
       vtkCalcCrossCorrelation* metric;
 
       metric = vtkCalcCrossCorrelation::New();
-      metric->SetInput1(this->GetFixedImage());
-      metric->SetInput2(this->Interpolator->GetOutput());
+      metric->SetInput1(this->TargetReslice->GetOutput());
+      metric->SetInput2(this->SourceReslice->GetOutput());
+      if (stencil)
+        {
+        metric->SetStencil(stencil);
+        }
       this->Metric = metric;
       }
       break;
@@ -816,8 +1116,12 @@ vtkImageRegistration::InitializeMetricAndParameters()
       vtkImageMutualInformation* metric;
 
       metric = vtkImageMutualInformation::New();
-      metric->SetInput1(this->GetFixedImage());
-      metric->SetInput2(this->Interpolator->GetOutput());
+      metric->SetInput1(this->TargetReslice->GetOutput());
+      metric->SetInput2(this->SourceReslice->GetOutput());
+      if (stencil)
+        {
+        metric->SetStencil(stencil);
+        }
       this->Metric = metric;
       }
       break;
@@ -825,11 +1129,9 @@ vtkImageRegistration::InitializeMetricAndParameters()
       vtkErrorMacro( << "incorrect metric type!" );
       break;
     }
-
 }
 
 //--------------------------------------------------------------------------
-// 
 static void vtkEvaluateFunction(void * arg)
 {
   double val = 0.0;
@@ -861,17 +1163,17 @@ static void vtkEvaluateFunction(void * arg)
         {
         (*transformParametersPointer)[i] = optimizer->GetParameterValue(registration->GetTransformParameterName(registrationInfo->TransformType, i));
         }
-      /*
-      cerr << "Translation from amoeba: " 
-           << (*transformParametersPointer)[3] << " " 
-           << (*transformParametersPointer)[4] << " " 
-           << (*transformParametersPointer)[5] << " " 
-           << (*transformParametersPointer)[6] << " " 
-           << (*transformParametersPointer)[7] << " " 
-           << (*transformParametersPointer)[8] << " " 
-           << (*transformParametersPointer)[9] << " "
-           << endl;
-      */     
+      
+//       cerr << "Translation from amoeba: " 
+//            << (*transformParametersPointer)[3] << " " 
+//            << (*transformParametersPointer)[4] << " " 
+//            << (*transformParametersPointer)[5] << " " 
+//            << (*transformParametersPointer)[6] << " " 
+//            << (*transformParametersPointer)[7] << " " 
+//            << (*transformParametersPointer)[8] << " " 
+//            << (*transformParametersPointer)[9] << " "
+//            << endl;
+           
       transform->SetTranslation( (*transformParametersPointer)[3],
                                  (*transformParametersPointer)[4],
                                  (*transformParametersPointer)[5] );
@@ -902,7 +1204,7 @@ static void vtkEvaluateFunction(void * arg)
 
         val = metric->GetCrossCorrelation();
         }
-
+//       cerr << "metric val: " << val << endl;
       optimizer->SetFunctionValue(-val);
       }
       break;
@@ -910,9 +1212,7 @@ static void vtkEvaluateFunction(void * arg)
 }
 
 //------------------------------------------------------------------
-// 
-void 
-vtkImageRegistration::InitializeOptimizerAndParameters()
+void vtkImageRegistration::InitializeOptimizer()
 {
   if (this->Optimizer != NULL)
     {
@@ -925,17 +1225,24 @@ vtkImageRegistration::InitializeOptimizerAndParameters()
     case VTK_OPTIMIZER_AMOEBA:
       {
       vtkAmoebaMinimizer* optimizer;
+      double tolerance;
 
       optimizer = vtkAmoebaMinimizer::New();
  
       optimizer->Initialize();
-      optimizer->SetMaxIterations(100); 
-      
+      // optimizer->SetMaxIterations((int)(this->OptimizerParameters[0])); 
+      tolerance = this->OptimizerParameters[1];
+      if (tolerance < 0.01 && 
+	  tolerance > 0.000001)
+	{
+	optimizer->SetTolerance(tolerance);
+	}
+
       RegistrationArgs.ImageRegistration = this;
       RegistrationArgs.Optimizer = optimizer;
       RegistrationArgs.Transform = this->Transform;
       RegistrationArgs.Metric = this->Metric;
-      RegistrationArgs.Interpolator = this->Interpolator;
+      RegistrationArgs.Interpolator = this->SourceReslice;
       RegistrationArgs.OptimizerType = this->OptimizerType;
       RegistrationArgs.MetricType = this->MetricType;
       RegistrationArgs.InterpolatorType = this->InterpolatorType;
@@ -995,22 +1302,21 @@ vtkImageRegistration::InitializeOptimizerAndParameters()
 }
 
 //--------------------------------------------------------------------------
-// 
-int 
-vtkImageRegistration::ExecuteRegistration()
+int vtkImageRegistration::ExecuteRegistration()
 {
   switch (this->OptimizerType)
     {
     case VTK_OPTIMIZER_AMOEBA:
       {
-      dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Minimize();
-      /*
-      for (int i=0; i<10; i++)
+//       dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Minimize();
+      
+      int iterNo = (int)(this->OptimizerParameters[0]);
+      for (int i=0; i<iterNo; i++)
         {
         dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Iterate();
-        this->UpdateProgress(i/50.0);
+        this->UpdateProgress(1.0*i/iterNo);
         }
-      */
+      
       }
       break;
     default:
@@ -1022,10 +1328,7 @@ vtkImageRegistration::ExecuteRegistration()
 }
 
 //--------------------------------------------------------------------------
-// The main program to set up the registration framework and connect
-// pieces together and do registration
-int
-vtkImageRegistration::UpdateRegistration()
+int vtkImageRegistration::UpdateRegistration()
 {
   vtkImageData *fixedImage = this->GetFixedImage();
   vtkImageData *movingImage = this->GetMovingImage();
@@ -1045,6 +1348,11 @@ vtkImageRegistration::UpdateRegistration()
     // reset Abort flag
     this->AbortExecute = 0;
     this->Progress = 0.0;
+    
+    //
+    this->SourceReslice->UpdateWholeExtent();
+    this->TargetReslice->UpdateWholeExtent();
+    
     this->ExecuteRegistration();
     this->ExecuteTime.Modified();
 
@@ -1060,10 +1368,7 @@ vtkImageRegistration::UpdateRegistration()
 }
 
 //--------------------------------------------------------------------------
-// this is not an initialization routine rather a rountine to check
-// for correct data type and components
-int  
-vtkImageRegistration::Initialize()
+int vtkImageRegistration::Initialize()
 {
   vtkImageData *fixedImage = this->GetFixedImage();
   vtkImageData *movingImage = this->GetMovingImage();
@@ -1090,7 +1395,6 @@ vtkImageRegistration::Initialize()
     return 1;
     }
 
-  /*
   vtkImageStencilData *stencil = this->GetFixedImageStencil();
 
   if (stencil)
@@ -1100,42 +1404,50 @@ vtkImageRegistration::Initialize()
     stencil->SetUpdateExtent(stencil->GetWholeExtent());
     stencil->Update();
     }
-  */
-
+ 
   if ( this->InterpolatorType < 0 || 
        this->InterpolatorType >= VTK_NUMBER_OF_INTERPOLATORS)
     {
-    vtkErrorMacro(<<"Interpolator is not present" );
+    vtkErrorMacro(<<"Interpolator is not present!" );
     return 1;
     }
 
   if ( this->MetricType < 0 || this->MetricType >= VTK_NUMBER_OF_METRICS )
     {
-    vtkErrorMacro(<<"Metric is not present" );
+    vtkErrorMacro(<<"Metric is not present!" );
+    return 1;
+    }
+
+  if ( this->PreprocessorType < 0 || 
+       this->PreprocessorType >= VTK_NUMBER_OF_PREPROCESSORS)
+    {
+    vtkErrorMacro(<<"Preprocessor is not present!" );
     return 1;
     }
 
   if ( this->OptimizerType < 0 || 
        this->OptimizerType >= VTK_NUMBER_OF_OPTIMIZERS )
     {
-    vtkErrorMacro(<<"Optimizer is not present" );
+    vtkErrorMacro(<<"Optimizer is not present!" );
     return 1;
     }
 
   if( this->TransformType < 0 || 
       this->TransformType >= VTK_NUMBER_OF_TRANSFORMS )
     {
-    vtkErrorMacro(<<"Transform is not present");
+    vtkErrorMacro(<<"Transform is not present!");
     return 1;
     }
 
-  this->InitializeTransformAndParameters();
+  this->InitializeTransform();
 
-  this->InitializeInterpolator();
-  
-  this->InitializeMetricAndParameters();
-  
-  this->InitializeOptimizerAndParameters();
+  this->InitializePreprocessor();
+
+  this->InitializeMetric();
+
+  this->InitializeOptimizer();
   
   return 0;
 }
+
+

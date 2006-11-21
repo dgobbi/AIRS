@@ -2,13 +2,6 @@
 
   Program:   Atamai Classes for VTK
   Module:    $RCSfile: vtkImageRegistration.h,v $
-  Creator:   Kevin Wang <kwang@atamai.com>
-  Language:  C++
-  Author:    $Author: kwang $
-  Date:      $Date: 2006/07/18 15:25:40 $
-  Version:   $Revision: 1.1 $
-
-==========================================================================
 
 Copyright (c) 2005 Atamai, Inc.
 All rights reserved.
@@ -42,7 +35,7 @@ THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 =========================================================================*/
-// .NAME vtkImageRegistration - VTK class for image registration
+// .NAME vtkImageRegistration 
 // .SECTION Description
 // This class is VTK image registration class.
 
@@ -58,41 +51,40 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #define VTK_TYPE_INVALID                               -1
 
-//--------------------------------------------------------------------------
 // constants for the optimizers
 #define VTK_OPTIMIZER_AMOEBA                            0
 #define VTK_NUMBER_OF_OPTIMIZERS                        1
 
-//---------------------------------------------------------------------------
 // constants for the metrics
 #define VTK_METRIC_NORMALIZED_CROSS_CORRELATION         0
 #define VTK_METRIC_NORMALIZED_MUTUAL_INFORMATION        1
 #define VTK_NUMBER_OF_METRICS                           2
 
-//--------------------------------------------------------------------------
 //constants for the interpolators
 #define VTK_INTERPOLATOR_NEAREST_NEIGHBOR               0
 #define VTK_INTERPOLATOR_LINEAR                         1
 #define VTK_INTERPOLATOR_CUBIC                          2
 #define VTK_NUMBER_OF_INTERPOLATORS                     3
 
-//---------------------------------------------------------------------------
 // constants for the transform types
 #define VTK_TRANSFORM_CENTERED                          0
 #define VTK_NUMBER_OF_TRANSFORMS                        1
 
-//---------------------------------------------------------------------------
-//BTX
+// constants for the preprocessor
+#define VTK_PREPROCESSOR_MI                             0
+#define VTK_PREPROCESSOR_NC                             1
+#define VTK_NUMBER_OF_PREPROCESSORS                     2
+
 class vtkImageData;
 class vtkAbstractTransform;
 class vtkImageStencilData;
 class vtkMatrix4x4;
 class vtkMatrixToHomogeneousTransform;
 class vtkImageReslice;
-//ETX
+class vtkImageGaussianSmooth;
+class vtkImageShiftScale;
+class vtkTransform;
 
-//---------------------------------------------------------------------------
-//
 class VTK_EXPORT vtkImageRegistration : public vtkProcessObject
 {
 public:
@@ -105,11 +97,11 @@ public:
   class RegistrationInfo
   {
   public:
-    vtkImageRegistration*            ImageRegistration;
-    vtkObject*                       Optimizer;
-    vtkAbstractTransform*            Transform;
-    vtkObject*                       Metric;
-    vtkImageReslice*                 Interpolator;
+    vtkImageRegistration            *ImageRegistration;
+    vtkObject                       *Optimizer;
+    vtkAbstractTransform            *Transform;
+    vtkObject                       *Metric;
+    vtkImageReslice                 *Interpolator;
     int                              OptimizerType;
     int                              MetricType;
     int                              InterpolatorType;
@@ -222,8 +214,29 @@ public:
 
   // Description:
   // Get the last transform that was produced by the optimizer.
-  vtkAbstractTransform *GetLastTransform();
+  vtkTransform *GetLastTransform();
   
+  // Description:
+  // Set the image registration metric.
+  vtkSetMacro(PreprocessorType, int);
+  vtkGetMacro(PreprocessorType, int);
+
+  // Description:
+  // Get the name of the specified metric.
+  // A null is returned if i+1 is greater than number of available
+  // metrics.
+  const char *GetPreprocessorName(int i);
+
+  // Description:
+  // Get the parameter name of the specified metric.
+  // A null is returned if i+1 is greater than number of available
+  // parameter.
+  const char *GetPreprocessorParameterName(int metric, int parameter);
+
+  // Description:
+  // Set the parameter for specific optimizer.
+  void SetPreprocessorParameter(const char *, double);
+
   // Description:
   // Start registration.  The registration will run to completion,
   // according to the optimization parameters that were set.  To
@@ -231,56 +244,59 @@ public:
   int UpdateRegistration();
 
 protected:
-
   vtkImageRegistration();
   ~vtkImageRegistration();
 
-  void InitializeTransformAndParameters();
-  void InitializeInterpolator();
-  void InitializeMetricAndParameters();
-  void InitializeOptimizerAndParameters();
-  int  ExecuteRegistration();
   int  Initialize();
+  void InitializeTransform();
+  void InitializePreprocessor();
+  void InitializeMetric();
+  void InitializeOptimizer();
+  int  ExecuteRegistration();
 
-
-private:
-
-  // Copy constructor and assigment operator are purposely not implemented
-  vtkImageRegistration(const vtkImageRegistration&) {};
-  void operator=(const vtkImageRegistration&) {};  
-
-  // 
   int                              OptimizerType;
   int                              MetricType;
   int                              InterpolatorType;
   int                              TransformType;
-
-  RegistrationInfo                 RegistrationArgs;
-  
-  vtkTimeStamp                     ExecuteTime;
+  int                              PreprocessorType;
 
   int                              CurrentIteration;
   double                           Value;
   double                           CurPosition[12];
 
+  RegistrationInfo                 RegistrationArgs;
+  vtkTimeStamp                     ExecuteTime;
+
   //BTX
-  vtkObject*                       Optimizer;
-  vtkAbstractTransform*            Transform;
-  vtkObject*                       Metric;
-  vtkImageReslice*                 Interpolator;
-  vtkMatrixToHomogeneousTransform* LastTransform;
+  vtkObject                       *Optimizer;
+  vtkAbstractTransform            *Transform;
+  vtkObject                       *Metric;
+  vtkTransform                    *LastTransform;
+
+  vtkImageReslice                 *SourceReslice;
+  vtkImageReslice                 *TargetReslice;
+  vtkImageGaussianSmooth          *SourceBlur;
+  vtkImageGaussianSmooth          *TargetBlur;
+  vtkImageShiftScale              *SourceRescale;
+  vtkImageShiftScale              *TargetRescale;
 
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
   std::vector< double >            MetricParameters;
   std::vector< double >            OptimizerParameters;
   std::vector< double >            TransformParameters;
+  std::vector< double >            PreprocessorParameters;
 #else
   vtkstd::vector< double >         MetricParameters;
   vtkstd::vector< double >         OptimizerParameters;
   vtkstd::vector< double >         TransformParameters;
+  vtkstd::vector< double >         PreprocessorParameters;
 #endif
   //ETX
 
+private:
+  // Copy constructor and assigment operator are purposely not implemented
+  vtkImageRegistration(const vtkImageRegistration&) {};
+  void operator=(const vtkImageRegistration&) {};  
 };
 
 #endif //__vtkImageRegistration_h
