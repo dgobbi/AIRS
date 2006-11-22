@@ -69,6 +69,11 @@ POSSIBILITY OF SUCH DAMAGES.
 // Transform header files
 #include "vtkCenteredTransform.h"
 
+#ifndef vtkFloatingPointType
+#define vtkFloatingPointType vtkFloatingPointType
+typedef float vtkFloatingPointType;
+#endif
+
 const char * vtkOptimizerNames[] = {
   "vtkAmoebaMinimizer", 
   0
@@ -624,7 +629,7 @@ const char* vtkImageRegistration::GetPreprocessorParameterName(int preprocessor,
 
 //----------------------------------------------------------------------------
 void vtkImageRegistration::SetPreprocessorParameter(const char * name, 
-                                                 double value)
+                                                    double value)
 {
   unsigned int i, numberOfParameters;
   const char ** tempNames = NULL;
@@ -682,8 +687,7 @@ const char* vtkImageRegistration::GetInterpolatorName(int i)
 }
 
 //----------------------------------------------------------------------------
-const char*
-vtkImageRegistration::GetTransformName(int i)
+const char* vtkImageRegistration::GetTransformName(int i)
 {
   if ( i < 0 || i > VTK_NUMBER_OF_TRANSFORMS )
     {
@@ -896,9 +900,9 @@ void vtkImageRegistration::InitializeTransform()
 void vtkImageRegistration::InitializePreprocessor(void)
 {
   int sourceDim[3], targetDim[3], resolution[3];
-  double sourceSpacing[3], targetSpacing[3];
-  double targetOrigin[3];
-  double targetScale[3];
+  vtkFloatingPointType sourceSpacing[3], targetSpacing[3];
+  vtkFloatingPointType targetOrigin[3];
+  vtkFloatingPointType targetScale[3];
 
   if (this->SourceBlur != NULL)
     {
@@ -991,7 +995,7 @@ void vtkImageRegistration::InitializePreprocessor(void)
       {
       int lowBin = (int)(this->PreprocessorParameters[4]);
       int highBin = (int)(this->PreprocessorParameters[5]);
-      double range[2];
+      vtkFloatingPointType range[2];
 
       this->GetMovingImage()->GetScalarRange(range);
       this->SourceRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
@@ -1006,7 +1010,7 @@ void vtkImageRegistration::InitializePreprocessor(void)
       {
       int lowBin = (int)(this->PreprocessorParameters[4]);
       int highBin = (int)(this->PreprocessorParameters[5]);
-      double range[2];
+      vtkFloatingPointType range[2];
 
       this->GetMovingImage()->GetScalarRange(range);
       this->SourceRescale->SetShift(lowBin+(range[1]-range[0])/(highBin-lowBin) - range[0]);
