@@ -2,7 +2,7 @@ PROJECT(ATAMAIREGISTRATION)
 
 SET(KIT AtamaiRegistration)
 SET(UKIT ATAMAIREGISTRATION)
-SET(KIT_LIBS vtkHybrid vtkImaging)
+SET(KIT_LIBS vtkHybrid vtkImaging vtkAtamaiImaging)
 
 SET ( Kit_SRCS
 vtkCalcCentroid.cxx
@@ -16,8 +16,13 @@ vtkImageAmoebaGrid.cxx
 vtkImageGridStatistics.cxx
 vtkFunctionMinimizer.cxx
 vtkImageCrossCorrelation.cxx
-vtkImageRegistration.cxx
 )
+
+IF (VTK_USE_ATAMAIIMAGING)
+  SET( Kit_SRCS ${Kit_SRCS}
+    vtkImageRegistration.cxx
+    )
+ENDIF (VTK_USE_ATAMAIIMAGING )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
   SET( Kit_SRCS ${Kit_SRCS}
@@ -31,6 +36,7 @@ SET(Kit_TCL_EXTRA_SRCS)
 SET(Kit_PYTHON_EXTRA_SRCS)
 SET(Kit_JAVA_EXTRA_SRCS)
 
+INCLUDE_DIRECTORIES(${AtamaiVTK_INCLUDE_DIRS}) #??
 # -----------------------------------------------------------------
 
 # Include the common setting file

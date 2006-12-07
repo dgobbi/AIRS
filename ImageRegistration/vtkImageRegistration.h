@@ -84,6 +84,8 @@ class vtkImageReslice;
 class vtkImageGaussianSmooth;
 class vtkImageShiftScale;
 class vtkTransform;
+class vtkImageAccumulate;
+class vtkImageRangeCalculator;
 
 class VTK_EXPORT vtkImageRegistration : public vtkProcessObject
 {
@@ -263,6 +265,10 @@ protected:
   int                              CurrentIteration;
   double                           Value;
   double                           CurPosition[12];
+  double                           SourceImageRescaleIntercept;
+  double                           SourceImageRescaleSlope;
+  double                           TargetImageRescaleIntercept;
+  double                           TargetImageRescaleSlope;
 
   RegistrationInfo                 RegistrationArgs;
   vtkTimeStamp                     ExecuteTime;
@@ -279,6 +285,10 @@ protected:
   vtkImageGaussianSmooth          *TargetBlur;
   vtkImageShiftScale              *SourceRescale;
   vtkImageShiftScale              *TargetRescale;
+  vtkImageAccumulate              *SourceAccumulate;
+  vtkImageAccumulate              *TargetAccumulate;
+  vtkImageRangeCalculator         *SourceRange;
+  vtkImageRangeCalculator         *TargetRange;
 
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
   std::vector< double >            MetricParameters;
