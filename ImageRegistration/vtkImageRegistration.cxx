@@ -248,45 +248,59 @@ vtkImageRegistration::~vtkImageRegistration()
   // delete vtk objects
   if ( this->LastTransform != NULL )
     {
-    LastTransform->Delete();
+    this->LastTransform->Delete();
     }
   if ( this->SourceBlur != NULL )
     {
-    SourceBlur->Delete();
+    this->SourceBlur->Delete();
     }
   if ( this->TargetBlur != NULL )
     {
-    TargetBlur->Delete();
+    this->TargetBlur->Delete();
+    }
+  if ( this->SourceAccumulate != NULL )
+    {
+    this->SourceAccumulate->Delete();
+    }
+  if ( this->TargetAccumulate != NULL )
+    {
+    this->TargetAccumulate->Delete();
+    }
+  if ( this->SourceRange != NULL )
+    {
+    this->SourceRange->Delete();
+    }
+  if ( this->TargetRange != NULL )
+    {
+    this->TargetRange->Delete();
     }
   if ( this->SourceRescale != NULL )
     {
-    SourceRescale->Delete();
+    this->SourceRescale->Delete();
     }
   if ( this->TargetRescale != NULL )
     {
-    TargetRescale->Delete();
+    this->TargetRescale->Delete();
     }
   if ( this->SourceReslice != NULL )
     {
-    SourceReslice->Delete();
+    this->SourceReslice->Delete();
     }
   if ( this->TargetReslice != NULL )
     {
-    TargetReslice->Delete();
+    this->TargetReslice->Delete();
     }
-
   if ( this->Optimizer != NULL )
     {
-    Optimizer->Delete();
+    this->Optimizer->Delete();
     }
-
   if ( this->Transform != NULL )
     {
-    Transform->Delete();
+    this->Transform->Delete();
     }
   if ( this->Metric != NULL )
     {
-    Metric->Delete();
+    this->Metric->Delete();
     }
 
 }
