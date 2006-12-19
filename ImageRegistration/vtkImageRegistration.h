@@ -109,7 +109,7 @@ public:
     int                              InterpolatorType;
     int                              TransformType;
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
-    std::vector<double>*          TransformParametersPointer;
+    std::vector<double>*             TransformParametersPointer;
 #else
     vtkstd::vector<double>*          TransformParametersPointer;
 #endif

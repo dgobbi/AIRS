@@ -151,6 +151,8 @@ const char * vtkEpilepsyMIPreprocessorParameterNames[] = {
   "DownSampleFactorX",
   "DownSampleFactorY", 
   "DownSampleFactorZ",
+  "SourceBackgroundLevel",
+  "TargetBackgroundLevel",
   0
 };
 
@@ -164,6 +166,8 @@ const char * vtkEpilepsyNCPreprocessorParameterNames[] = {
   "DownSampleFactorX",
   "DownSampleFactorY", 
   "DownSampleFactorZ",
+  "SourceBackgroundLevel",
+  "TargetBackgroundLevel",
   0
 };
 
@@ -935,90 +939,80 @@ void vtkImageRegistration::InitializePreprocessor(void)
   if (this->SourceBlur != NULL)
     {
     this->SourceBlur->Delete();
-    this->SourceBlur = NULL;
     }
   this->SourceBlur = vtkImageGaussianSmooth::New();
   
   if (this->TargetBlur != NULL)
     {
     this->TargetBlur->Delete();
-    this->TargetBlur = NULL;
     }
   this->TargetBlur = vtkImageGaussianSmooth::New();
 
   if (this->SourceAccumulate != NULL)
     {
     this->SourceAccumulate->Delete();
-    this->SourceAccumulate = NULL;
     }
   this->SourceAccumulate = vtkImageAccumulate::New();
   
   if (this->TargetAccumulate != NULL)
     {
     this->TargetAccumulate->Delete();
-    this->TargetAccumulate = NULL;
     }
   this->TargetAccumulate = vtkImageAccumulate::New();
 
   if (this->SourceRange != NULL)
     {
     this->SourceRange->Delete();
-    this->SourceRange = NULL;
     }
   this->SourceRange = vtkImageRangeCalculator::New();
   
   if (this->TargetRange != NULL)
     {
     this->TargetRange->Delete();
-    this->TargetRange = NULL;
     }
   this->TargetRange = vtkImageRangeCalculator::New();
 
   if (this->SourceRescale != NULL)
     {
     this->SourceRescale->Delete();
-    this->SourceRescale = NULL;
     }
   this->SourceRescale = vtkImageShiftScale::New();
 
   if (this->TargetRescale != NULL)
     {
     this->TargetRescale->Delete();
-    this->TargetRescale = NULL;
     }
   this->TargetRescale = vtkImageShiftScale::New();
   
   if (this->SourceReslice != NULL)
     {
     this->SourceReslice->Delete();
-    this->SourceReslice = NULL;
     }
   this->SourceReslice = vtkImageReslice::New();
 
   if (this->TargetReslice != NULL)
     {
     this->TargetReslice->Delete();
-    this->TargetReslice = NULL;
     }
   this->TargetReslice = vtkImageReslice::New();
 
   // Connect pipeline
   if (this->PreprocessorParameters[0] == 0)
     {
-    this->SourceRescale->SetInput(this->GetMovingImage());
-    this->TargetRescale->SetInput(this->GetFixedImage());
+    this->SourceReslice->SetInput(this->GetMovingImage());
+    this->TargetReslice->SetInput(this->GetFixedImage());
     }
   else
     {
     this->SourceBlur->SetInput(this->GetMovingImage());
     this->TargetBlur->SetInput(this->GetFixedImage());
 
-    this->SourceRescale->SetInput(this->SourceBlur->GetOutput());
-    this->TargetRescale->SetInput(this->TargetBlur->GetOutput());
+    this->SourceReslice->SetInput(this->SourceBlur->GetOutput());
+    this->TargetReslice->SetInput(this->TargetBlur->GetOutput());
     }
 
-  this->SourceReslice->SetInput(this->SourceRescale->GetOutput());
-  this->TargetReslice->SetInput(this->TargetRescale->GetOutput());
+  this->SourceRescale->SetInput(this->SourceReslice->GetOutput());
+  this->TargetRescale->SetInput(this->TargetReslice->GetOutput());
 
   // Set up reslice parameters
   switch(this->InterpolatorType)
@@ -1068,9 +1062,9 @@ void vtkImageRegistration::InitializePreprocessor(void)
   resolution[1] = targetDim[1]/downsampleFactor[1];
   resolution[2] = targetDim[2]/downsampleFactor[2];
 
-  targetScale[0] = (targetDim[0]-1.0)/(resolution[0]-1);
-  targetScale[1] = (targetDim[1]-1.0)/(resolution[1]-1);
-  targetScale[2] = (targetDim[2]-1.0)/(resolution[2]-1);
+  targetScale[0] = (targetDim[0]-1.0)/(resolution[0]-1.0);
+  targetScale[1] = (targetDim[1]-1.0)/(resolution[1]-1.0);
+  targetScale[2] = (targetDim[2]-1.0)/(resolution[2]-1.0);
 
   this->SourceReslice->SetOutputExtent(0, resolution[0]-1,
                                        0, resolution[1]-1,
@@ -1088,11 +1082,22 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->SourceReslice->SetOutputOrigin(targetOrigin);
   this->TargetReslice->SetOutputOrigin(targetOrigin);
 
+  vtkImageStencilData *stencil = this->GetFixedImageStencil();
+
+  if (stencil)
+    {
+    this->SourceReslice->SetStencil(stencil);
+    this->TargetReslice->SetStencil(stencil);
+    }
+
   // compute the range
   vtkFloatingPointType sourceRange[2], targetRange[2];
-  double sourceFractionRange[2], targetFractionRange[2], sourceUpperValue, sourceLowerValue, targetUpperValue, targetLowerValue;
+  double sourceFractionRange[2], targetFractionRange[2];
+  double sourceUpperValue, sourceLowerValue;
+  double targetUpperValue, targetLowerValue;
 
   this->GetMovingImage()->GetScalarRange(sourceRange);
+
   this->SourceAccumulate->SetInput(this->GetMovingImage());
   this->SourceAccumulate->SetComponentSpacing(1.0, 0, 0);
   this->SourceAccumulate->SetComponentOrigin(sourceRange[0], 0, 0);
@@ -1103,11 +1108,13 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->SourceRange->Calculate();
   this->SourceRange->GetDataRange(sourceFractionRange);
 
-  sourceLowerValue = floor((-1000-this->SourceImageRescaleIntercept)/this->SourceImageRescaleSlope);
+  
+  sourceLowerValue = floor(this->PreprocessorParameters[9]);
   sourceUpperValue = sourceFractionRange[1];
 
   this->GetFixedImage()->GetScalarRange(targetRange);
-  this->TargetAccumulate->SetInput(this->GetMovingImage());
+
+  this->TargetAccumulate->SetInput(this->GetFixedImage());
   this->TargetAccumulate->SetComponentSpacing(1.0, 0, 0);
   this->TargetAccumulate->SetComponentOrigin(targetRange[0], 0, 0);
   this->TargetAccumulate->SetComponentExtent(0, int(0.5+(targetRange[1]-targetRange[0])), 0, 0, 0, 0);
@@ -1117,7 +1124,7 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->TargetRange->Calculate();
   this->TargetRange->GetDataRange(targetFractionRange);
 
-  targetLowerValue = floor((-1000-this->TargetImageRescaleIntercept)/this->TargetImageRescaleSlope);
+  targetLowerValue = floor(this->PreprocessorParameters[10]);
   targetUpperValue = targetFractionRange[1];
 
   // Set up rescale parameters
@@ -1129,9 +1136,9 @@ void vtkImageRegistration::InitializePreprocessor(void)
   int lowBin = (int)(this->PreprocessorParameters[4]);
   int highBin = (int)(this->PreprocessorParameters[5]);
 
-  this->SourceRescale->SetShift(lowBin+(sourceUpperValue-sourceLowerValue)/(highBin-lowBin) - sourceLowerValue);
+  this->SourceRescale->SetShift((lowBin+0.5)*(sourceUpperValue-sourceLowerValue)/(highBin-lowBin) - sourceLowerValue);
   this->SourceRescale->SetScale((highBin-lowBin)/(sourceUpperValue-sourceLowerValue));
-  this->TargetRescale->SetShift(lowBin+(targetUpperValue-targetLowerValue)/(highBin-lowBin) - targetLowerValue);
+  this->TargetRescale->SetShift((lowBin+0.5)*(targetUpperValue-targetLowerValue)/(highBin-lowBin) - targetLowerValue);
   this->TargetRescale->SetScale((highBin-lowBin)/(targetUpperValue-targetLowerValue));
 
   switch(this->PreprocessorType)
@@ -1178,8 +1185,8 @@ void vtkImageRegistration::InitializeMetric(void)
       vtkCalcCrossCorrelation* metric;
 
       metric = vtkCalcCrossCorrelation::New();
-      metric->SetInput1(this->SourceReslice->GetOutput());
-      metric->SetInput2(this->TargetReslice->GetOutput());
+      metric->SetInput1(this->SourceRescale->GetOutput());
+      metric->SetInput2(this->TargetRescale->GetOutput());
       if (stencil)
         {
         metric->SetStencil(stencil);
@@ -1193,8 +1200,8 @@ void vtkImageRegistration::InitializeMetric(void)
       vtkImageMutualInformation* metric;
 
       metric = vtkImageMutualInformation::New();
-      metric->SetInput1(this->SourceReslice->GetOutput());
-      metric->SetInput2(this->TargetReslice->GetOutput());
+      metric->SetInput1(this->SourceRescale->GetOutput());
+      metric->SetInput2(this->TargetRescale->GetOutput());
       metric->SetImageAComponentExtent(0, (int)(this->MetricParameters[0]+1));
       metric->SetImageBComponentExtent(0, (int)(this->MetricParameters[1]+1));
       
@@ -1244,15 +1251,15 @@ static void vtkEvaluateFunction(void * arg)
         (*transformParametersPointer)[i] = optimizer->GetParameterValue(registration->GetTransformParameterName(registrationInfo->TransformType, i));
         }
       
-//       cerr << "Translation from amoeba: " 
-//            << (*transformParametersPointer)[3] << " " 
-//            << (*transformParametersPointer)[4] << " " 
-//            << (*transformParametersPointer)[5] << " " 
-//            << (*transformParametersPointer)[6] << " " 
-//            << (*transformParametersPointer)[7] << " " 
-//            << (*transformParametersPointer)[8] << " " 
-//            << (*transformParametersPointer)[9] << " "
-//            << endl;
+//        cerr << "Translation from amoeba: " 
+//             << (*transformParametersPointer)[3] << " " 
+//             << (*transformParametersPointer)[4] << " " 
+//             << (*transformParametersPointer)[5] << " " 
+//             << (*transformParametersPointer)[6] << " " 
+//             << (*transformParametersPointer)[7] << " " 
+//             << (*transformParametersPointer)[8] << " " 
+//             << (*transformParametersPointer)[9] << " "
+//             << endl;
            
       transform->SetTranslation( (*transformParametersPointer)[3],
                                  (*transformParametersPointer)[4],
@@ -1391,12 +1398,19 @@ int vtkImageRegistration::ExecuteRegistration()
 //       dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Minimize();
       
       int iterNo = (int)(this->OptimizerParameters[0]);
-      for (int i=0; i<iterNo; i++)
+      double tolerance = this->OptimizerParameters[1];
+      if (iterNo != 0)
         {
-        dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Iterate();
-        this->UpdateProgress(1.0*i/iterNo);
+        for (int i=0; i<iterNo; i++)
+          {
+          dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Iterate();
+          this->UpdateProgress(1.0*i/iterNo);
+          }
         }
-      
+      else 
+        {
+        dynamic_cast<vtkAmoebaMinimizer*>(this->Optimizer)->Minimize();
+        }
       }
       break;
     default:
