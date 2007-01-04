@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/08/05 15:14:30 $
-  Version:   $Revision: 1.8 $
+  Date:      $Date: 2007/01/04 22:47:05 $
+  Version:   $Revision: 1.9 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -47,6 +47,7 @@ typedef float vtkFloatingPointType;
 #include "vtkImageTwoInputFilter.h"
 
 class vtkImageStencilData;
+class vtkInformation;
 
 class VTK_EXPORT vtkImageMutualInformation : public vtkImageTwoInputFilter
 {
@@ -92,9 +93,26 @@ public:
 
 
   // Description:
+  // Override superclass setinput1 methods.
+  virtual void SetInput1(vtkImageData *input);
+  virtual vtkImageData *GetInput1();
+
+  // Description:
+  // Override superclass setinput2 methods.
+  virtual void SetInput2(vtkImageData *input);
+  virtual vtkImageData *GetInput2();
+
+  // Description:
   // Use a stencil to specify which voxels to include in the computation.
   void SetStencil(vtkImageStencilData *stencil);
   vtkImageStencilData *GetStencil();
+
+  //BTX
+#if (VTK_MAJOR_VERSION >= 5) 
+  // see vtkAlgorithm for docs.
+  virtual int FillInputPortInformation(int, vtkInformation*);
+#endif
+  //ETX
 
   // Description:
   // Reverse the stencil.

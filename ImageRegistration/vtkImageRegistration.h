@@ -86,6 +86,7 @@ class vtkImageShiftScale;
 class vtkTransform;
 class vtkImageAccumulate;
 class vtkImageRangeCalculator;
+class vtkInformation;
 
 class VTK_EXPORT vtkImageRegistration : public vtkProcessObject
 {
@@ -130,6 +131,13 @@ public:
   // Set/Get the image to use as the moving/source image.
   void SetMovingImage(vtkImageData *input);
   vtkImageData *GetMovingImage();
+
+  //BTX
+#if (VTK_MAJOR_VERSION >= 5) 
+  // see vtkAlgorithm for docs.
+  virtual int FillInputPortInformation(int, vtkInformation*);
+#endif
+  //ETX
 
   // Description:
   // Set/Get the optimizer to use.

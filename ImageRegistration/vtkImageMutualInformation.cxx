@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.8 $
+  Date:      $Date: 2007/01/04 22:47:05 $
+  Version:   $Revision: 1.9 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -20,10 +20,15 @@
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
+#if (VTK_MAJOR_VERSION >= 5) 
+#include "vtkInformation.h"
+#include "vtkInformationVector.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
+#endif
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.8 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.9 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -42,6 +47,11 @@ vtkImageMutualInformation::vtkImageMutualInformation()
   this->ReverseStencil = 0;
 
   this->NormalizedMI = 0.0;
+
+#if (VTK_MAJOR_VERSION >= 5) 
+  // we have the image inputs and the optional stencil input
+  this->SetNumberOfInputPorts(2);
+#endif
 }
 
 
@@ -112,23 +122,96 @@ void vtkImageMutualInformation::GetImageBComponentExtent(int extent[2])
 
 
 //----------------------------------------------------------------------------
-void vtkImageMutualInformation::SetStencil(vtkImageStencilData *stencil)
+void vtkImageMutualInformation::SetInput1(vtkImageData *input)
 {
-  this->vtkProcessObject::SetNthInput(2, stencil); 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  this->vtkProcessObject::SetNthInput(0, input);
+#else
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+#endif
+}
+
+//----------------------------------------------------------------------------
+void vtkImageMutualInformation::SetInput2(vtkImageData *input)
+{
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  this->vtkProcessObject::SetNthInput(0, input);
+#else
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
 
 //----------------------------------------------------------------------------
+void vtkImageMutualInformation::SetStencil(vtkImageStencilData *stencil)
+{
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  this->vtkProcessObject::SetNthInput(2, stencil);
+#else
+  // if stencil is null, then set the input port to null
+  this->SetNthInputConnection(1, 0, 
+    (stencil ? stencil->GetProducerPort() : 0));
+#endif
+}
+
+//----------------------------------------------------------------------------
+vtkImageData* vtkImageMutualInformation::GetInput1()
+{
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  if (this->GetNumberOfInputs() < 1)    
+    {
+    return NULL;
+    }
+  return (vtkImageData *)(this->Inputs[0]);
+#else
+  if (this->GetNumberOfInputConnections(0) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
+#endif
+}
+
+//----------------------------------------------------------------------------
+vtkImageData* vtkImageMutualInformation::GetInput2()
+{
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  if (this->GetNumberOfInputs() < 2)    
+    {
+    return NULL;
+    }
+  return (vtkImageData *)(this->Inputs[1]);
+#else
+  if (this->GetNumberOfInputConnections(0) < 2)
+    {
+    return NULL;
+    }
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 1));
+#endif
+}
+
+//----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageMutualInformation::GetStencil()
 {
-  if (this->NumberOfInputs < 3) 
-    { 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  if (this->NumberOfInputs < 3)
+    {
     return NULL;
     }
   else
     {
-    return (vtkImageStencilData *)(this->Inputs[2]); 
+    return (vtkImageStencilData *)(this->Inputs[2]);
     }
+#else
+  if (this->GetNumberOfInputConnections(1) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageStencilData::SafeDownCast(
+    this->GetExecutive()->GetInputData(1, 0));
+#endif
 }
 
 
@@ -455,3 +538,23 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
      << this->ImageBComponentExtent[0] << "," << this->ImageBComponentExtent[1] << " "
      << 0 << "," << 0 << " )\n";
 }
+
+#if (VTK_MAJOR_VERSION >= 5) 
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::FillInputPortInformation(int port, 
+                                                        vtkInformation* info)
+{
+  if (port == 0)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
+    }
+  if (port == 1)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
+    // the stencil input is optional
+    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
+    }
+  return 1;
+}
+#endif

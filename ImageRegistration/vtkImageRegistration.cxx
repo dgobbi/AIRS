@@ -53,8 +53,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageShiftScale.h"
 #include "vtkImageAccumulate.h"
 #include "vtkCommand.h"
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-#else
+#if (VTK_MAJOR_VERSION >= 5) 
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
@@ -244,6 +243,11 @@ vtkImageRegistration::vtkImageRegistration()
   this->SourceImageRescaleSlope       = 1.0;
   this->TargetImageRescaleIntercept   = 0.0;
   this->TargetImageRescaleSlope       = 1.0;
+
+#if (VTK_MAJOR_VERSION >= 5) 
+  // we have the image inputs and the optional stencil input
+  this->SetNumberOfInputPorts(2);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -327,14 +331,8 @@ void vtkImageRegistration::SetFixedImage(vtkImageData *input)
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(0, input);
 #else
-  if (input)
-    {
-    this->SetNthInputConnection(0, 0, input->GetProducerPort());
-    }
-  else
-    {
-    this->SetNthInputConnection(0, 0, 0);
-    }
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
 #endif
 }
 
@@ -362,14 +360,8 @@ void vtkImageRegistration::SetMovingImage(vtkImageData *input)
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(1, input);
 #else
-  if (input)
-    {
-    this->SetNthInputConnection(0, 1, input->GetProducerPort());
-    }
-  else
-    {
-    this->SetNthInputConnection(0, 1, 0);
-    }
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
 #endif
 }
 
@@ -397,14 +389,9 @@ void vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   this->vtkProcessObject::SetNthInput(2, stencil);
 #else
-  if (stencil)
-    {
-    this->SetNthInputConnection(0, 2, stencil->GetProducerPort());
-    }
-  else
-    {
-    this->SetNthInputConnection(0, 2, 0);
-    }
+  // if stencil is null, then set the input port to null
+  this->SetNthInputConnection(1, 0, 
+    (stencil ? stencil->GetProducerPort() : 0));
 #endif
 }
 
@@ -421,11 +408,12 @@ vtkImageStencilData* vtkImageRegistration::GetFixedImageStencil()
     return (vtkImageStencilData *)(this->Inputs[2]);
     }
 #else
-  if (this->GetNumberOfInputConnections(0) < 3)
+  if (this->GetNumberOfInputConnections(1) < 1)
     {
     return NULL;
     }
-  return vtkImageStencilData::SafeDownCast(this->GetExecutive()->GetInputData(0, 2));
+  return vtkImageStencilData::SafeDownCast(
+    this->GetExecutive()->GetInputData(1, 0));
 #endif
 }
 
@@ -1082,13 +1070,12 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->SourceReslice->SetOutputOrigin(targetOrigin);
   this->TargetReslice->SetOutputOrigin(targetOrigin);
 
-  vtkImageStencilData *stencil = this->GetFixedImageStencil();
-
-  if (stencil)
-    {
-    this->SourceReslice->SetStencil(stencil);
-    this->TargetReslice->SetStencil(stencil);
-    }
+//   vtkImageStencilData *stencil = this->GetFixedImageStencil();
+//   if (stencil)
+//     {
+//     this->SourceReslice->SetStencil(stencil);
+//     this->TargetReslice->SetStencil(stencil);
+//     }
 
   // compute the range
   vtkFloatingPointType sourceRange[2], targetRange[2];
@@ -1495,7 +1482,7 @@ int vtkImageRegistration::Initialize()
     {
     stencil->SetSpacing(fixedImage->GetSpacing());
     stencil->SetOrigin(fixedImage->GetOrigin());
-    stencil->SetUpdateExtent(stencil->GetWholeExtent());
+    stencil->SetUpdateExtent(fixedImage->GetWholeExtent());
     stencil->Update();
     }
  
@@ -1544,4 +1531,23 @@ int vtkImageRegistration::Initialize()
   return 0;
 }
 
+#if (VTK_MAJOR_VERSION >= 5) 
+//----------------------------------------------------------------------------
+int vtkImageRegistration::FillInputPortInformation(int port, 
+                                                   vtkInformation* info)
+{
+  if (port == 0)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
+    }
+  if (port == 1)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
+    // the stencil input is optional
+    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
+    }
+  return 1;
+}
+#endif
 
