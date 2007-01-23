@@ -19,9 +19,11 @@ vtkImageCrossCorrelation.cxx
 )
 
 IF (VTK_USE_ATAMAIIMAGING)
-  SET( Kit_SRCS ${Kit_SRCS}
-    vtkImageRegistration.cxx
-    )
+  IF (${VTK_MAJOR_VERSION} GREATER 4)
+    SET( Kit_SRCS ${Kit_SRCS}
+      vtkImageRegistration.cxx
+      )
+  ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
 ENDIF (VTK_USE_ATAMAIIMAGING )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)

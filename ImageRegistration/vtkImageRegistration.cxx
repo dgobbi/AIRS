@@ -53,11 +53,11 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageShiftScale.h"
 #include "vtkImageAccumulate.h"
 #include "vtkCommand.h"
-#if (VTK_MAJOR_VERSION >= 5) 
+#include "vtkPointData.h"
+#include "vtkCellData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
-#endif
 
 // 
 #include "vtkImageProjection.h"
@@ -212,17 +212,10 @@ vtkImageRegistration::vtkImageRegistration()
 
   this->LastTransform             = vtkTransform::New();
 
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
-  this->OptimizerParameters       = std::vector<double>();
-  this->MetricParameters          = std::vector<double>();
-  this->TransformParameters       = std::vector<double>();
-  this->PreprocessorParameters    = std::vector<double>();
-#else
   this->OptimizerParameters       = vtkstd::vector<double>();
   this->MetricParameters          = vtkstd::vector<double>();
   this->TransformParameters       = vtkstd::vector<double>();
   this->PreprocessorParameters    = vtkstd::vector<double>();
-#endif
 
   this->Value                     = 0.0;
   this->CurrentIteration          = 0;
@@ -244,10 +237,9 @@ vtkImageRegistration::vtkImageRegistration()
   this->TargetImageRescaleIntercept   = 0.0;
   this->TargetImageRescaleSlope       = 1.0;
 
-#if (VTK_MAJOR_VERSION >= 5) 
   // we have the image inputs and the optional stencil input
   this->SetNumberOfInputPorts(2);
-#endif
+  this->SetNumberOfOutputPorts(0);
 }
 
 //----------------------------------------------------------------------------
@@ -316,7 +308,7 @@ vtkImageRegistration::~vtkImageRegistration()
 //----------------------------------------------------------------------------
 void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
 {
-  vtkProcessObject::PrintSelf(os,indent);
+  this->Superclass::PrintSelf(os,indent);
   
   os << indent << "Optimizer: " << this->OptimizerType << "\n";
   os << indent << "Metric: " << this->MetricType << "\n";
@@ -328,93 +320,54 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 void vtkImageRegistration::SetFixedImage(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  this->vtkProcessObject::SetNthInput(0, input);
-#else
   // Ask the superclass to connect the input.
   this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageData* vtkImageRegistration::GetFixedImage()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  if (this->GetNumberOfInputs() < 1)    
-    {
-    return NULL;
-    }
-  return (vtkImageData *)(this->Inputs[0]);
-#else
   if (this->GetNumberOfInputConnections(0) < 1)
     {
     return NULL;
     }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 void vtkImageRegistration::SetMovingImage(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  this->vtkProcessObject::SetNthInput(1, input);
-#else
   // Ask the superclass to connect the input.
   this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageData* vtkImageRegistration::GetMovingImage()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  if (this->GetNumberOfInputs() < 2)    
-    {
-    return NULL;
-    }
-  return (vtkImageData *)(this->Inputs[1]);
-#else
   if (this->GetNumberOfInputConnections(0) < 2)
     {
     return NULL;
     }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 1));
-#endif
 }
 
 //----------------------------------------------------------------------------
 void vtkImageRegistration::SetFixedImageStencil(vtkImageStencilData *stencil)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  this->vtkProcessObject::SetNthInput(2, stencil);
-#else
   // if stencil is null, then set the input port to null
   this->SetNthInputConnection(1, 0, 
     (stencil ? stencil->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageStencilData* vtkImageRegistration::GetFixedImageStencil()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  if (this->NumberOfInputs < 3)
-    {
-    return NULL;
-    }
-  else
-    {
-    return (vtkImageStencilData *)(this->Inputs[2]);
-    }
-#else
   if (this->GetNumberOfInputConnections(1) < 1)
     {
     return NULL;
     }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -1405,7 +1358,7 @@ int vtkImageRegistration::ExecuteRegistration()
       break;
     }
 
-  return 0;
+  return 1;
 }
 
 //--------------------------------------------------------------------------
@@ -1419,9 +1372,9 @@ int vtkImageRegistration::UpdateRegistration()
       this->GetMTime() > this->ExecuteTime )
     {
     int ret =  this->Initialize();
-    if( ret != 0 )
+    if( ret != 1 )
       {
-      return 1;
+      return 0;
       }
 
     this->InvokeEvent(vtkCommand::StartEvent,NULL);
@@ -1445,79 +1398,44 @@ int vtkImageRegistration::UpdateRegistration()
     this->InvokeEvent(vtkCommand::EndEvent,NULL);
     }
 
-  return 0;
+  return 1;
 }
 
 //--------------------------------------------------------------------------
 int vtkImageRegistration::Initialize()
 {
-  vtkImageData *fixedImage = this->GetFixedImage();
-  vtkImageData *movingImage = this->GetMovingImage();
-
-  if ( !fixedImage )
-    {
-    vtkErrorMacro(<<"FixedImage is not present");
-    return 1;
-    }
-
-  fixedImage->Update();
-
-  if ( !movingImage )
-    {
-    vtkErrorMacro(<<"MovingImage is not present");
-    return 1;
-    }
-
-  movingImage->Update();
-
-  if ( fixedImage->GetScalarType() != movingImage->GetScalarType() )
-    {
-    vtkErrorMacro(<<"FixedImage type does not match MovingImage type");
-    return 1;
-    }
-
-  vtkImageStencilData *stencil = this->GetFixedImageStencil();
-
-  if (stencil)
-    {
-    stencil->SetSpacing(fixedImage->GetSpacing());
-    stencil->SetOrigin(fixedImage->GetOrigin());
-    stencil->SetUpdateExtent(fixedImage->GetWholeExtent());
-    stencil->Update();
-    }
- 
   if ( this->InterpolatorType < 0 || 
        this->InterpolatorType >= VTK_NUMBER_OF_INTERPOLATORS)
     {
     vtkErrorMacro(<<"Interpolator is not present!" );
-    return 1;
+    return 0;
     }
 
   if ( this->MetricType < 0 || this->MetricType >= VTK_NUMBER_OF_METRICS )
     {
     vtkErrorMacro(<<"Metric is not present!" );
-    return 1;
+    return 0;
     }
 
   if ( this->PreprocessorType < 0 || 
        this->PreprocessorType >= VTK_NUMBER_OF_PREPROCESSORS)
     {
     vtkErrorMacro(<<"Preprocessor is not present!" );
-    return 1;
+    return 0;
     }
 
   if ( this->OptimizerType < 0 || 
        this->OptimizerType >= VTK_NUMBER_OF_OPTIMIZERS )
     {
     vtkErrorMacro(<<"Optimizer is not present!" );
-    return 1;
+    return 0;
     }
 
   if( this->TransformType < 0 || 
       this->TransformType >= VTK_NUMBER_OF_TRANSFORMS )
     {
     vtkErrorMacro(<<"Transform is not present!");
-    return 1;
+    return 0;
     }
 
   this->InitializeTransform();
@@ -1528,10 +1446,9 @@ int vtkImageRegistration::Initialize()
 
   this->InitializeOptimizer();
   
-  return 0;
+  return 1;
 }
 
-#if (VTK_MAJOR_VERSION >= 5) 
 //----------------------------------------------------------------------------
 int vtkImageRegistration::FillInputPortInformation(int port, 
                                                    vtkInformation* info)
@@ -1549,5 +1466,96 @@ int vtkImageRegistration::FillInputPortInformation(int port,
     }
   return 1;
 }
-#endif
+
+//----------------------------------------------------------------------------
+int vtkImageRegistration::FillOutputPortInformation(
+  int port, vtkInformation* info)
+{
+  // now add our info
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageRegistration::RequestInformation(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector))
+{
+  // get the info objects
+  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
+
+  // this is some scary stuff, propagating info upstream??? - Ken
+  vtkImageStencilData *stencil = this->GetFixedImageStencil();
+  if (stencil)
+    {
+    stencil->SetSpacing(inInfo->Get(vtkDataObject::SPACING()));
+    stencil->SetOrigin(inInfo->Get(vtkDataObject::ORIGIN()));
+    }
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageRegistration::RequestUpdateExtent(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector))
+{
+  int* inExt;
+  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
+  inExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+
+  if (this->GetNumberOfInputConnections(1) > 0)
+    {
+    vtkInformation *inInfo2 = inputVector[1]->GetInformationObject(0);
+    inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+    }
+
+  inInfo = inputVector[0]->GetInformationObject(1);
+  inExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+
+  return 1;
+}
+//----------------------------------------------------------------------------
+int vtkImageRegistration::RequestData(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector))
+{
+  this->UpdateRegistration();
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageRegistration::ProcessRequest(vtkInformation* request,
+                                         vtkInformationVector** inputVector,
+                                         vtkInformationVector* outputVector)
+{
+  // generate the data oject
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
+    {
+    return 1;
+    }
+  // generate the data
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
+    {
+    return this->RequestData(request, inputVector, outputVector);
+    }
+
+  // execute information
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
+    {
+    return this->RequestInformation(request, inputVector, outputVector);
+    }
+
+  // propagate update extent
+  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
+    {
+    return this->RequestUpdateExtent(request, inputVector, outputVector);
+    }
+
+  return this->Superclass::ProcessRequest(request, inputVector, outputVector);
+}
 

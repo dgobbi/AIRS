@@ -35,19 +35,15 @@ THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 =========================================================================*/
-// .NAME vtkImageRegistration 
+// .NAME vtkImageRegistration - Atamai linear registration class
 // .SECTION Description
 // This class is VTK image registration class.
 
 #ifndef __vtkImageRegistration_h
 #define __vtkImageRegistration_h
 
-#include "vtkProcessObject.h"
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-#include <vector>
-#else
+#include "vtkAlgorithm.h"
 #include <vtksys/SystemTools.hxx>
-#endif
 
 #define VTK_TYPE_INVALID                               -1
 
@@ -88,10 +84,10 @@ class vtkImageAccumulate;
 class vtkImageRangeCalculator;
 class vtkInformation;
 
-class VTK_EXPORT vtkImageRegistration : public vtkProcessObject
+class VTK_EXPORT vtkImageRegistration : public vtkAlgorithm
 {
 public:
-  vtkTypeMacro(vtkImageRegistration, vtkProcessObject);
+  vtkTypeMacro(vtkImageRegistration, vtkAlgorithm);
   static vtkImageRegistration *New();
   void PrintSelf(ostream& os, vtkIndent indent);
 
@@ -109,11 +105,7 @@ public:
     int                              MetricType;
     int                              InterpolatorType;
     int                              TransformType;
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
-    std::vector<double>*             TransformParametersPointer;
-#else
     vtkstd::vector<double>*          TransformParametersPointer;
-#endif
   };
   //ETX
 
@@ -132,12 +124,6 @@ public:
   void SetMovingImage(vtkImageData *input);
   vtkImageData *GetMovingImage();
 
-  //BTX
-#if (VTK_MAJOR_VERSION >= 5) 
-  // see vtkAlgorithm for docs.
-  virtual int FillInputPortInformation(int, vtkInformation*);
-#endif
-  //ETX
 
   // Description:
   // Set/Get the optimizer to use.
@@ -264,6 +250,22 @@ protected:
   void InitializeOptimizer();
   int  ExecuteRegistration();
 
+  // Functions overridden from Superclass
+  virtual int ProcessRequest(vtkInformation *, 
+                             vtkInformationVector **,
+                             vtkInformationVector *);
+  virtual int RequestData(vtkInformation *, 
+			  vtkInformationVector **,
+			  vtkInformationVector *);
+  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request), 
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int RequestInformation(vtkInformation *vtkNotUsed(request), 
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int FillInputPortInformation(int port, vtkInformation* info);
+  virtual int FillOutputPortInformation(int port, vtkInformation* info);
+
   int                              OptimizerType;
   int                              MetricType;
   int                              InterpolatorType;
@@ -297,18 +299,11 @@ protected:
   vtkImageAccumulate              *TargetAccumulate;
   vtkImageRangeCalculator         *SourceRange;
   vtkImageRangeCalculator         *TargetRange;
-
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION < 4)
-  std::vector< double >            MetricParameters;
-  std::vector< double >            OptimizerParameters;
-  std::vector< double >            TransformParameters;
-  std::vector< double >            PreprocessorParameters;
-#else
+  
   vtkstd::vector< double >         MetricParameters;
   vtkstd::vector< double >         OptimizerParameters;
   vtkstd::vector< double >         TransformParameters;
   vtkstd::vector< double >         PreprocessorParameters;
-#endif
   //ETX
 
 private:
