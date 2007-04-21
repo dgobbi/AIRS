@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.h,v $
   Language:  C++
-  Date:      $Date: 2005/08/05 15:14:30 $
-  Version:   $Revision: 1.7 $
+  Date:      $Date: 2007/04/21 16:23:46 $
+  Version:   $Revision: 1.8 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -67,8 +67,8 @@ public:
   vtkSetObjectMacro(Input, vtkImageData);
   vtkGetObjectMacro(Input, vtkImageData);
 
-  float *GetCentroid();
-  float *GetCovarianceMatrix();
+  double *GetCentroid();
+  double *GetCovarianceMatrix();
 
 
 
@@ -81,8 +81,8 @@ protected:
   void operator=(const vtkCalcCentroid&) {};
 
 
-  float Centroid[3];
-  float CovarianceMatrix[9];
+  double Centroid[3];
+  double CovarianceMatrix[9];
   vtkImageData *Input;
 };
 

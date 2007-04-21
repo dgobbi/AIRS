@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/21 13:30:37 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2007/04/21 16:23:46 $
+  Version:   $Revision: 1.7 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -74,8 +74,8 @@ vtkCalcCentroid::~vtkCalcCentroid()
 // Function to set up the covariance matrix
 template <class T>
 static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
-					 float *centroid,
-					 int *inputExtent, float *covar)
+					 double *centroid,
+					 int *inputExtent, double *covar)
 {
   vtkIdType inInc0, inInc1, inInc2;
   int idx0, idx1, idx2;
@@ -182,13 +182,13 @@ static void vtkCalculateCentroid(vtkImageData *input, T *inPtr,
 }
 
 
-float *vtkCalcCentroid::GetCentroid ()
+double *vtkCalcCentroid::GetCentroid ()
 {
   this->ComputeCentroid();
   return this->Centroid;
 }
 
-float *vtkCalcCentroid::GetCovarianceMatrix()
+double *vtkCalcCentroid::GetCovarianceMatrix()
 {
   this->ComputeCovarianceMatrix();
   return this->CovarianceMatrix;
@@ -346,7 +346,7 @@ void vtkCalcCentroid::ComputeCovarianceMatrix()
 
 void vtkCalcCentroid::PrintSelf(ostream& os, vtkIndent indent)
 {
-  float *mat = this->CovarianceMatrix;
+  double *mat = this->CovarianceMatrix;
   vtkObject::PrintSelf(os,indent);
 
   if (!this->GetInput()) 

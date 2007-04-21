@@ -4,6 +4,8 @@ SET(KIT AtamaiRegistration)
 SET(UKIT ATAMAIREGISTRATION)
 SET(KIT_LIBS vtkHybrid vtkImaging vtkAtamaiImaging)
 
+SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
+
 SET ( Kit_SRCS
 vtkCalcCentroid.cxx
 vtkCenteredTransform.cxx
