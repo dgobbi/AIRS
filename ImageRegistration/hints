@@ -1,0 +1,4 @@
+vtkCalcCentroid GetCentroid 307 3
+vtkCalcCentroid GetCovarianceMatrix 307 9
+
+
