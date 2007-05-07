@@ -65,6 +65,14 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <vtkstd/numeric>
 #endif
 
+// visual studio 6 does not define std::min or std::max
+#ifdef _MSC_VER
+#if (_MSC_VER < 1300)
+#define min _cpp_min
+#define max _cpp_max
+#endif /* (_MSC_VER < 1300) */
+#endif /* _MSC_VER */
+
 // A convenience class for using C arrays in STL vectors
 class myVertIds
 {
@@ -417,7 +425,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
   // vtkPolyData time
   double RSphere;
-  int nPoints;
+  int nPoints, ptId;
   vtkPolyData *brainPolyData = vtkPolyData::New();
   vtkIdListCollection *pointNeighbourList = vtkIdListCollection::New();
 
