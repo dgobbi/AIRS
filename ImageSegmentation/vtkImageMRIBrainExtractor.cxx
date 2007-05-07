@@ -499,7 +499,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
   // Loop over each point in brainPolyData and save it into an STL vector.
   // Also, use vtkPolyData functions to figure out where our neighbours are
-  for (int ptId = 0; ptId < nPoints ; ptId++)
+  for (ptId = 0; ptId < nPoints ; ptId++)
     {
     // Our target point
     brainPolyData->GetPoint(ptId, point);
@@ -823,7 +823,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
     }
   // Switch back to VTK containers
   vtkPoints *newPoints = brainPolyData->GetPoints();
-  for (int ptId = 0; ptId < nPoints; ptId++)
+  for (ptId = 0; ptId < nPoints; ptId++)
     {
     target = brainPoints[ptId];
     newPoints->SetPoint( ptId, target.xyz );
