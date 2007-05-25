@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2007/01/04 22:47:05 $
-  Version:   $Revision: 1.9 $
+  Date:      $Date: 2007/05/25 11:06:52 $
+  Version:   $Revision: 1.10 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -28,7 +28,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.9 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.10 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -136,7 +136,7 @@ void vtkImageMutualInformation::SetInput1(vtkImageData *input)
 void vtkImageMutualInformation::SetInput2(vtkImageData *input)
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  this->vtkProcessObject::SetNthInput(0, input);
+  this->vtkProcessObject::SetNthInput(1, input);
 #else
   // Ask the superclass to connect the input.
   this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
