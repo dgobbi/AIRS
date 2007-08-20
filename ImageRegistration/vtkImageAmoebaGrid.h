@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.h,v $
   Language:  C++
-  Date:      $Date: 2005/10/30 20:07:19 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2007/08/20 20:46:39 $
+  Version:   $Revision: 1.5 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -59,6 +59,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef vtkFloatingPointType
 #define vtkFloatingPointType vtkFloatingPointType
 typedef float vtkFloatingPointType;
+#endif
+
+#if (VTK_MAJOR_VERSION >= 5)
+class vtkInformation;
 #endif
 
 
@@ -134,6 +138,9 @@ protected:
   double *TotalCost;
   int *VectorsMinimized;
 
+#if (VTK_MAJOR_VERSION >= 5)
+  int FillInputPortInformation(int port, vtkInformation *info);
+#endif
 
   void ExecuteInformation(vtkImageData **inDatas, vtkImageData *outData);
   void ExecuteInformation(){this->vtkImageMultipleInputFilter::ExecuteInformation();};

@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2007/08/20 20:46:39 $
+  Version:   $Revision: 1.7 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -42,6 +42,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImageAmoebaGrid.h"
 #include "vtkObjectFactory.h"
 
+#if (VTK_MAJOR_VERSION >= 5)
+#include "vtkInformation.h"
+#include "vtkExecutive.h"
+#endif
 
 //----------------------------------------------------------------------------
 vtkImageAmoebaGrid* vtkImageAmoebaGrid::New()
@@ -82,6 +86,11 @@ vtkImageAmoebaGrid::vtkImageAmoebaGrid()
   this->TotalCost = NULL;
   
   this->Tolerance = 0.005;
+
+#if (VTK_MAJOR_VERSION >= 5)
+  // we have the image inputs and the optional stencil input
+  this->SetNumberOfInputPorts(2);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -104,14 +113,47 @@ vtkImageAmoebaGrid::~vtkImageAmoebaGrid()
 }
 
 //----------------------------------------------------------------------------
+#if (VTK_MAJOR_VERSION >= 5)
+int vtkImageAmoebaGrid::FillInputPortInformation(int port,
+                                                 vtkInformation *info)
+{
+  if (port == 1)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
+    // the stencil input is optional
+    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
+    }
+  else
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
+    }
+  return 1;
+}
+#endif
+
+//----------------------------------------------------------------------------
 void vtkImageAmoebaGrid::SetStencil(vtkImageStencilData *stencil)
 {
+#if (VTK_MAJOR_VERSION >= 5)
+  this->SetNthInputConnection(1, 0, 
+    (stencil ? stencil->GetProducerPort() : 0));
+#else
   this->vtkProcessObject::SetNthInput(3, stencil);
+#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
 {
+#if (VTK_MAJOR_VERSION >= 5)
+  if (this->GetNumberOfInputConnections(1) < 1) 
+    { 
+    return NULL;
+    }
+  return vtkImageStencilData::SafeDownCast(
+    this->GetExecutive()->GetInputData(1, 0));
+#else
   if (this->NumberOfInputs < 4)
     {
     return NULL;
@@ -120,6 +162,7 @@ vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
     {
     return (vtkImageStencilData *)(this->Inputs[3]);
     }    
+#endif
 }
   
 
@@ -147,11 +190,12 @@ vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
 // from double to fixed-point
 static inline int vtkCastFloatToFixed(double x)
 {
-  x += 412316860416.0; // (2**(52-radix))*1.5
+  union { double d; unsigned int i[2]; } dual;
+  dual.d = x + 412316860416.0; // (2**(52-radix))*1.5
 #ifdef VTK_WORDS_BIGENDIAN
-  return (((int *)&x))[1];
+  return dual.i[1];
 #else
-  return (((int *)&x))[0];
+  return dual.i[0];
 #endif
 }
 
@@ -277,22 +321,26 @@ static inline void vtkResliceRound(int val, unsigned short& rnd)
 
 // The 'floor' function on x86 and mips is many times slower than these
 // and is used a lot in this code, optimize for different CPU architectures
-static inline int vtkResliceFloor(double x)
+inline int vtkResliceFloor(double x)
 {
-#if defined mips || defined sparc
-  return (int)((unsigned int)(x + 2147483648.0) - 2147483648U);
-#elif defined i386
-  unsigned int hilo[2];
-  *((double *)hilo) = x + 103079215104.0;  // (2**(52-radix))*1.5
-  return (int)((hilo[1]<<16)|(hilo[0]>>16));
+#if defined mips || defined sparc || defined __ppc__
+  x += 2147483648.0;
+  unsigned int i = (unsigned int)(x);
+  return (int)(i - 2147483648U);
+#elif defined i386 || defined _M_IX86
+  union { double d; unsigned short s[4]; unsigned int i[2]; } dual;
+  dual.d = x + 103079215104.0;  // (2**(52-16))*1.5
+  return (int)((dual.i[1]<<16)|((dual.i[0])>>16));
 #elif defined ia64 || defined __ia64__ || defined IA64
   x += 103079215104.0;
   long long i = (long long)(x);
   return (int)(i - 103079215104LL);
 #else
-  return int(floor(x));
+  double y = floor(x);
+  return (int)(y);
 #endif
 }
+
 static inline int vtkResliceCeil(double x)
 {
   return -vtkResliceFloor(-x - 1.0) - 1;
