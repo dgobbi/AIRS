@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.h,v $
   Language:  C++
-  Date:      $Date: 2005/10/30 22:27:01 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.7 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -80,8 +80,6 @@ public:
 protected:
   vtkImageCrossCorrelation();
   ~vtkImageCrossCorrelation() {};
-  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&) {};
-  void operator=(const vtkImageCrossCorrelation&) {};
 
   float ShrinkFactors[3];
   float KernelRadius[3];
@@ -94,6 +92,9 @@ protected:
   void ThreadedExecute(vtkImageData **inDatas, vtkImageData *outData,
 		       int extent[6], int id);
 
+private:
+  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&); // Not implemented.
+  void operator=(const vtkImageCrossCorrelation&); // Not implemented.
 };
 
 #endif

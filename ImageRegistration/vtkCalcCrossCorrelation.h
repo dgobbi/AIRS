@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCrossCorrelation.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 16:24:51 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.3 $
 
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -51,8 +51,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __vtkCalcCrossCorrelation_h
 
 #include "vtkProcessObject.h"
-#include "vtkImageData.h"
-#include "vtkImageStencilData.h"
+
+class vtkImageData;
+class vtkImageStencilData;
+class vtkInformation;
 
 class VTK_EXPORT vtkCalcCrossCorrelation : public vtkProcessObject
 {
@@ -87,8 +89,10 @@ public:
 protected:
   vtkCalcCrossCorrelation();
   ~vtkCalcCrossCorrelation();
-  vtkCalcCrossCorrelation(const vtkCalcCrossCorrelation&) {};
-  void operator=(const vtkCalcCrossCorrelation&) {};
+ 
+#if (VTK_MAJOR_VERSION >= 5) 
+  virtual int FillInputPortInformation(int, vtkInformation*);
+#endif
 
   void Execute();
 
@@ -96,6 +100,10 @@ protected:
 
   double  CrossCorrelation;
   vtkTimeStamp ExecuteTime;
+
+private:
+  vtkCalcCrossCorrelation(const vtkCalcCrossCorrelation&); // Not implemented.
+  void operator=(const vtkCalcCrossCorrelation&); // Not implemented.
 
 };
 

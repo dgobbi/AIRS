@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.6 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -39,12 +39,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 #include "vtkImageGridStatistics.h"
+
+#include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 #include "vtkCommand.h"
 
 #include <math.h>
 
-//------------------------------------------------------------------------------
+#if (VTK_MAJOR_VERSION >= 5) 
+#include "vtkInformation.h"
+#include "vtkExecutive.h"
+#endif
+
+//----------------------------------------------------------------------------
 vtkImageGridStatistics* vtkImageGridStatistics::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -57,8 +64,6 @@ vtkImageGridStatistics* vtkImageGridStatistics::New()
   return new vtkImageGridStatistics;
 }
 
-
-
 //----------------------------------------------------------------------------
 vtkImageGridStatistics::vtkImageGridStatistics()
 {
@@ -66,26 +71,39 @@ vtkImageGridStatistics::vtkImageGridStatistics()
   this->StandardDeviation = 0.0;
 }
 
+//----------------------------------------------------------------------------
 vtkImageGridStatistics::~vtkImageGridStatistics()
 {
 }
 
+//----------------------------------------------------------------------------
 void vtkImageGridStatistics::SetInput(vtkImageData *input)
 {
+#if (VTK_MAJOR_VERSION < 5)
   this->vtkProcessObject::SetNthInput(0, input);
+#else
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
+//----------------------------------------------------------------------------
 vtkImageData *vtkImageGridStatistics::GetInput()
 {
-  if (this->NumberOfInputs < 1)
+#if (VTK_MAJOR_VERSION < 5)
+  if (this->GetNumberOfInputs() < 1)    
     {
-      return NULL;
+    return NULL;
     }
-
   return (vtkImageData *)(this->Inputs[0]);
+#else
+  if (this->GetNumberOfInputConnections(0) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
+#endif
 }
-
-
 
 //----------------------------------------------------------------------------
 template <class T>
@@ -133,12 +151,9 @@ static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
   
   *AverageMagnitude = sum / count;
   *StandardDeviation = sqrt((sum_squared * count - sum*sum) / (count * (count-1.0)));
-
-  
 }
 
-
-
+//----------------------------------------------------------------------------
 // Description:
 // Make sure input is available then call the templated execute method to
 // deal with the particular data type.
@@ -204,10 +219,7 @@ void vtkImageGridStatistics::Update()
     }
 }
 
-
-
-
-
+//----------------------------------------------------------------------------
 void vtkImageGridStatistics::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkProcessObject::PrintSelf(os,indent);
@@ -218,6 +230,5 @@ void vtkImageGridStatistics::PrintSelf(ostream& os, vtkIndent indent)
     }
   os << indent << "AverageMagnitude: " << this->AverageMagnitude << "\n";
   os << indent << "StandardDeviation: " << this->StandardDeviation << "\n";
-
 }
 

@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2007/05/25 11:06:52 $
-  Version:   $Revision: 1.10 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.11 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -20,15 +20,15 @@
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
+
 #if (VTK_MAJOR_VERSION >= 5) 
 #include "vtkInformation.h"
-#include "vtkInformationVector.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkExecutive.h"
 #endif
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.10 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.11 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -54,7 +54,6 @@ vtkImageMutualInformation::vtkImageMutualInformation()
 #endif
 }
 
-
 //----------------------------------------------------------------------------
 vtkImageMutualInformation::~vtkImageMutualInformation()
 {
@@ -74,6 +73,7 @@ void vtkImageMutualInformation::SetImageAComponentExtent(int extent[2])
     this->Modified();
     }
 }
+
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::SetImageBComponentExtent(int extent[2])
 {
@@ -97,6 +97,7 @@ void vtkImageMutualInformation::SetImageAComponentExtent(int min, int max)
   extent[0] = min;  extent[1] = max;
   this->SetImageAComponentExtent(extent);
 }
+
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::SetImageBComponentExtent(int min, int max)
 {
@@ -106,13 +107,13 @@ void vtkImageMutualInformation::SetImageBComponentExtent(int min, int max)
   this->SetImageBComponentExtent(extent);
 }
 
-
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::GetImageAComponentExtent(int extent[2])
 {
   extent[0] = this->ImageAComponentExtent[0];
   extent[1] = this->ImageAComponentExtent[1];
 }
+
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::GetImageBComponentExtent(int extent[2])
 {
@@ -120,11 +121,10 @@ void vtkImageMutualInformation::GetImageBComponentExtent(int extent[2])
   extent[1] = this->ImageBComponentExtent[1];
 }
 
-
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::SetInput1(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   this->vtkProcessObject::SetNthInput(0, input);
 #else
   // Ask the superclass to connect the input.
@@ -135,7 +135,7 @@ void vtkImageMutualInformation::SetInput1(vtkImageData *input)
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::SetInput2(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   this->vtkProcessObject::SetNthInput(1, input);
 #else
   // Ask the superclass to connect the input.
@@ -143,11 +143,10 @@ void vtkImageMutualInformation::SetInput2(vtkImageData *input)
 #endif
 }
 
-
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::SetStencil(vtkImageStencilData *stencil)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   this->vtkProcessObject::SetNthInput(2, stencil);
 #else
   // if stencil is null, then set the input port to null
@@ -159,7 +158,7 @@ void vtkImageMutualInformation::SetStencil(vtkImageStencilData *stencil)
 //----------------------------------------------------------------------------
 vtkImageData* vtkImageMutualInformation::GetInput1()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   if (this->GetNumberOfInputs() < 1)    
     {
     return NULL;
@@ -177,7 +176,7 @@ vtkImageData* vtkImageMutualInformation::GetInput1()
 //----------------------------------------------------------------------------
 vtkImageData* vtkImageMutualInformation::GetInput2()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   if (this->GetNumberOfInputs() < 2)    
     {
     return NULL;
@@ -195,7 +194,7 @@ vtkImageData* vtkImageMutualInformation::GetInput2()
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageMutualInformation::GetStencil()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+#if (VTK_MAJOR_VERSION < 5)
   if (this->NumberOfInputs < 3)
     {
     return NULL;
@@ -214,23 +213,28 @@ vtkImageStencilData *vtkImageMutualInformation::GetStencil()
 #endif
 }
 
-
-//--------------------------------------------------------------------------
-// The 'floor' function on x86, mips and ppc is many times slower than these
+//----------------------------------------------------------------------------
+// The 'floor' function on x86 and mips is many times slower than these
 // and is used a lot in this code, optimize for different CPU architectures
-inline int vtkMIFloor(float x)
+static inline int vtkMIFloor(double x)
 {
 #if defined mips || defined sparc || defined __ppc__
-  return (int)((unsigned int)(x + 2147483648.0) - 2147483648U);
+  x += 2147483648.0;
+  unsigned int i = (unsigned int)(x);
+  return (int)(i - 2147483648U);
 #elif defined i386 || defined _M_IX86
-  unsigned int hilo[2];
-  *((double *)hilo) = x + 103079215104.0;  // (2**(52-16))*1.5
-  return (int)((hilo[1]<<16)|(hilo[0]>>16));
+  union { double d; unsigned short s[4]; unsigned int i[2]; } dual;
+  dual.d = x + 103079215104.0;  // (2**(52-16))*1.5
+  return (int)((dual.i[1]<<16)|((dual.i[0])>>16));
+#elif defined ia64 || defined __ia64__ || defined IA64
+  x += 103079215104.0;
+  long long i = (long long)(x);
+  return (int)(i - 103079215104LL);
 #else
-  return int(floor(x));
+  double y = floor(x);
+  return (int)(y);
 #endif
 }
-
 
 //----------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
@@ -372,8 +376,6 @@ void vtkImageMutualInformationExecute(vtkImageMutualInformation *self,
 
 }
 
-        
-
 //----------------------------------------------------------------------------
 // This method is passed a input and output Data, and executes the filter
 // algorithm to fill the output from the input.
@@ -475,7 +477,6 @@ void vtkImageMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out))
       return;
     }
 }
-
 
 //----------------------------------------------------------------------------
 void vtkImageMutualInformation::ExecuteInformation(vtkImageData **inputs, 

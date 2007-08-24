@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImage3DNoiseSource.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.3 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.4 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -45,9 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImage3DNoiseSource.h"
 #include "vtkObjectFactory.h"
 
-
-
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 vtkImage3DNoiseSource* vtkImage3DNoiseSource::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -59,10 +57,6 @@ vtkImage3DNoiseSource* vtkImage3DNoiseSource::New()
   // If the factory was unable to create the object, then create it here.
   return new vtkImage3DNoiseSource;
 }
-
-
-
-
 
 //----------------------------------------------------------------------------
 vtkImage3DNoiseSource::vtkImage3DNoiseSource()
@@ -76,11 +70,10 @@ vtkImage3DNoiseSource::vtkImage3DNoiseSource()
   this->NumberOfScalarComponents = 1;
 }
 
-
 //----------------------------------------------------------------------------
 void vtkImage3DNoiseSource::SetWholeExtent(int xMin, int xMax, 
-					 int yMin, int yMax,
-					 int zMin, int zMax)
+                                           int yMin, int yMax,
+                                           int zMin, int zMax)
 {
   int modified = 0;
   
@@ -121,13 +114,11 @@ void vtkImage3DNoiseSource::SetWholeExtent(int xMin, int xMax,
 }
 
 //----------------------------------------------------------------------------
-
 void vtkImage3DNoiseSource::SetNumberOfScalarComponents(int num)
 {
   this->NumberOfScalarComponents = num;
   this->Modified();
 }
-
 
 //----------------------------------------------------------------------------
 void vtkImage3DNoiseSource::ExecuteInformation()
@@ -139,7 +130,7 @@ void vtkImage3DNoiseSource::ExecuteInformation()
   output->SetNumberOfScalarComponents(this->NumberOfScalarComponents);
 }
 
-
+//----------------------------------------------------------------------------
 template <class T>
 void vtkImage3DNoiseExecute(vtkImage3DNoiseSource *self, vtkImageData *data, T *outPtr)
 {
@@ -189,7 +180,7 @@ void vtkImage3DNoiseExecute(vtkImage3DNoiseSource *self, vtkImageData *data, T *
     }
 }
 
-
+//----------------------------------------------------------------------------
 void vtkImage3DNoiseSource::ExecuteData(vtkDataObject *output)
 {
   vtkImageData *data = this->AllocateOutputData(output);
@@ -207,8 +198,7 @@ void vtkImage3DNoiseSource::ExecuteData(vtkDataObject *output)
     }
 }
 
-
-
+//----------------------------------------------------------------------------
 void vtkImage3DNoiseSource::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkImageSource::PrintSelf(os,indent);

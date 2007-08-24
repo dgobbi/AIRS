@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImage3DNoiseSource.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 16:24:51 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -101,7 +101,6 @@ public:
   void SetOutputScalarTypeToUnsignedChar()
   {this->SetOutputScalarType(VTK_UNSIGNED_CHAR);}
 
-
   // Description:
   // Set/Get the number of scalar components to generate.
   void SetNumberOfScalarComponents(int n);
@@ -110,8 +109,9 @@ public:
 protected:
   vtkImage3DNoiseSource();
   ~vtkImage3DNoiseSource() {};
-  vtkImage3DNoiseSource(const vtkImage3DNoiseSource&) {};
-  void operator=(const vtkImage3DNoiseSource&) {};
+
+  virtual void ExecuteInformation();
+  virtual void ExecuteData(vtkDataObject *data);
 
   float Minimum;
   float Maximum;
@@ -119,8 +119,9 @@ protected:
   int OutputScalarType;
   int NumberOfScalarComponents;
 
-  virtual void ExecuteInformation();
-  virtual void ExecuteData(vtkDataObject *data);
+private:
+  vtkImage3DNoiseSource(const vtkImage3DNoiseSource&); // Not implemented.
+  void operator=(const vtkImage3DNoiseSource&); // Not implemented.
 };
 
 

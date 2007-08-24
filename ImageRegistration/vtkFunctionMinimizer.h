@@ -1,3 +1,39 @@
+/*=========================================================================
+
+  Program:   AtamaiRegistration for VTK
+  Module:    $RCSfile: vtkFunctionMinimizer.h,v $
+  Language:  C++
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.4 $
+
+Copyright (c) 2006 Atamai, Inc.
+All rights reserved.
+
+THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
+WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
+MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
+OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
+THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+=========================================================================*/
+
+// .NAME vtkFunctionMinimizer - nonlinear optimization with a simplex
+// .SECTION Description
+// vtkAmoebaMinimizer will modify a set of parameters in order to find
+// the minimum of a specified function.  The method used is commonly
+// known as the amoeba method, it constructs an n-dimensional simplex
+// in parameter space (i.e. a tetrahedron if the number or parameters
+// is 3) and moves the vertices around parameter space until a local
+// minimum is found.  The amoeba method is robust, reasonably efficient,
+// but is not guaranteed to find the global minimum if several local
+// minima exist.
+// .SECTION see also
+// vtkAmoebaMinimizer vtkPowellMinimizer
+
 #ifndef __vtkFunctionMinimizer_h
 #define __vtkFunctionMinimizer_h
 
@@ -80,8 +116,6 @@ public:
 protected:
   vtkFunctionMinimizer();
   ~vtkFunctionMinimizer();
-  vtkFunctionMinimizer(const vtkFunctionMinimizer&) {};
-  void operator=(const vtkFunctionMinimizer&) {};
 
 //BTX  
   void (*Function)(void *);
@@ -107,6 +141,11 @@ protected:
 //BTX
   friend void vtkFunctionMinimizerFunction(void *data);
 //ETX
+
+private:
+  vtkFunctionMinimizer(const vtkFunctionMinimizer&); // Not implemented.
+  void operator=(const vtkFunctionMinimizer&); // Not implemented.
+
 };
 
 #endif

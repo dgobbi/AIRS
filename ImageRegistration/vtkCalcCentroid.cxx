@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.cxx,v $
   Language:  C++
-  Date:      $Date: 2007/04/21 16:23:46 $
-  Version:   $Revision: 1.7 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.8 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCalcCentroid.h"
 #include "vtkObjectFactory.h"
 
-//------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 vtkCalcCentroid* vtkCalcCentroid::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -55,7 +55,7 @@ vtkCalcCentroid* vtkCalcCentroid::New()
   return new vtkCalcCentroid;
 }
 
-
+//--------------------------------------------------------------------------
 // Constructs with initial 0 values.
 vtkCalcCentroid::vtkCalcCentroid()
 {
@@ -67,15 +67,19 @@ vtkCalcCentroid::vtkCalcCentroid()
     this->CovarianceMatrix[i]=0.0;
 }
 
+//--------------------------------------------------------------------------
 vtkCalcCentroid::~vtkCalcCentroid()
 {
 }
 
+//--------------------------------------------------------------------------
 // Function to set up the covariance matrix
 template <class T>
-static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
-					 double *centroid,
-					 int *inputExtent, double *covar)
+static int vtkCalculateCovarianceMatrix(vtkImageData * input, 
+                                        T *inPtr,
+                                        double *centroid,
+                                        int *inputExtent, 
+                                        double *covar)
 {
   vtkIdType inInc0, inInc1, inInc2;
   int idx0, idx1, idx2;
@@ -84,7 +88,7 @@ static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
   double sxx = 0.0, sxy = 0.0, sxz = 0.0;
   double syx = 0.0, syy = 0.0, syz = 0.0;
   double szx = 0.0, szy = 0.0, szz = 0.0, si = 0.0;
-  float dataCentroid[3];                   //centroid in data coordinates
+  float dataCentroid[3];  //centroid in data coordinates
   vtkFloatingPointType *spacing = input->GetSpacing();
   vtkFloatingPointType *origin = input->GetOrigin();
 
@@ -128,19 +132,20 @@ static int vtkCalculateCovarianceMatrix(vtkImageData * input, T *inPtr,
     covar[6] = szx/si; covar[7] = szy/si; covar[8] = szz/si;
     
     return(1);
-    
   }
   else {
     return(0);
   }
 }
 
-
+//--------------------------------------------------------------------------
 // Description:
 // This templated function executes the filter for any type of data.
 template <class T>
-static void vtkCalculateCentroid(vtkImageData *input, T *inPtr,
-				    int *inputExtent, float xyz[3])
+static void vtkCalculateCentroid(vtkImageData *input, 
+                                 T *inPtr,
+                                 int *inputExtent, 
+                                 float xyz[3])
 {
   vtkIdType inInc0, inInc1, inInc2;
   int idx0, idx1, idx2;
@@ -182,20 +187,21 @@ static void vtkCalculateCentroid(vtkImageData *input, T *inPtr,
 }
 
 
-double *vtkCalcCentroid::GetCentroid ()
+//--------------------------------------------------------------------------
+double *vtkCalcCentroid::GetCentroid()
 {
   this->ComputeCentroid();
   return this->Centroid;
 }
 
+//--------------------------------------------------------------------------
 double *vtkCalcCentroid::GetCovarianceMatrix()
 {
   this->ComputeCovarianceMatrix();
   return this->CovarianceMatrix;
 }
 
-
-
+//--------------------------------------------------------------------------
 void vtkCalcCentroid::ComputeCentroid()
 {
   float centroid[3];
@@ -216,46 +222,14 @@ void vtkCalcCentroid::ComputeCentroid()
   
   switch (this->Input->GetScalarType())
       {
-    case VTK_DOUBLE:
-      vtkCalculateCentroid(this->Input, (double *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_FLOAT:
-      vtkCalculateCentroid(this->Input, (float *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_LONG:
-      vtkCalculateCentroid(this->Input, (long *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_UNSIGNED_LONG:
-      vtkCalculateCentroid(this->Input, (unsigned long *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_INT:
-      vtkCalculateCentroid(this->Input, (int *)(inPtr), 
-			 inputExtent, centroid);
-      break;
-    case VTK_UNSIGNED_INT:
-      vtkCalculateCentroid(this->Input, (unsigned int *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_SHORT:
-      vtkCalculateCentroid(this->Input, (short *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_UNSIGNED_SHORT:
-      vtkCalculateCentroid(this->Input, (unsigned short *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_CHAR:
-      vtkCalculateCentroid(this->Input, (char *)(inPtr), 
-			  inputExtent, centroid);
-      break;
-    case VTK_UNSIGNED_CHAR:
-      vtkCalculateCentroid(this->Input, (unsigned char *)(inPtr), 
-			  inputExtent, centroid);
-      break;
+#if (VTK_MAJOR_VERSION < 5)
+        vtkTemplateMacro4(vtkCalculateCentroid, this->Input,
+                          (VTK_TT *)(inPtr), inputExtent, centroid);
+#else
+        vtkTemplateMacro(
+            vtkCalculateCentroid(this->Input, 
+                                 (VTK_TT *)(inPtr), inputExtent, centroid));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
     }
@@ -268,11 +242,9 @@ void vtkCalcCentroid::ComputeCentroid()
   this->Centroid[2] = centroid[2];
 }
 
-
+//--------------------------------------------------------------------------
 void vtkCalcCentroid::ComputeCovarianceMatrix()
 {
-
-  
   // make sure input is available
   if ( ! this->Input )
     {
@@ -288,51 +260,19 @@ void vtkCalcCentroid::ComputeCovarianceMatrix()
   
   switch (this->Input->GetScalarType())
       {
-    case VTK_DOUBLE:
-      vtkCalculateCovarianceMatrix(this->Input, (double *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_FLOAT:
-      vtkCalculateCovarianceMatrix(this->Input, (float *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_LONG:
-      vtkCalculateCovarianceMatrix(this->Input, (long *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_UNSIGNED_LONG:
-      vtkCalculateCovarianceMatrix(this->Input, (unsigned long *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_INT:
-      vtkCalculateCovarianceMatrix(this->Input, (int *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_UNSIGNED_INT:
-      vtkCalculateCovarianceMatrix(this->Input, (unsigned int *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_SHORT:
-      vtkCalculateCovarianceMatrix(this->Input, (short *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_UNSIGNED_SHORT:
-      vtkCalculateCovarianceMatrix(this->Input, (unsigned short *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_CHAR:
-      vtkCalculateCovarianceMatrix(this->Input, (char *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
-    case VTK_UNSIGNED_CHAR:
-      vtkCalculateCovarianceMatrix(this->Input, (unsigned char *)(inPtr),
-				   this->Centroid, inputExtent, this->CovarianceMatrix);
-      break;
+#if (VTK_MAJOR_VERSION < 5)
+        vtkTemplateMacro5(vtkCalculateCovarianceMatrix, this->Input,
+                          (VTK_TT *)(inPtr), this->Centroid, 
+                          inputExtent, this->CovarianceMatrix);
+#else
+        vtkTemplateMacro(
+            vtkCalculateCovarianceMatrix(this->Input, 
+                                         (VTK_TT *)(inPtr), this->Centroid, 
+                                         inputExtent, this->CovarianceMatrix));
+#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
     }
-
-
 
   if ( this->Input->ShouldIReleaseData() )
     {
@@ -340,10 +280,7 @@ void vtkCalcCentroid::ComputeCovarianceMatrix()
     }
 }
 
-
-
-
-
+//--------------------------------------------------------------------------
 void vtkCalcCentroid::PrintSelf(ostream& os, vtkIndent indent)
 {
   double *mat = this->CovarianceMatrix;

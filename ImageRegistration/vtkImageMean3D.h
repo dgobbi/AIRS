@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.h,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -53,20 +53,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __vtkImageMean3D_h
 #define __vtkImageMean3D_h
 
-#include "vtkImageSpatialAlgorithm.h"
+#include "vtkImageSpatialFilter.h"
 
-class VTK_EXPORT vtkImageMean3D : public vtkImageSpatialAlgorithm
+class VTK_EXPORT vtkImageMean3D : public vtkImageSpatialFilter
 {
 public:
   static vtkImageMean3D *New();
-  vtkTypeMacro(vtkImageMean3D,vtkImageSpatialAlgorithm);
+  vtkTypeMacro(vtkImageMean3D,vtkImageSpatialFilter);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
   // This method sets the size of the neighborhood.  It also sets the 
   // default middle of the neighborhood 
   void SetKernelSize(int size0, int size1, int size2);
-
 
   // Description:
   // This method sets the threshold above which smoothing is done.
@@ -94,8 +93,6 @@ public:
 protected:
   vtkImageMean3D();
   ~vtkImageMean3D() {};
-  vtkImageMean3D(const vtkImageMean3D&) {};
-  void operator=(const vtkImageMean3D&) {};
 
   int NumberOfElements;
 
@@ -106,6 +103,9 @@ protected:
   void ThreadedExecute(vtkImageData *inData, vtkImageData *outData, 
 		       int extent[6], int id);
 
+private:
+  vtkImageMean3D(const vtkImageMean3D&); // Not implemented.
+  void operator=(const vtkImageMean3D&); // Not implemented.
 };
 
 #endif

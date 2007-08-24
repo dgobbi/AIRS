@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCalcCentroid.h,v $
   Language:  C++
-  Date:      $Date: 2007/04/21 16:23:46 $
-  Version:   $Revision: 1.8 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.9 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -75,15 +75,17 @@ public:
 protected:
   vtkCalcCentroid();
   ~vtkCalcCentroid();
+  
   void ComputeCentroid();
   void ComputeCovarianceMatrix();
-  vtkCalcCentroid(const vtkCalcCentroid&) {};
-  void operator=(const vtkCalcCentroid&) {};
-
 
   double Centroid[3];
   double CovarianceMatrix[9];
   vtkImageData *Input;
+
+private:
+  vtkCalcCentroid(const vtkCalcCentroid&); // Not implemented.
+  void operator=(const vtkCalcCentroid&); // Not implemented.
 };
 
 #endif

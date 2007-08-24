@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMean3D.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 22:51:17 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.7 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
 Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 vtkImageMean3D* vtkImageMean3D::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -314,7 +314,6 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
   cout << "Smoothed "<<numSmoothed<<". Ignored "<<numIgnored<<".\n";
 }
 
-
 //----------------------------------------------------------------------------
 // This method contains the first switch statement that calls the correct
 // templated function for the input and output region types.
@@ -342,8 +341,9 @@ void vtkImageMean3D::ThreadedExecute(vtkImageData *inData,
     vtkTemplateMacro7(vtkImageMean3DExecute, this,inData, (VTK_TT *)(inPtr), 
                       outData, (VTK_TT *)(outPtr),outExt, id);
 #else
-    vtkTemplateMacro(vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr), 
-					   outData, (VTK_TT *)(outPtr),outExt, id));
+    vtkTemplateMacro(
+        vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr), 
+                      outData, (VTK_TT *)(outPtr),outExt, id));
 #endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");

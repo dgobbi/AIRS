@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.6 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.7 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -21,9 +21,14 @@
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
 
+#if (VTK_MAJOR_VERSION >= 5) 
+#include "vtkInformation.h"
+#include "vtkExecutive.h"
+#endif
+
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.6 $");
+vtkCxxRevisionMacro(vtkImageSingleMutualInformation, "$Revision: 1.7 $");
 vtkStandardNewMacro(vtkImageSingleMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -40,7 +45,6 @@ vtkImageSingleMutualInformation::vtkImageSingleMutualInformation()
   this->NormalizedMI = 0.0;
   this->MeanVoxel = 0.0;
 }
-
 
 //----------------------------------------------------------------------------
 vtkImageSingleMutualInformation::~vtkImageSingleMutualInformation()
@@ -81,40 +85,59 @@ void vtkImageSingleMutualInformation::GetImageAComponentExtent(int extent[2])
 //----------------------------------------------------------------------------
 void vtkImageSingleMutualInformation::SetStencil(vtkImageStencilData *stencil)
 {
-  this->vtkProcessObject::SetNthInput(2, stencil); 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  this->vtkProcessObject::SetNthInput(2, stencil);
+#else
+  // if stencil is null, then set the input port to null
+  this->SetNthInputConnection(1, 0, 
+    (stencil ? stencil->GetProducerPort() : 0));
+#endif
 }
-
 
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageSingleMutualInformation::GetStencil()
 {
-  if (this->NumberOfInputs < 3) 
-    { 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
+  if (this->NumberOfInputs < 3)
+    {
     return NULL;
     }
   else
     {
-    return (vtkImageStencilData *)(this->Inputs[2]); 
+    return (vtkImageStencilData *)(this->Inputs[2]);
     }
-}
-
-
-//--------------------------------------------------------------------------
-// The 'floor' function on x86, mips and ppc is many times slower than these
-// and is used a lot in this code, optimize for different CPU architectures
-inline int vtkMIFloor(float x)
-{
-#if defined mips || defined sparc || defined __ppc__
-  return (int)((unsigned int)(x + 2147483648.0) - 2147483648U);
-#elif defined i386 || defined _M_IX86
-  unsigned int hilo[2];
-  *((double *)hilo) = x + 103079215104.0;  // (2**(52-16))*1.5
-  return (int)((hilo[1]<<16)|(hilo[0]>>16));
 #else
-  return int(floor(x));
+  if (this->GetNumberOfInputConnections(1) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageStencilData::SafeDownCast(
+    this->GetExecutive()->GetInputData(1, 0));
 #endif
 }
 
+//----------------------------------------------------------------------------
+// The 'floor' function on x86 and mips is many times slower than these
+// and is used a lot in this code, optimize for different CPU architectures
+static inline int vtkMIFloor(double x)
+{
+#if defined mips || defined sparc || defined __ppc__
+  x += 2147483648.0;
+  unsigned int i = (unsigned int)(x);
+  return (int)(i - 2147483648U);
+#elif defined i386 || defined _M_IX86
+  union { double d; unsigned short s[4]; unsigned int i[2]; } dual;
+  dual.d = x + 103079215104.0;  // (2**(52-16))*1.5
+  return (int)((dual.i[1]<<16)|((dual.i[0])>>16));
+#elif defined ia64 || defined __ia64__ || defined IA64
+  x += 103079215104.0;
+  long long i = (long long)(x);
+  return (int)(i - 103079215104LL);
+#else
+  double y = floor(x);
+  return (int)(y);
+#endif
+}
 
 //----------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
@@ -266,8 +289,6 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 
 }
 
-        
-
 //----------------------------------------------------------------------------
 // This method is passed a input and output Data, and executes the filter
 // algorithm to fill the output from the input.
@@ -340,7 +361,6 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
     }
 }
 
-
 //----------------------------------------------------------------------------
 void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData *input, 
 							 vtkImageData *output)
@@ -381,6 +401,7 @@ void vtkImageSingleMutualInformation::ComputeInputUpdateExtent(int inExt[6],
 }
 
 
+//----------------------------------------------------------------------------
 void vtkImageSingleMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
@@ -404,3 +425,22 @@ void vtkImageSingleMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
      << 0 << "," << 1 << " }\n";
 }
 
+#if (VTK_MAJOR_VERSION >= 5) 
+//----------------------------------------------------------------------------
+int vtkImageSingleMutualInformation::FillInputPortInformation(int port, 
+                                                        vtkInformation* info)
+{
+  if (port == 0)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
+    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
+    }
+  if (port == 1)
+    {
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
+    // the stencil input is optional
+    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
+    }
+  return 1;
+}
+#endif

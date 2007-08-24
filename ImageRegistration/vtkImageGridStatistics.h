@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageGridStatistics.h,v $
   Language:  C++
-  Date:      $Date: 2005/07/20 16:24:51 $
-  Version:   $Revision: 1.2 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.3 $
   Thanks:    Thanks to Yves who developed this class.
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
@@ -49,7 +49,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __vtkImageGridStatistics_h
 
 #include "vtkProcessObject.h"
-#include "vtkImageData.h"
+
+class vtkImageData;
 
 class VTK_EXPORT vtkImageGridStatistics : public vtkProcessObject
 {
@@ -72,12 +73,9 @@ public:
   void SetInput(vtkImageData *input);
   vtkImageData *GetInput();
 
-
 protected:
   vtkImageGridStatistics();
   ~vtkImageGridStatistics();
-  vtkImageGridStatistics(const vtkImageGridStatistics&) {};
-  void operator=(const vtkImageGridStatistics&) {};
 
   void Execute();
 
@@ -86,6 +84,9 @@ protected:
 
   vtkTimeStamp ExecuteTime;
 
+private:
+  vtkImageGridStatistics(const vtkImageGridStatistics&); // Not implemented.
+  void operator=(const vtkImageGridStatistics&); // Not implemented.
 };
 
 #endif

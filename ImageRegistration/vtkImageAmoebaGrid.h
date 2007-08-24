@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.h,v $
   Language:  C++
-  Date:      $Date: 2007/08/20 20:46:39 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.6 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -50,21 +50,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __vtkImageAmoebaGrid_h
 #define __vtkImageAmoebaGrid_h
 
-
 #include "vtkImageMultipleInputFilter.h"
 #include "vtkFunctionMinimizer.h"
-#include "vtkImageStencilData.h"
-
 
 #ifndef vtkFloatingPointType
 #define vtkFloatingPointType vtkFloatingPointType
 typedef float vtkFloatingPointType;
 #endif
 
-#if (VTK_MAJOR_VERSION >= 5)
+class vtkImageStencilData;
 class vtkInformation;
-#endif
-
 
 class VTK_EXPORT vtkImageAmoebaGrid : public vtkImageMultipleInputFilter
 {
@@ -74,12 +69,10 @@ public:
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
-
   // Description:
   // Set/Get the output extent
   vtkSetVector6Macro(OutputExtent, int);
   vtkGetVector6Macro(OutputExtent, int);
-
 
   // Description:
   // Set/Get the kernel size
@@ -115,14 +108,10 @@ public:
   vtkSetMacro(ReverseStencil, int);
   vtkBooleanMacro(ReverseStencil, int);
   vtkGetMacro(ReverseStencil, int);
-  
 
 protected:
-
   vtkImageAmoebaGrid();
   ~vtkImageAmoebaGrid();
-  vtkImageAmoebaGrid(const vtkImageAmoebaGrid&) {};
-  void operator=(const vtkImageAmoebaGrid&) {};
   
   float ShrinkFactors[3];
   float KernelRadius[3];
@@ -150,6 +139,9 @@ protected:
   void ThreadedExecute(vtkImageData **inDatas, vtkImageData *outData,
 		       int extent[6], int id);
 
+private:
+  vtkImageAmoebaGrid(const vtkImageAmoebaGrid&);
+  void operator=(const vtkImageAmoebaGrid&);
 };
 
 #endif

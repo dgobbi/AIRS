@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageCrossCorrelation.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.5 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -38,13 +38,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#include "vtkImageData.h"
 #include "vtkImageCrossCorrelation.h"
+
+#include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 
-
-
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 vtkImageCrossCorrelation* vtkImageCrossCorrelation::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -57,7 +56,6 @@ vtkImageCrossCorrelation* vtkImageCrossCorrelation::New()
   return new vtkImageCrossCorrelation;
 }
 
-
 //----------------------------------------------------------------------------
 // fast floor() function for converting a float to an int
 // (the floor() implementation on some computers is much slower than this,
@@ -65,22 +63,31 @@ vtkImageCrossCorrelation* vtkImageCrossCorrelation::New()
 // convert a float into an integer plus a fraction  
 static inline int vtkResliceFloor(double x)
 {
-#if defined mips || defined sparc
-  return (int)((unsigned int)(x + 2147483648.0) - 2147483648U);
-#elif defined i386
-  unsigned int hilo[2];
-  *((double *)hilo) = x + 103079215104.0;  // (2**(52-radix))*1.5
-  return (int)((hilo[1]<<16)|(hilo[0]>>16));
+#if defined mips || defined sparc || defined __ppc__
+  x += 2147483648.0;
+  unsigned int i = (unsigned int)(x);
+  return (int)(i - 2147483648U);
+#elif defined i386 || defined _M_IX86
+  union { double d; unsigned short s[4]; unsigned int i[2]; } dual;
+  dual.d = x + 103079215104.0;  // (2**(52-16))*1.5
+  return (int)((dual.i[1]<<16)|((dual.i[0])>>16));
+#elif defined ia64 || defined __ia64__ || defined IA64
+  x += 103079215104.0;
+  long long i = (long long)(x);
+  return (int)(i - 103079215104LL);
 #else
-  return int(floor(x));
+  double y = floor(x);
+  return (int)(y);
 #endif
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceCeil(double x)
 {
   return -vtkResliceFloor(-x - 1.0) - 1;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceFloor(float x, float &f)
 {
   int ix = vtkResliceFloor(x);
@@ -88,10 +95,6 @@ static inline int vtkResliceFloor(float x, float &f)
 
   return ix;
 }
-
-
-
-
 
 //----------------------------------------------------------------------------
 vtkImageCrossCorrelation::vtkImageCrossCorrelation()
@@ -132,9 +135,6 @@ void vtkImageCrossCorrelation::ComputeInputUpdateExtent(int inExt[6],
     }
 }
 
-
-
-
 //----------------------------------------------------------------------------
 //Set Up the output
 //Force 1 component floats
@@ -172,9 +172,6 @@ void vtkImageCrossCorrelation::ExecuteInformation(vtkImageData **inDatas,
   outData->SetScalarType(VTK_FLOAT);
   
 }
-
-
-
 
 //----------------------------------------------------------------------------
 // Ass-you-me-ptions:
@@ -354,8 +351,6 @@ static void vtkImageCrossCorrelationExecute(vtkImageCrossCorrelation *self,
     }
 }
 
-
-
 //----------------------------------------------------------------------------
 // This method is passed a input and output region, and executes the filter
 // algorithm to fill the output from the input.
@@ -441,7 +436,7 @@ void vtkImageCrossCorrelation::ThreadedExecute(vtkImageData **inData,
     }
 }
 
-
+//----------------------------------------------------------------------------
 void vtkImageCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkImageTwoInputFilter::PrintSelf(os,indent);

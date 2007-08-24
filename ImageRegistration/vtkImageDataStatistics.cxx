@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageDataStatistics.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/11/10 18:31:42 $
-  Version:   $Revision: 1.5 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.6 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -39,11 +39,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
 #include "vtkImageDataStatistics.h"
+
+#include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 #include "vtkCommand.h"
 
+#if (VTK_MAJOR_VERSION >= 5) 
+#include "vtkInformation.h"
+#include "vtkExecutive.h"
+#endif
 
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 vtkImageDataStatistics* vtkImageDataStatistics::New()
 {
   // First try to create the object from the vtkObjectFactory
@@ -56,8 +62,6 @@ vtkImageDataStatistics* vtkImageDataStatistics::New()
   return new vtkImageDataStatistics;
 }
 
-
-
 //----------------------------------------------------------------------------
 vtkImageDataStatistics::vtkImageDataStatistics()
 {
@@ -66,26 +70,39 @@ vtkImageDataStatistics::vtkImageDataStatistics()
   this->Count = 0;
 }
 
+//----------------------------------------------------------------------------
 vtkImageDataStatistics::~vtkImageDataStatistics()
 {
 }
 
+//----------------------------------------------------------------------------
 void vtkImageDataStatistics::SetInput(vtkImageData *input)
 {
+#if (VTK_MAJOR_VERSION < 5)
   this->vtkProcessObject::SetNthInput(0, input);
+#else
+  // Ask the superclass to connect the input.
+  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
+//----------------------------------------------------------------------------
 vtkImageData *vtkImageDataStatistics::GetInput()
 {
-  if (this->NumberOfInputs < 1)
+#if (VTK_MAJOR_VERSION < 5)
+  if (this->GetNumberOfInputs() < 1)    
     {
-      return NULL;
+    return NULL;
     }
-
   return (vtkImageData *)(this->Inputs[0]);
+#else
+  if (this->GetNumberOfInputConnections(0) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
+#endif
 }
-
-
 
 //----------------------------------------------------------------------------
 template <class T>
@@ -137,12 +154,9 @@ static void vtkImageDataStatisticsExecute(vtkImageDataStatistics *self,
   *AverageMagnitude = sum / (double)*Count;
   *StandardDeviation = sqrt((sum_squared * (double)*Count - sum*sum) / 
 			    ((double)*Count * ((double)*Count-1.0)));
-
-  
 }
 
-
-
+//----------------------------------------------------------------------------
 // Description:
 // Make sure input is available then call the templated execute method to
 // deal with the particular data type.
@@ -210,10 +224,7 @@ void vtkImageDataStatistics::Update()
     }
 }
 
-
-
-
-
+//----------------------------------------------------------------------------
 void vtkImageDataStatistics::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkProcessObject::PrintSelf(os,indent);
@@ -225,6 +236,5 @@ void vtkImageDataStatistics::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AverageMagnitude: " << this->AverageMagnitude << "\n";
   os << indent << "StandardDeviation: " << this->StandardDeviation << "\n";
   os << indent << "Count: " << this->Count << "\n";
-
 }
 

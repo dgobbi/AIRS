@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2007/01/04 22:47:05 $
-  Version:   $Revision: 1.9 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.10 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -107,13 +107,6 @@ public:
   void SetStencil(vtkImageStencilData *stencil);
   vtkImageStencilData *GetStencil();
 
-  //BTX
-#if (VTK_MAJOR_VERSION >= 5) 
-  // see vtkAlgorithm for docs.
-  virtual int FillInputPortInformation(int, vtkInformation*);
-#endif
-  //ETX
-
   // Description:
   // Reverse the stencil.
   vtkSetMacro(ReverseStencil, int);
@@ -129,12 +122,10 @@ protected:
   vtkImageMutualInformation();
   ~vtkImageMutualInformation();
 
-  float ImageAComponentSpacing;
-  float ImageAComponentOrigin;
-  int ImageAComponentExtent[2];
-  float ImageBComponentSpacing;
-  float ImageBComponentOrigin;
-  int ImageBComponentExtent[2];
+#if (VTK_MAJOR_VERSION >= 5) 
+  // see vtkAlgorithm for docs.
+  virtual int FillInputPortInformation(int, vtkInformation*);
+#endif
 
   void ExecuteInformation(vtkImageData **inputs, vtkImageData *output);
   void ComputeInputUpdateExtent(int inExt[6], int outExt[6], 
@@ -142,8 +133,14 @@ protected:
   void ExecuteInformation(){this->vtkImageTwoInputFilter::ExecuteInformation();};
   void ExecuteData(vtkDataObject *out);
 
-  double NormalizedMI;
+  float ImageAComponentSpacing;
+  float ImageAComponentOrigin;
+  int ImageAComponentExtent[2];
+  float ImageBComponentSpacing;
+  float ImageBComponentOrigin;
+  int ImageBComponentExtent[2];
 
+  double NormalizedMI;
   int ReverseStencil;
 
 private:

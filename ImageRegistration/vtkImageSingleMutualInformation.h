@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageSingleMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2005/10/31 21:49:28 $
-  Version:   $Revision: 1.9 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.10 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -100,15 +100,10 @@ public:
   // Description:
   // Get the mean value for the data.
   vtkGetMacro(MeanVoxel, double);
- 
   
 protected:
   vtkImageSingleMutualInformation();
   ~vtkImageSingleMutualInformation();
-
-  float ImageAComponentSpacing;
-  float ImageAComponentOrigin;
-  int ImageAComponentExtent[2];
 
   void ExecuteInformation() {
     this->vtkImageToImageFilter::ExecuteInformation(); };
@@ -116,6 +111,15 @@ protected:
   void ComputeInputUpdateExtent(int inExt[6], int outExt[6]);
 
   void ExecuteData(vtkDataObject *out);
+
+#if (VTK_MAJOR_VERSION >= 5) 
+  // see vtkAlgorithm for docs.
+  virtual int FillInputPortInformation(int, vtkInformation*);
+#endif
+
+  float ImageAComponentSpacing;
+  float ImageAComponentOrigin;
+  int ImageAComponentExtent[2];
 
   double NormalizedMI;
   double MeanVoxel;

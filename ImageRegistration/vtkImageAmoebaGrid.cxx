@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageAmoebaGrid.cxx,v $
   Language:  C++
-  Date:      $Date: 2007/08/20 20:46:39 $
-  Version:   $Revision: 1.7 $
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.8 $
 
 Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
 All rights reserved.
@@ -38,8 +38,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-#include "vtkImageData.h"
 #include "vtkImageAmoebaGrid.h"
+
+#include "vtkImageData.h"
+#include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
 
 #if (VTK_MAJOR_VERSION >= 5)
@@ -62,10 +64,9 @@ vtkImageAmoebaGrid* vtkImageAmoebaGrid::New()
 
 // on i386 platforms, SetOptimization(2) provides integer-based calculations
 // (on other platforms, integer math is slower than float math)
-//#ifdef i386  // kwang to test the performance gain on altix IA64 system
+#ifdef i386  // kwang to test the performance gain on altix IA64 system
 #define VTK_RESLICE_INTEGER_MATH 1
-//#endif
-
+#endif
 
 //----------------------------------------------------------------------------
 vtkImageAmoebaGrid::vtkImageAmoebaGrid()
@@ -164,8 +165,6 @@ vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
     }    
 #endif
 }
-  
-
 
 #ifdef VTK_RESLICE_INTEGER_MATH
 //----------------------------------------------------------------------------
@@ -199,6 +198,7 @@ static inline int vtkCastFloatToFixed(double x)
 #endif
 }
 
+//----------------------------------------------------------------------------
 // converting the other way is much more straightforward
 static inline double vtkCastFixedToFloat(int x)
 {
@@ -209,22 +209,24 @@ static inline double vtkCastFixedToFloat(int x)
 // what follows are a whole bunch of inline functions that provide
 // equivalent behaviour for fixed-point numbers vs. floats (note
 // that doubles are not supported, but would be easy to add)
-
 static inline int vtkResliceFloor(int x)
 {
   return x>>VTK_FP_RADIX;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceCeil(int x)
 {
   return ((1<<VTK_FP_RADIX) - 1 + x)>>VTK_FP_RADIX;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceRound(int x)
 {
   return (x + VTK_FP_HALF)>>VTK_FP_RADIX;
 }
 
+//----------------------------------------------------------------------------
 // convert a fixed-point into an integer plus a fraction  
 static inline int vtkResliceFloor(int x, int &f)
 {
@@ -234,12 +236,14 @@ static inline int vtkResliceFloor(int x, int &f)
   return ix;
 }
 
+//----------------------------------------------------------------------------
 // multiplication, the product must be less than 8 for fixed-point
 static inline int vtkResliceQuikMul(int xy)
 {
   return (xy + VTK_FP_HALF)>>VTK_FP_RADIX;
 }
 
+//----------------------------------------------------------------------------
 // multiplication of larger fixed-point numbers, does not check overflow
 static inline int vtkResliceMultiply(int x, int y)
 {
@@ -251,63 +255,73 @@ static inline int vtkResliceMultiply(int x, int y)
   return ((lx*ly + VTK_FP_HALF)>>VTK_FP_RADIX) + hx*ly + x*hy;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceInverse(int x)
 {
   return ((1<<(2*VTK_FP_RADIX + 1))/x + 1)>>1;
 }
 
+//----------------------------------------------------------------------------
 // cast between float and fixed-point
 static inline void vtkResliceCast(float x, int& y)
 {
   y = vtkCastFloatToFixed(x);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceCast(double x, int& y)
 {
   y = vtkCastFloatToFixed(x);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceCast(int x, float& y)
 {
   y = vtkCastFixedToFloat(x);
 }
 
+//----------------------------------------------------------------------------
 // 1-x, it gets used a lot
 static inline int vtkResliceOneMinusX(int x)
 {
   return VTK_FP_1 - x;
 }
 
+//----------------------------------------------------------------------------
 // check if a number is equal to one
 static inline int vtkResliceIsEqualToOne(int x)
 {
   return (VTK_FP_1 == x);
 }
 
+//----------------------------------------------------------------------------
 // check if a number is an integer
 static inline int vtkResliceIsInteger(int x)
 {
   return (x == ((x>>VTK_FP_RADIX)<<VTK_FP_RADIX));
 }
 
+//----------------------------------------------------------------------------
 // rounding functions for fixed-point, note that only
 // char, unsigned char, short, unsigned short are supported
-
 static inline void vtkResliceRound(int val, char& rnd)
 {
   rnd = (char)vtkResliceRound(val);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(int val, unsigned char& rnd)
 {
   rnd = (unsigned char)vtkResliceRound(val);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(int val, short& rnd)
 {
   rnd = (short)vtkResliceRound(val);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(int val, unsigned short& rnd)
 {
   rnd = (unsigned short)vtkResliceRound(val);
@@ -341,31 +355,37 @@ inline int vtkResliceFloor(double x)
 #endif
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceCeil(double x)
 {
   return -vtkResliceFloor(-x - 1.0) - 1;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceRound(double x)
 {
   return vtkResliceFloor(x + 0.5);
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceFloor(float x)
 {
   return vtkResliceFloor((double)x);
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceCeil(float x)
 {
   return vtkResliceCeil((double)x);
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceRound(float x)
 {
   return vtkResliceRound((double)x);
 }
 
+//----------------------------------------------------------------------------
 // convert a float into an integer plus a fraction  
 static inline int vtkResliceFloor(float x, float &f)
 {
@@ -375,42 +395,50 @@ static inline int vtkResliceFloor(float x, float &f)
   return ix;
 }
 
+//----------------------------------------------------------------------------
 static inline float vtkResliceQuikMul(float xy)
 {
   return xy;
 }
 
+//----------------------------------------------------------------------------
 static inline float vtkResliceMultiply(float x, float y)
 {
   return x*y;
 }
 
+//----------------------------------------------------------------------------
 // invert a number
 static inline float vtkResliceInverse(float x)
 {
   return 1.0f/x;
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceCast(float x, float& y)
 {
   y = x;
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceCast(double x, float& y)
 {
   y = (float)x;
 }
 
+//----------------------------------------------------------------------------
 static inline float vtkResliceOneMinusX(float x)
 {
   return 1.0f - x;
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceIsEqualToOne(float x)
 {
   return (1.0f == x);
 }
 
+//----------------------------------------------------------------------------
 static inline int vtkResliceIsInteger(float x)
 {
   return (x == vtkResliceFloor(x));
@@ -420,40 +448,42 @@ static inline int vtkResliceIsInteger(float x)
 //----------------------------------------------------------------------------
 // rounding functions for each type, with some crazy stunts to avoid
 // the use of the 'floor' function which is too slow on x86
-
 template<class T>
 static inline void vtkResliceRound(float val, T& rnd)
 {
   rnd = vtkResliceRound(val);
 }
 
+//----------------------------------------------------------------------------
 template<class T>
 static inline void vtkResliceRound(double val, T& rnd)
 {
   rnd = vtkResliceRound(val);
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(float val, float& rnd)
 {
   rnd = val;
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(double val, float& rnd)
 {
   rnd = val;
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(float val, double& rnd)
 {
   rnd = val;
 }
 
+//----------------------------------------------------------------------------
 static inline void vtkResliceRound(double val, double& rnd)
 {
   rnd = val;
 }
-
-
 
 //----------------------------------------------------------------------------
 void vtkImageAmoebaGrid::ComputeInputUpdateExtents(vtkDataObject *output)
@@ -498,8 +528,6 @@ void vtkImageAmoebaGrid::ComputeInputUpdateExtents(vtkDataObject *output)
     }  
 }
 
-
-
 //----------------------------------------------------------------------------
 // Compute and return the mean vector length
 float vtkImageAmoebaGrid::GetMeanVectorLength()
@@ -540,7 +568,6 @@ float vtkImageAmoebaGrid::GetMeanCost()
     }
 }
 
-
 //----------------------------------------------------------------------------
 // Compute and return the total number of vectors minimized in the most recent
 // iteration.
@@ -553,8 +580,6 @@ int vtkImageAmoebaGrid::GetVectorsMinimized()
     }
   return minimized;
 }
-
-
 
 //----------------------------------------------------------------------------
 // This method computes the Region of input necessary to generate outRegion.
@@ -577,15 +602,12 @@ void vtkImageAmoebaGrid::ComputeInputUpdateExtent(int inExt[6],
     }
 }
 
-
-
 //----------------------------------------------------------------------------
 //Set Up the output to match the third input (0,1,2) extent
 // inDatas[0] = Patient
 // inDatas[1] = Model
 // inDatas[2] = Input Grid
 // Force 3 component floats for the output grid
-
 void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas, 
 					    vtkImageData *outData)
 {
@@ -627,6 +649,7 @@ void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas,
     }
 }
 
+//----------------------------------------------------------------------------
 class _vtkAmoebaParms {
 public:
   void *modelPtr;
@@ -651,7 +674,7 @@ public:
   double sqrt_mod_sum_squared;
 };
 
-
+//----------------------------------------------------------------------------
 template <class T>
 static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
 {
@@ -772,7 +795,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   return 1;
 }
 
-
+//----------------------------------------------------------------------------
 template <class T>
 static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs, 
 			       int *dataWholeExt, float *xyz)
@@ -880,7 +903,7 @@ static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
 	     fxryrz* *p100 + fxryfz* *p101 + fxfyrz* *p110 + fxfyfz* *p111);
 }
 
-
+//----------------------------------------------------------------------------
 inline static void ComputeHint(int x, int y, int z, 
                                float *gridPtr, vtkIdType *gridIncs,
                                int *gridWholeExt, 
@@ -972,7 +995,7 @@ inline static void ComputeHint(int x, int y, int z,
 			*p25++) - *middle++) * inInvSpacing[2];
 }
 
-
+//----------------------------------------------------------------------------
 template <class F, class T>
 inline static void CorrelationWorkFunction(T *patientPtr,
 					   const vtkIdType *patIncs,
@@ -1153,7 +1176,7 @@ inline static void CorrelationWorkFunction(T *patientPtr,
       }
 }
 
-
+//----------------------------------------------------------------------------
 // stub function since one can not use a templated function in the
 // vtkFunctionMinimizer callback
 static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
@@ -1224,13 +1247,11 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
   pb->Minimizer->SetScalarResult(cost + 1.0-correlation);
 }
 
-
 //----------------------------------------------------------------------------
 // inData[0] is the "patient" data (patData)
 // inData[1] is the "model" data   (modData)
 // inData[2] is the input grid     (inGrid)
 // inData[3] is the stencil, if any
-
 template <class T>
 static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self, 
 				      vtkImageData *patData, T *patPtr,
@@ -1321,7 +1342,6 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
   vectorLength = 0.0f;
   totalCost = 0.0f;
   T temp;
-
   
   // Loop through output dataset
   for (idZ = outExt[4]; idZ <= outExt[5]; idZ++)
@@ -1480,8 +1500,6 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
   
 }
 
-
-
 //----------------------------------------------------------------------------
 // This method is passed a input and output region, and executes the filter
 // algorithm to fill the output from the input.
@@ -1586,7 +1604,7 @@ void vtkImageAmoebaGrid::ThreadedExecute(vtkImageData **inData,
     }
 }
 
-
+//----------------------------------------------------------------------------
 void vtkImageAmoebaGrid::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkImageMultipleInputFilter::PrintSelf(os,indent);

@@ -18,6 +18,7 @@ vtkImageAmoebaGrid.cxx
 vtkImageGridStatistics.cxx
 vtkFunctionMinimizer.cxx
 vtkImageCrossCorrelation.cxx
+vtkImageMean3D.cxx
 )
 
 IF (VTK_USE_ATAMAIIMAGING)
@@ -28,11 +29,11 @@ IF (VTK_USE_ATAMAIIMAGING)
   ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
 ENDIF (VTK_USE_ATAMAIIMAGING )
 
-IF (${VTK_MAJOR_VERSION} GREATER 4)
-  SET( Kit_SRCS ${Kit_SRCS}
-    vtkImageMean3D.cxx
-    )
-ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
+##IF (${VTK_MAJOR_VERSION} GREATER 4)
+##  SET( Kit_SRCS ${Kit_SRCS}
+##    vtkImageMean3D.cxx
+##    )
+##ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)

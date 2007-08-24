@@ -1,6 +1,30 @@
+/*=========================================================================
+
+  Program:   AtamaiRegistration for VTK
+  Module:    $RCSfile: vtkFunctionMinimizer.cxx,v $
+  Language:  C++
+  Date:      $Date: 2007/08/24 20:02:25 $
+  Version:   $Revision: 1.2 $
+
+Copyright (c) 2006 Atamai, Inc.
+All rights reserved.
+
+THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
+WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
+MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
+OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
+THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+=========================================================================*/
+
 #include "vtkFunctionMinimizer.h"
 #include "vtkObjectFactory.h"
 
+//----------------------------------------------------------------------------
 static double amotry(double **p, double *y, double *ptry, double *psum, 
 		     int ndim, void (*funk)(void *data), void *data,
 		     double *result, int ihi, double fac)
@@ -28,6 +52,7 @@ static double amotry(double **p, double *y, double *ptry, double *psum,
   return ytry;
 }
 
+//----------------------------------------------------------------------------
 static int amoeba(double **p, double *y, double *ptry, int ndim, double ftol,
 	   void (*funk)(void *data), void *data, double *result,
 	   int *nfunk, int maxnfunk)
@@ -131,6 +156,7 @@ static int amoeba(double **p, double *y, double *ptry, int ndim, double ftol,
   return 0;
 }
 
+//----------------------------------------------------------------------------
 static double minimize(double *parameters, double **vertices, int ndim, 
 		       void (*funk)(void *data), void *data, double *result,
 		       double tolerance, int maxiterations, int *iterations)
@@ -160,6 +186,7 @@ static double minimize(double *parameters, double **vertices, int ndim,
   return *result;
 }
 
+//----------------------------------------------------------------------------
 void vtkFunctionMinimizerFunction(void *data)
 {
   vtkFunctionMinimizer *self = (vtkFunctionMinimizer *)data;
