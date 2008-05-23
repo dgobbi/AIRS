@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2007/08/24 20:02:25 $
-  Version:   $Revision: 1.11 $
+  Date:      $Date: 2008/05/23 18:23:00 $
+  Version:   $Revision: 1.12 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -24,11 +24,13 @@
 #if (VTK_MAJOR_VERSION >= 5) 
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
+#include "vtkInformationVector.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 #endif
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.11 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.12 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -407,6 +409,9 @@ void vtkImageMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out))
   // We need to allocate our own scalars since we are overriding
   // the superclasses "Execute()" method.
   outData->SetExtent(outData->GetWholeExtent());
+#if (VTK_MAJOR_VERSION >= 5) 
+  outData->SetScalarType(VTK_INT);
+#endif
   outData->AllocateScalars();
   
   inPtr1 = inData1->GetScalarPointer();
@@ -558,4 +563,99 @@ int vtkImageMutualInformation::FillInputPortInformation(int port,
     }
   return 1;
 }
+
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::RequestInformation(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *outputVector)
+{
+  int wholeExtent[6];
+  // get the info objects
+  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
+  inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(),
+              wholeExtent);
+
+  // this is some scary stuff, propagating info upstream??? - Ken
+  vtkImageStencilData *stencil = this->GetStencil();
+  if (stencil)
+    {
+    stencil->SetSpacing(inInfo->Get(vtkDataObject::SPACING()));
+    stencil->SetOrigin(inInfo->Get(vtkDataObject::ORIGIN()));
+	stencil->SetExtent(wholeExtent);
+    }
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::RequestUpdateExtent(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector))
+{
+  int* inExt;
+  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
+  inExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+
+  if (this->GetNumberOfInputConnections(1) > 0)
+    {
+    vtkInformation *inInfo2 = inputVector[1]->GetInformationObject(0);
+    inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+	cout << inExt[0] << " " << inExt[1] << endl;
+    }
+  cout << inExt[0] << " " << inExt[1] << endl;
+
+  inInfo = inputVector[0]->GetInformationObject(1);
+  inExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::RequestData(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *outputVector)
+{
+  vtkInformation *outInfo = outputVector->GetInformationObject(0);
+  vtkImageData *outData = vtkImageData::SafeDownCast(
+    outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  this->ExecuteData(outData);
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::ProcessRequest(vtkInformation* request,
+                                         vtkInformationVector** inputVector,
+                                         vtkInformationVector* outputVector)
+{
+  // generate the data oject
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
+    {
+    return 1;
+    }
+  // generate the data
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
+    {
+    return this->RequestData(request, inputVector, outputVector);
+    }
+
+  // execute information
+  if(request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
+    {
+    return this->RequestInformation(request, inputVector, outputVector);
+    }
+
+  // propagate update extent
+  if(request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
+    {
+    return this->RequestUpdateExtent(request, inputVector, outputVector);
+    }
+
+  return this->Superclass::ProcessRequest(request, inputVector, outputVector);
+}
+
 #endif

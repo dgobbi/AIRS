@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.h,v $
   Language:  C++
-  Date:      $Date: 2007/08/24 20:02:25 $
-  Version:   $Revision: 1.10 $
+  Date:      $Date: 2008/05/23 18:23:00 $
+  Version:   $Revision: 1.11 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -125,6 +125,19 @@ protected:
 #if (VTK_MAJOR_VERSION >= 5) 
   // see vtkAlgorithm for docs.
   virtual int FillInputPortInformation(int, vtkInformation*);
+  // Functions overridden from Superclass
+  virtual int ProcessRequest(vtkInformation *, 
+                             vtkInformationVector **,
+                             vtkInformationVector *);
+  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request), 
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int RequestInformation(vtkInformation *vtkNotUsed(request), 
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int RequestData(vtkInformation *, 
+			  vtkInformationVector **,
+			  vtkInformationVector *);
 #endif
 
   void ExecuteInformation(vtkImageData **inputs, vtkImageData *output);
