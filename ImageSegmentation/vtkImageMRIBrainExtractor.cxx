@@ -332,13 +332,13 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
   icosahedron->SetRadius( R );
   icosahedron->SetPhiResolution(4);
   icosahedron->SetThetaResolution(5);
-  icosahedron->Update();
+  icosahedron->GetOutput()->Update();
 
   // Subdivide each triangle into 4.
   vtkLinearSubdivisionFilter *subdivideSphere = vtkLinearSubdivisionFilter::New();
   subdivideSphere->SetInput(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
-  subdivideSphere->Update();
+  subdivideSphere->GetOutput()->Update();
 
   // Contraint sphere for smoothing
   vtkSphereSource *constraintSphere = vtkSphereSource::New();
@@ -346,13 +346,13 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
   constraintSphere->SetRadius( R );
   constraintSphere->SetPhiResolution(100);
   constraintSphere->SetThetaResolution(100);
-  constraintSphere->Update();
+  constraintSphere->GetOutput()->Update();
 
   // Smooth the subdivided sphere
   vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
   smoothSphere->SetInput( subdivideSphere->GetOutput() );
   smoothSphere->SetSource( constraintSphere->GetOutput() ); 
-  smoothSphere->Update();
+  smoothSphere->GetOutput()->Update();
 
   // The brain sphere
   brainPolyData->DeepCopy( smoothSphere->GetOutput() );
@@ -842,7 +842,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   // Aviod ugly poly data - unnecessary?
   vtkCleanPolyData *cleanPoly = vtkCleanPolyData::New();
   cleanPoly->SetInput( brainPolyData );
-  cleanPoly->Update();
+  cleanPoly->GetOutput()->Update();
 
   brainPolyData->DeepCopy( cleanPoly->GetOutput() );
   self->SetBrainMesh( brainPolyData );
@@ -853,7 +853,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
   theStencil->SetInput( brainPolyData );
-#if (VTK_MAJOR_VERSION > 5)
+#if (VTK_MAJOR_VERSION > 4)
   theStencil->SetOutputSpacing(spacing);
   theStencil->SetOutputOrigin(origin);
   theStencil->SetOutputWholeExtent(extent);
@@ -862,7 +862,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   imageStencil->SetStencil( theStencil->GetOutput() );
   imageStencil->SetInput(inData);
   imageStencil->SetBackgroundValue(T2);
-  imageStencil->Update();
+  imageStencil->GetOutput()->Update();
 
   outData->DeepCopy(imageStencil->GetOutput());
 
