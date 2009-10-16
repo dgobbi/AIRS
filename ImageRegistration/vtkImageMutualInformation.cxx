@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkImageMutualInformation.cxx,v $
   Language:  C++
-  Date:      $Date: 2008/05/23 18:23:00 $
-  Version:   $Revision: 1.12 $
+  Date:      $Date: 2009/10/16 22:07:08 $
+  Version:   $Revision: 1.13 $
 
   Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
   All rights reserved.
@@ -30,7 +30,7 @@
 
 #include <math.h>
 
-vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.12 $");
+vtkCxxRevisionMacro(vtkImageMutualInformation, "$Revision: 1.13 $");
 vtkStandardNewMacro(vtkImageMutualInformation);
 
 //----------------------------------------------------------------------------
@@ -603,9 +603,7 @@ int vtkImageMutualInformation::RequestUpdateExtent(
     {
     vtkInformation *inInfo2 = inputVector[1]->GetInformationObject(0);
     inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),inExt,6);
-	cout << inExt[0] << " " << inExt[1] << endl;
     }
-  cout << inExt[0] << " " << inExt[1] << endl;
 
   inInfo = inputVector[0]->GetInformationObject(1);
   inExt = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
