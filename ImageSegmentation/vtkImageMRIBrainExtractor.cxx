@@ -853,6 +853,11 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
   theStencil->SetInput( brainPolyData );
+#if (VTK_MAJOR_VERSION > 5)
+  theStencil->SetOutputSpacing(spacing);
+  theStencil->SetOutputOrigin(origin);
+  theStencil->SetOutputWholeExtent(extent);
+#endif
 
   imageStencil->SetStencil( theStencil->GetOutput() );
   imageStencil->SetInput(inData);
