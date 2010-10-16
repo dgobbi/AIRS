@@ -3,8 +3,8 @@
   Program:   Visualization Toolkit
   Module:    $RCSfile: vtkCenteredTransform.cxx,v $
   Language:  C++
-  Date:      $Date: 2006/09/30 02:46:34 $
-  Version:   $Revision: 1.4 $
+  Date:      $Date: 2010/10/16 04:12:43 $
+  Version:   $Revision: 1.5 $
 
 Copyright (c) 2006 Atamai, Inc.
 All rights reserved.
@@ -29,7 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkPoints.h"
 #include "vtkMatrix4x4.h"
 
-vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.4 $");
+vtkCxxRevisionMacro(vtkCenteredTransform, "$Revision: 1.5 $");
 vtkStandardNewMacro(vtkCenteredTransform);
 
 //----------------------------------------------------------------------------
@@ -88,22 +88,24 @@ void vtkCenteredTransformMatrixFromAngles(const double rotation[3],
   double rz[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
   double tmp1[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
 
-  rx[1][1] = cos(rotation[0] * vtkMath::DoubleDegreesToRadians());
-  rx[2][2] = cos(rotation[0] * vtkMath::DoubleDegreesToRadians());
-  rx[1][2] = -sin(rotation[0] * vtkMath::DoubleDegreesToRadians());
-  rx[2][1] = sin(rotation[0] * vtkMath::DoubleDegreesToRadians());
+  const double degToRad = 0.017453292519943295;
+
+  rx[1][1] = cos(rotation[0] * degToRad);
+  rx[2][2] = cos(rotation[0] * degToRad);
+  rx[1][2] = -sin(rotation[0] * degToRad);
+  rx[2][1] = sin(rotation[0] * degToRad);
   rx[0][0] = 1.0;
 
-  ry[0][0] = cos(rotation[1] * vtkMath::DoubleDegreesToRadians());
-  ry[0][2] = sin(rotation[1] * vtkMath::DoubleDegreesToRadians());
-  ry[2][0] = -sin(rotation[1] * vtkMath::DoubleDegreesToRadians());
-  ry[2][2] = cos(rotation[1] * vtkMath::DoubleDegreesToRadians());
+  ry[0][0] = cos(rotation[1] * degToRad);
+  ry[0][2] = sin(rotation[1] * degToRad);
+  ry[2][0] = -sin(rotation[1] * degToRad);
+  ry[2][2] = cos(rotation[1] * degToRad);
   ry[1][1] = 1.0;
    
-  rz[0][0] = cos(rotation[2] * vtkMath::DoubleDegreesToRadians());
-  rz[0][1] = -sin(rotation[2] * vtkMath::DoubleDegreesToRadians());
-  rz[1][0] = sin(rotation[2] * vtkMath::DoubleDegreesToRadians());
-  rz[1][1] = cos(rotation[2] * vtkMath::DoubleDegreesToRadians());
+  rz[0][0] = cos(rotation[2] * degToRad);
+  rz[0][1] = -sin(rotation[2] * degToRad);
+  rz[1][0] = sin(rotation[2] * degToRad);
+  rz[1][1] = cos(rotation[2] * degToRad);
   rz[2][2] = 1.0;
 
   vtkMath::Multiply3x3(rx, ry, tmp1);
@@ -149,10 +151,12 @@ void vtkCenteredTransformAnglesFromMatrix(const double matrix[3][3],
 
   double alpha = atan2(sinAlpha, cosAlpha);
 
+  const double radToDeg = 57.29577951308232;
+
   // write out the result
-  rotation[0] = phi/vtkMath::DoubleDegreesToRadians();
-  rotation[1] = -theta/vtkMath::DoubleDegreesToRadians();
-  rotation[2] = alpha/vtkMath::DoubleDegreesToRadians();
+  rotation[0] = phi * radToDeg;
+  rotation[1] = -theta * radToDeg;
+  rotation[2] = alpha * radToDeg;
 }
 
 //----------------------------------------------------------------------------
