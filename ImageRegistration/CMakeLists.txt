@@ -19,6 +19,8 @@ vtkImageGridStatistics.cxx
 vtkFunctionMinimizer.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageMean3D.cxx
+vtkMNIXFMReader.cxx
+vtkMNIXFMWriter.cxx
 )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
@@ -40,6 +42,5 @@ SET(Kit_PYTHON_EXTRA_SRCS)
 SET(Kit_JAVA_EXTRA_SRCS)
 
 # -----------------------------------------------------------------
-
 # Include the common setting file
 INCLUDE(${AIRS_SOURCE_DIR}/CMake/AIRSCommonBlock.cmake)

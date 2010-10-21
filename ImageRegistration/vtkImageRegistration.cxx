@@ -59,8 +59,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
-// 
-#include "vtkImageProjection.h"
+// AIRS header files
 #include "vtkImageRangeCalculator.h"
 
 // Optimizer header files
