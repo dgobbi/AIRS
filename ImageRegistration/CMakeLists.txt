@@ -1,8 +1,8 @@
-PROJECT(ATAMAIREGISTRATION)
+#PROJECT(ImageRegistration)
 
-SET(KIT AtamaiRegistration)
-SET(UKIT ATAMAIREGISTRATION)
-SET(KIT_LIBS vtkHybrid vtkImaging vtkAtamaiImaging)
+SET(KIT ImageRegistration)
+SET(UKIT ImageRegistration)
+SET(KIT_LIBS vtkHybrid vtkImaging vtkImageAnalysis)
 
 SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 
@@ -41,8 +41,7 @@ SET(Kit_TCL_EXTRA_SRCS)
 SET(Kit_PYTHON_EXTRA_SRCS)
 SET(Kit_JAVA_EXTRA_SRCS)
 
-INCLUDE_DIRECTORIES(${AtamaiVTK_INCLUDE_DIRS}) #??
 # -----------------------------------------------------------------
 
 # Include the common setting file
-INCLUDE(${AtamaiVTK_SOURCE_DIR}/CMake/KitCommonBlock.cmake)
+INCLUDE(${AIRS_SOURCE_DIR}/CMake/AIRSCommonBlock.cmake)

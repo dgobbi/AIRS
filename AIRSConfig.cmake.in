@@ -1,0 +1,32 @@
+#-----------------------------------------------------------------------------
+#
+# AIRSConfig.cmake - CMake configuration file for external projects.
+#
+# This file is configured by AIRS and used by the UseAIRS.cmake
+# module to load AIRS's settings for an external project.
+
+# The source dir
+SET(AIRS_SOURCE_DIR "@AIRS_SOURCE_DIR_CONFIG@")
+
+# The kits.
+SET(AIRS_KITS "@AIRS_KITS_CONFIG@")
+
+# The libraries.
+SET(AIRS_LIBRARIES "@AIRS_LIBRARIES_CONFIG@")
+
+# The library directories.
+SET(AIRS_LIBRARY_DIRS "@AIRS_LIBRARY_DIRS_CONFIG@")
+
+# The include directories.
+SET(AIRS_INCLUDE_DIRS "@AIRS_INCLUDE_DIRS_CONFIG@")
+
+# The "use" file.
+SET(AIRS_USE_FILE "@AIRS_USE_FILE_CONFIG@")
+
+# The VTK options.
+SET(AIRS_VTK_DIR "@AIRS_VTK_DIR_CONFIG@")
+
+# The library dependencies file.
+IF(NOT AIRS_NO_LIBRARY_DEPENDS)
+  INCLUDE("@AIRS_LIBRARY_DEPENDS_FILE@")
+ENDIF(NOT AIRS_NO_LIBRARY_DEPENDS)
