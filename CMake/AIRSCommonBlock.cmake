@@ -1,24 +1,6 @@
 # Need to include class headers and the configuration header.
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
-# Add this kit to the configuration variables
-IF(AIRS_KITS)
-  STRING(REGEX MATCH "${KIT}" already_have_kit ${AIRS_KITS})
-ELSE(AIRS_KITS)
-  SET(already_have_kit 0)
-ENDIF(AIRS_KITS)
-
-IF(NOT already_have_kit)
-  SET(AIRS_KITS ${AIRS_KITS} ${KIT}
-    CACHE INTERNAL "AIRS Kits" FORCE)
-
-  SET(AIRS_LIBRARIES ${AIRS_LIBRARIES} vtk${KIT}
-    CACHE INTERNAL "AIRS libraries" FORCE)
-
-  SET(AIRS_INCLUDE_DIRS ${AIRS_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-    CACHE INTERNAL "AIRS libraries" FORCE)
-ENDIF(NOT already_have_kit)
-
 INCLUDE_DIRECTORIES(${AIRS_INCLUDE_DIRS})
 
 # Add the wrapper libraries
@@ -47,12 +29,6 @@ ENDFOREACH( lib ${KIT_LIBS})
 
 #ADD_LIBRARY(vtk${KIT} ${Kit_SRCS} ${Kit_EXTRA_SRCS} ${KitInstantiator_SRCS})
 ADD_LIBRARY(vtk${KIT} ${Kit_SRCS} ${Kit_EXTRA_SRCS})
-
-# Allow the user to customize their build with some local options
-#
-SET(LOCALUSERMACRODEFINED 0)
-INCLUDE (${VTK_BINARY_DIR}/${KIT}/LocalUserOptions.cmake OPTIONAL)
-INCLUDE (${VTK_SOURCE_DIR}/${KIT}/LocalUserOptions.cmake OPTIONAL)
 
 # Do the TCL wrapping
 #
