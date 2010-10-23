@@ -7,6 +7,7 @@ SET(KIT_LIBS vtkImaging)
 # Kit_SRCS variable.
 SET(Kit_SRCS
 vtkImageRangeCalculator.cxx
+vtkSimpleShapeStencilSource.cxx
 )
 
 SET(Kit_EXTRA_SRCS)
