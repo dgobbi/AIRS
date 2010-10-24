@@ -1022,12 +1022,12 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->SourceReslice->SetOutputOrigin(targetOrigin);
   this->TargetReslice->SetOutputOrigin(targetOrigin);
 
-//   vtkImageStencilData *stencil = this->GetFixedImageStencil();
-//   if (stencil)
-//     {
-//     this->SourceReslice->SetStencil(stencil);
-//     this->TargetReslice->SetStencil(stencil);
-//     }
+  vtkImageStencilData *stencil = this->GetFixedImageStencil();
+  if (stencil)
+    {
+    this->SourceReslice->SetStencil(stencil);
+    this->TargetReslice->SetStencil(stencil);
+    }
 
   // compute the range
   vtkFloatingPointType sourceRange[2], targetRange[2];
@@ -1079,6 +1079,9 @@ void vtkImageRegistration::InitializePreprocessor(void)
   this->SourceRescale->SetScale((highBin-lowBin)/(sourceUpperValue-sourceLowerValue));
   this->TargetRescale->SetShift((lowBin+0.5)*(targetUpperValue-targetLowerValue)/(highBin-lowBin) - targetLowerValue);
   this->TargetRescale->SetScale((highBin-lowBin)/(targetUpperValue-targetLowerValue));
+
+  //cerr << "source shift,scale " << this->SourceRescale->GetShift() << "," << this->SourceRescale->GetScale() << " range " << sourceRange[0] << "," << sourceRange[1] << " lower,upper " << sourceLowerValue << "," << sourceUpperValue << "\n"; 
+  //cerr << "target shift,scale " << this->TargetRescale->GetShift() << "," << this->TargetRescale->GetScale() << " range " << targetRange[0] << "," << targetRange[1] << " lower,upper " << targetLowerValue << "," << targetUpperValue << "\n"; 
 
   switch(this->PreprocessorType)
     {
@@ -1230,7 +1233,7 @@ static void vtkEvaluateFunction(void * arg)
 
         val = metric->GetCrossCorrelation();
         }
-//       cerr << "metric val: " << val << endl;
+      //cerr << "metric val: " << val << endl;
       optimizer->SetFunctionValue(-val);
       }
       break;
