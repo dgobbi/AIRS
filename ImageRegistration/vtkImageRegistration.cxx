@@ -981,8 +981,6 @@ void vtkImageRegistration::InitializePreprocessor(void)
       vtkErrorMacro( << "incorrect interpolater type!" );
       break;
     }
-  this->SourceReslice->OptimizationOff();
-  this->TargetReslice->OptimizationOff();
   this->SourceReslice->SetResliceTransform(this->Transform);
 
   this->GetMovingImage()->Update();
