@@ -115,16 +115,14 @@ const char *vtkSimpleShapeStencilSource::GetShapeAsString()
 #define VTK_STENCIL_TOL 7.62939453125e-06
 
 //----------------------------------------------------------------------------
-static int vtkSimpleShapeStencilSourceBox(
-  vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
-  int extent[6], double origin[3], double spacing[3])
+// Compute a reduced extent based on the Center and Size of the shape.
+// 
+// Also returns the center and radius in voxel-index units.
+static void vtkSimpleShapeStencilSourceSubExtent(
+  vtkSimpleShapeStencilSource *self,
+  const double origin[3], const double spacing[3], const int extent[6],
+  int subextent[6], double icenter[3], double iradius[3])
 {
-  // for keeping track of progress
-  unsigned long count = 0;
-  unsigned long target = static_cast<unsigned long>(
-    (extent[5] - extent[4] + 1)*(extent[3] - extent[2] + 1)/50.0);
-  target++;
-
   double center[3];
   self->GetCenter(center);
 
@@ -133,25 +131,55 @@ static int vtkSimpleShapeStencilSourceBox(
 
   for (int i = 0; i < 3; i++)
     {
-    double r = 0.5*size[i];
-    if (r < 0) { r = -r; }
-    double dmin = (center[i] - r - origin[i])/spacing[i];
-    double dmax = (center[i] + r - origin[i])/spacing[i];
-    int emin = vtkMath::Floor(dmin + VTK_STENCIL_TOL);
-    int emax = -vtkMath::Floor(-dmax + VTK_STENCIL_TOL);
+    icenter[i] = (center[i] - origin[i])/spacing[i];
+    iradius[i] = 0.5*size[i]/spacing[i];
+    if (iradius[i] < 0) { iradius[i] = -iradius[i]; }
+    iradius[i] += VTK_STENCIL_TOL;
+    double emin = icenter[i] - iradius[i];
+    double emax = icenter[i] + iradius[i];
+    subextent[2*i] = extent[2*i];
+    subextent[2*i+1] = extent[2*i+1];
     if (extent[2*i] < emin)
       {
-      extent[2*i] = emin;
+      subextent[2*i] = VTK_INT_MAX;
+      if (extent[2*i+1] >= emin)
+        {
+        subextent[2*i] = -vtkMath::Floor(-emin);
+        }
       }
     if (extent[2*i+1] > emax)
       {
-      extent[2*i+1] = emax;
+      subextent[2*i+1] = VTK_INT_MIN;
+      if (extent[2*i] <= emax)
+        {
+        subextent[2*i+1] = vtkMath::Floor(emax);
+        }
       }
     }
+}
 
-  for (int idZ = extent[4]; idZ <= extent[5]; idZ++)
+//----------------------------------------------------------------------------
+static int vtkSimpleShapeStencilSourceBox(
+  vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
+  const int extent[6], const double origin[3], const double spacing[3])
+{
+  int subextent[6];
+  double icenter[3];
+  double iradius[3];
+
+  vtkSimpleShapeStencilSourceSubExtent(self, origin, spacing, extent,
+    subextent, icenter, iradius);
+
+  // for keeping track of progress
+  unsigned long count = 0;
+  unsigned long target = static_cast<unsigned long>(
+    (subextent[5] - subextent[4] + 1)*
+    (subextent[3] - subextent[2] + 1)/50.0);
+  target++;
+
+  for (int idZ = subextent[4]; idZ <= subextent[5]; idZ++)
     {
-    for (int idY = extent[2]; idY <= extent[3]; idY++)
+    for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
       if (count%target == 0) 
         {
@@ -159,8 +187,8 @@ static int vtkSimpleShapeStencilSourceBox(
         }
       count++;
 
-      int r1 = extent[0];
-      int r2 = extent[1];
+      int r1 = subextent[0];
+      int r2 = subextent[1];
 
       if (r2 >= r1)
         {
@@ -175,45 +203,27 @@ static int vtkSimpleShapeStencilSourceBox(
 //----------------------------------------------------------------------------
 static int vtkSimpleShapeStencilSourceEllipsoid(
   vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
-  int extent[6], double origin[3], double spacing[3])
+  const int extent[6], const double origin[3], const double spacing[3])
 {
-  // for keeping track of progress
-  unsigned long count = 0;
-  unsigned long target = static_cast<unsigned long>(
-    (extent[5] - extent[4] + 1)*(extent[3] - extent[2] + 1)/50.0);
-  target++;
-
-  double center[3];
-  self->GetCenter(center);
-
-  double size[3];
-  self->GetSize(size);
-
+  int subextent[6];
   double icenter[3];
   double iradius[3];
 
-  for (int i = 0; i < 3; i++)
-    {
-    icenter[i] = (center[i] - origin[i])/spacing[i];
-    iradius[i] = 0.5*size[i]/spacing[i];
-    if (iradius[i] < 0) { iradius[i] = -iradius[i]; }
-    int emin = vtkMath::Floor(icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    int emax = -vtkMath::Floor(-icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    if (extent[2*i] < emin)
-      {
-      extent[2*i] = emin;
-      }
-    if (extent[2*i+1] > emax)
-      {
-      extent[2*i+1] = emax;
-      }
-    }
+  vtkSimpleShapeStencilSourceSubExtent(self, origin, spacing, extent,
+    subextent, icenter, iradius);
 
-  for (int idZ = extent[4]; idZ <= extent[5]; idZ++)
+  // for keeping track of progress
+  unsigned long count = 0;
+  unsigned long target = static_cast<unsigned long>(
+    (subextent[5] - subextent[4] + 1)*
+    (subextent[3] - subextent[2] + 1)/50.0);
+  target++;
+
+  for (int idZ = subextent[4]; idZ <= subextent[5]; idZ++)
     {
     double z = (idZ - icenter[2])/iradius[2];
 
-    for (int idY = extent[2]; idY <= extent[3]; idY++)
+    for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
       if (count%target == 0) 
         {
@@ -222,27 +232,25 @@ static int vtkSimpleShapeStencilSourceEllipsoid(
       count++;
 
       double y = (idY - icenter[1])/iradius[1];
-      double d = 1.0 - y*y - z*z;
-      if (d < -VTK_STENCIL_TOL)
+      double x2 = 1.0 - y*y - z*z;
+      if (x2 < 0)
         {
         continue;
         }
-      else if (d < 0)
-        {
-        d = 0;
-        }
+      double x = sqrt(x2);
 
-      double x = sqrt(d);
-      int r1 = vtkMath::Floor(icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
-      int r2 = -vtkMath::Floor(-icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
+      int r1 = subextent[0];
+      int r2 = subextent[1];
+      double xmin = icenter[0] - x*iradius[0];
+      double xmax = icenter[0] + x*iradius[0];
 
-      if (r1 < extent[0])
+      if (r1 < xmin)
         {
-        r1 = extent[0];
+        r1 = -vtkMath::Floor(-xmin);
         }
-      if (r2 > extent[1])
+      if (r2 > xmax)
         {
-        r2 = extent[1];
+        r2 = vtkMath::Floor(xmax);
         }
 
       if (r2 >= r1)
@@ -258,45 +266,27 @@ static int vtkSimpleShapeStencilSourceEllipsoid(
 //----------------------------------------------------------------------------
 static int vtkSimpleShapeStencilSourceCylinderX(
   vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
-  int extent[6], double origin[3], double spacing[3])
+  const int extent[6], const double origin[3], const double spacing[3])
 {
-  // for keeping track of progress
-  unsigned long count = 0;
-  unsigned long target = static_cast<unsigned long>(
-    (extent[5] - extent[4] + 1)*(extent[3] - extent[2] + 1)/50.0);
-  target++;
-
-  double center[3];
-  self->GetCenter(center);
-
-  double size[3];
-  self->GetSize(size);
-
+  int subextent[6];
   double icenter[3];
   double iradius[3];
 
-  for (int i = 0; i < 3; i++)
-    {
-    icenter[i] = (center[i] - origin[i])/spacing[i];
-    iradius[i] = 0.5*size[i]/spacing[i];
-    if (iradius[i] < 0) { iradius[i] = -iradius[i]; }
-    int emin = vtkMath::Floor(icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    int emax = -vtkMath::Floor(-icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    if (extent[2*i] < emin)
-      {
-      extent[2*i] = emin;
-      }
-    if (extent[2*i+1] > emax)
-      {
-      extent[2*i+1] = emax;
-      }
-    }
+  vtkSimpleShapeStencilSourceSubExtent(self, origin, spacing, extent,
+    subextent, icenter, iradius);
 
-  for (int idZ = extent[4]; idZ <= extent[5]; idZ++)
+  // for keeping track of progress
+  unsigned long count = 0;
+  unsigned long target = static_cast<unsigned long>(
+    (subextent[5] - subextent[4] + 1)*
+    (subextent[3] - subextent[2] + 1)/50.0);
+  target++;
+
+  for (int idZ = subextent[4]; idZ <= subextent[5]; idZ++)
     {
     double z = (idZ - icenter[2])/iradius[2];
 
-    for (int idY = extent[2]; idY <= extent[3]; idY++)
+    for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
       if (count%target == 0) 
         {
@@ -305,13 +295,13 @@ static int vtkSimpleShapeStencilSourceCylinderX(
       count++;
 
       double y = (idY - icenter[1])/iradius[1];
-      if (y*y + z*z > 1.0 + VTK_STENCIL_TOL)
+      if (y*y + z*z > 1.0)
         {
         continue;
         }
 
-      int r1 = extent[0];
-      int r2 = extent[1];
+      int r1 = subextent[0];
+      int r2 = subextent[1];
 
       if (r2 >= r1)
         {
@@ -328,43 +318,25 @@ static int vtkSimpleShapeStencilSourceCylinderY(
   vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
   int extent[6], double origin[3], double spacing[3])
 {
-  // for keeping track of progress
-  unsigned long count = 0;
-  unsigned long target = static_cast<unsigned long>(
-    (extent[5] - extent[4] + 1)*(extent[3] - extent[2] + 1)/50.0);
-  target++;
-
-  double center[3];
-  self->GetCenter(center);
-
-  double size[3];
-  self->GetSize(size);
-
+  int subextent[6];
   double icenter[3];
   double iradius[3];
 
-  for (int i = 0; i < 3; i++)
-    {
-    icenter[i] = (center[i] - origin[i])/spacing[i];
-    iradius[i] = 0.5*size[i]/spacing[i];
-    if (iradius[i] < 0) { iradius[i] = -iradius[i]; }
-    int emin = vtkMath::Floor(icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    int emax = -vtkMath::Floor(-icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    if (extent[2*i] < emin)
-      {
-      extent[2*i] = emin;
-      }
-    if (extent[2*i+1] > emax)
-      {
-      extent[2*i+1] = emax;
-      }
-    }
+  vtkSimpleShapeStencilSourceSubExtent(self, origin, spacing, extent,
+    subextent, icenter, iradius);
 
-  for (int idZ = extent[4]; idZ <= extent[5]; idZ++)
+  // for keeping track of progress
+  unsigned long count = 0;
+  unsigned long target = static_cast<unsigned long>(
+    (subextent[5] - subextent[4] + 1)*
+    (subextent[3] - subextent[2] + 1)/50.0);
+  target++;
+
+  for (int idZ = subextent[4]; idZ <= subextent[5]; idZ++)
     {
     double z = (idZ - icenter[2])/iradius[2];
 
-    for (int idY = extent[2]; idY <= extent[3]; idY++)
+    for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
       if (count%target == 0) 
         {
@@ -372,27 +344,25 @@ static int vtkSimpleShapeStencilSourceCylinderY(
         }
       count++;
 
-      double d = 1.0 - z*z;
-      if (d < -VTK_STENCIL_TOL)
+      double x2 = 1.0 - z*z;
+      if (x2 < 0)
         {
         continue;
         }
-      else if (d < 0)
-        {
-        d = 0;
-        }
+      double x = sqrt(x2);
 
-      double x = sqrt(d);
-      int r1 = vtkMath::Floor(icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
-      int r2 = -vtkMath::Floor(-icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
+      int r1 = subextent[0];
+      int r2 = subextent[1];
+      double xmin = icenter[0] - x*iradius[0];
+      double xmax = icenter[0] + x*iradius[0];
 
-      if (r1 < extent[0])
+      if (r1 < xmin)
         {
-        r1 = extent[0];
+        r1 = vtkMath::Floor(xmin);
         }
-      if (r2 > extent[1])
+      if (r2 > xmax)
         {
-        r2 = extent[1];
+        r2 = -vtkMath::Floor(-xmax);
         }
 
       if (r2 >= r1)
@@ -410,41 +380,23 @@ static int vtkSimpleShapeStencilSourceCylinderZ(
   vtkSimpleShapeStencilSource *self, vtkImageStencilData *data,
   int extent[6], double origin[3], double spacing[3])
 {
-  // for keeping track of progress
-  unsigned long count = 0;
-  unsigned long target = static_cast<unsigned long>(
-    (extent[5] - extent[4] + 1)*(extent[3] - extent[2] + 1)/50.0);
-  target++;
-
-  double center[3];
-  self->GetCenter(center);
-
-  double size[3];
-  self->GetSize(size);
-
+  int subextent[6];
   double icenter[3];
   double iradius[3];
 
-  for (int i = 0; i < 3; i++)
-    {
-    icenter[i] = (center[i] - origin[i])/spacing[i];
-    iradius[i] = 0.5*size[i]/spacing[i];
-    if (iradius[i] < 0) { iradius[i] = -iradius[i]; }
-    int emin = vtkMath::Floor(icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    int emax = -vtkMath::Floor(-icenter[i] - iradius[i] + VTK_STENCIL_TOL);
-    if (extent[2*i] < emin)
-      {
-      extent[2*i] = emin;
-      }
-    if (extent[2*i+1] > emax)
-      {
-      extent[2*i+1] = emax;
-      }
-    }
+  vtkSimpleShapeStencilSourceSubExtent(self, origin, spacing, extent,
+    subextent, icenter, iradius);
 
-  for (int idZ = extent[4]; idZ <= extent[5]; idZ++)
+  // for keeping track of progress
+  unsigned long count = 0;
+  unsigned long target = static_cast<unsigned long>(
+    (subextent[5] - subextent[4] + 1)*
+    (subextent[3] - subextent[2] + 1)/50.0);
+  target++;
+
+  for (int idZ = subextent[4]; idZ <= subextent[5]; idZ++)
     {
-    for (int idY = extent[2]; idY <= extent[3]; idY++)
+    for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
       if (count%target == 0) 
         {
@@ -453,27 +405,25 @@ static int vtkSimpleShapeStencilSourceCylinderZ(
       count++;
 
       double y = (idY - icenter[1])/iradius[1];
-      double d = 1.0 - y*y;
-      if (d < -VTK_STENCIL_TOL)
+      double x2 = 1.0 - y*y;
+      if (x2 < 0)
         {
         continue;
         }
-      else if (d < 0)
-        {
-        d = 0;
-        }
+      double x = sqrt(x2);
 
-      double x = sqrt(d);
-      int r1 = vtkMath::Floor(icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
-      int r2 = -vtkMath::Floor(-icenter[0] - x*iradius[0] + VTK_STENCIL_TOL);
+      int r1 = subextent[0];
+      int r2 = subextent[1];
+      double xmin = icenter[0] - x*iradius[0];
+      double xmax = icenter[0] + x*iradius[0];
 
-      if (r1 < extent[0])
+      if (r1 < xmin)
         {
-        r1 = extent[0];
+        r1 = vtkMath::Floor(xmin);
         }
-      if (r2 > extent[1])
+      if (r2 > xmax)
         {
-        r2 = extent[1];
+        r2 = -vtkMath::Floor(-xmax);
         }
 
       if (r2 >= r1)
