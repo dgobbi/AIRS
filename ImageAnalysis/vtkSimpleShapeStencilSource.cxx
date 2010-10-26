@@ -116,7 +116,7 @@ const char *vtkSimpleShapeStencilSource::GetShapeAsString()
 
 //----------------------------------------------------------------------------
 // Compute a reduced extent based on the Center and Size of the shape.
-// 
+//
 // Also returns the center and radius in voxel-index units.
 static void vtkSimpleShapeStencilSourceSubExtent(
   vtkSimpleShapeStencilSource *self,
@@ -181,7 +181,7 @@ static int vtkSimpleShapeStencilSourceBox(
     {
     for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
-      if (count%target == 0) 
+      if (count%target == 0)
         {
         self->UpdateProgress(count/(50.0*target));
         }
@@ -225,7 +225,7 @@ static int vtkSimpleShapeStencilSourceEllipsoid(
 
     for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
-      if (count%target == 0) 
+      if (count%target == 0)
         {
         self->UpdateProgress(count/(50.0*target));
         }
@@ -288,7 +288,7 @@ static int vtkSimpleShapeStencilSourceCylinderX(
 
     for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
-      if (count%target == 0) 
+      if (count%target == 0)
         {
         self->UpdateProgress(count/(50.0*target));
         }
@@ -338,7 +338,7 @@ static int vtkSimpleShapeStencilSourceCylinderY(
 
     for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
-      if (count%target == 0) 
+      if (count%target == 0)
         {
         self->UpdateProgress(count/(50.0*target));
         }
@@ -358,11 +358,11 @@ static int vtkSimpleShapeStencilSourceCylinderY(
 
       if (r1 < xmin)
         {
-        r1 = vtkMath::Floor(xmin);
+        r1 = -vtkMath::Floor(-xmin);
         }
       if (r2 > xmax)
         {
-        r2 = -vtkMath::Floor(-xmax);
+        r2 = vtkMath::Floor(xmax);
         }
 
       if (r2 >= r1)
@@ -398,7 +398,7 @@ static int vtkSimpleShapeStencilSourceCylinderZ(
     {
     for (int idY = subextent[2]; idY <= subextent[3]; idY++)
       {
-      if (count%target == 0) 
+      if (count%target == 0)
         {
         self->UpdateProgress(count/(50.0*target));
         }
@@ -419,11 +419,11 @@ static int vtkSimpleShapeStencilSourceCylinderZ(
 
       if (r1 < xmin)
         {
-        r1 = vtkMath::Floor(xmin);
+        r1 = -vtkMath::Floor(-xmin);
         }
       if (r2 > xmax)
         {
-        r2 = -vtkMath::Floor(-xmax);
+        r2 = vtkMath::Floor(xmax);
         }
 
       if (r2 >= r1)
