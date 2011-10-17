@@ -13,7 +13,7 @@ conditions are met:
 1) Redistribution of the source code, in verbatim or modified
    form, must retain the above copyright notice, this license,
    the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.  
+   license and/or the following disclaimer.
 
 2) Redistribution in binary form must include the above copyright
    notice, a copy of this license and the following disclaimer
@@ -43,46 +43,15 @@ POSSIBILITY OF SUCH DAMAGES.
 #define __vtkImageRegistration_h
 
 #include "vtkAlgorithm.h"
-#include <vtksys/SystemTools.hxx>
-
-#define VTK_TYPE_INVALID                               -1
-
-// constants for the optimizers
-#define VTK_OPTIMIZER_AMOEBA                            0
-#define VTK_NUMBER_OF_OPTIMIZERS                        1
-
-// constants for the metrics
-#define VTK_METRIC_NORMALIZED_CROSS_CORRELATION         0
-#define VTK_METRIC_NORMALIZED_MUTUAL_INFORMATION        1
-#define VTK_NUMBER_OF_METRICS                           2
-
-//constants for the interpolators
-#define VTK_INTERPOLATOR_NEAREST_NEIGHBOR               0
-#define VTK_INTERPOLATOR_LINEAR                         1
-#define VTK_INTERPOLATOR_CUBIC                          2
-#define VTK_NUMBER_OF_INTERPOLATORS                     3
-
-// constants for the transform types
-#define VTK_TRANSFORM_CENTERED                          0
-#define VTK_NUMBER_OF_TRANSFORMS                        1
-
-// constants for the preprocessor
-#define VTK_PREPROCESSOR_MI                             0
-#define VTK_PREPROCESSOR_NC                             1
-#define VTK_NUMBER_OF_PREPROCESSORS                     2
 
 class vtkImageData;
-class vtkAbstractTransform;
 class vtkImageStencilData;
+class vtkLinearTransform;
 class vtkMatrix4x4;
-class vtkMatrixToHomogeneousTransform;
 class vtkImageReslice;
-class vtkImageGaussianSmooth;
 class vtkImageShiftScale;
-class vtkTransform;
-class vtkImageAccumulate;
-class vtkImageRangeCalculator;
-class vtkInformation;
+
+struct vtkImageRegistrationInfo;
 
 class VTK_EXPORT vtkImageRegistration : public vtkAlgorithm
 {
@@ -91,176 +60,173 @@ public:
   static vtkImageRegistration *New();
   void PrintSelf(ostream& os, vtkIndent indent);
 
-  //BTX
-#define RegistrationInfoStruct vtkImageRegistration::RegistrationInfo
-  class RegistrationInfo
+  // Description:
+  // The image to use as the moving/source image.
+  void SetSourceImageInputConnection(vtkAlgorithmOutput *input) {
+    this->SetInputConnection(0, input); }
+  vtkAlgorithmOutput *GetSourceImageInputConnection() {
+    return this->GetInputConnection(0, 0); }
+  void SetSourceImage(vtkImageData *input);
+  vtkImageData *GetSourceImage();
+
+  // Description:
+  // The image to use as the fixed/target image.
+  void SetTargetImageInputConnection(vtkAlgorithmOutput *input) {
+    this->SetInputConnection(1, input); }
+  vtkAlgorithmOutput *GetTargetImageInputConnection() {
+    return this->GetInputConnection(1, 0); }
+  void SetTargetImage(vtkImageData *input);
+  vtkImageData *GetTargetImage();
+
+  // Description:
+  // Set a stencil to apply to the fixed image, to register by using
+  // only a portion of the image.  This can only be done for the fixed image.
+  void SetTargetImageStencil(vtkImageStencilData *stencil);
+  vtkImageStencilData *GetTargetImageStencil();
+
+  // Optimizer types
+  enum
   {
-  public:
-    vtkImageRegistration            *ImageRegistration;
-    vtkObject                       *Optimizer;
-    vtkAbstractTransform            *Transform;
-    vtkObject                       *Metric;
-    vtkImageReslice                 *Interpolator;
-    int                              OptimizerType;
-    int                              MetricType;
-    int                              InterpolatorType;
-    int                              TransformType;
-    vtkstd::vector<double>*          TransformParametersPointer;
+    Amoeba,
   };
-  //ETX
 
-  // Description:
-  // Set/Get the image to use as the fixed/target image.
-  void SetFixedImage(vtkImageData *input);
-  vtkImageData *GetFixedImage();
+  // Metric types
+  enum
+  {
+    CrossCorrelation,
+    NormalizedCrossCorrelation,
+    MutualInformation,
+    NormalizedMutualInformation,
+  };
 
-  // Description:
-  // Set/Get the stencil to apply as the FixedImageRegion.
-  void SetFixedImageStencil(vtkImageStencilData *stencil);
-  vtkImageStencilData *GetFixedImageStencil() ;
+  // Interpolator types
+  enum
+  {
+    Nearest,
+    Linear,
+    Cubic,
+  };
 
-  // Description:
-  // Set/Get the image to use as the moving/source image.
-  void SetMovingImage(vtkImageData *input);
-  vtkImageData *GetMovingImage();
-
-
-  // Description:
-  // Set/Get the optimizer to use.
-  vtkSetMacro(OptimizerType, int);
-  vtkGetMacro(OptimizerType, int);
-
-  // Description:
-  // Get the name of the specified optimizer.
-  // A null is returned if i+1 is greater than number of available
-  // optimization methods.
-  const char *GetOptimizerName(int i);
-
-  // Description:
-  // Get the parameter name of the specified optimizer.
-  // A null is returned if i+1 is greater than number of available
-  // parameters.
-  const char* GetOptimizerParameterName(int optimizer, int parameter);
-
-  // Description:
-  // Set the parameter for specific optimizer.
-  void SetOptimizerParameter(const char *, double);
+  // Transform types
+  enum
+  {
+    Rigid,
+    Similarity,
+  };
 
   // Description:
   // Set the image registration metric.
   vtkSetMacro(MetricType, int);
+  void SetMetricTypeToCrossCorrelation() {
+    this->SetMetricType(CrossCorrelation); }
+  void SetMetricTypeToNormalizedCrossCorrelation() {
+    this->SetMetricType(NormalizedCrossCorrelation); }
+  void SetMetricTypeToMutualInformation() {
+    this->SetMetricType(MutualInformation); }
+  void SetMetricTypeToNormalizedMutualInformation() {
+    this->SetMetricType(NormalizedMutualInformation); }
   vtkGetMacro(MetricType, int);
 
   // Description:
-  // Get the name of the specified metric.
-  // A null is returned if i+1 is greater than number of available
-  // metrics.
-  const char *GetMetricName(int i);
-
-  // Description:
-  // Get the parameter name of the specified metric.
-  // A null is returned if i+1 is greater than number of available
-  // parameter.
-  const char *GetMetricParameterName(int metric, int parameter);
-
-  // Description:
-  // Set the parameter for specific optimizer.
-  void SetMetricParameter(const char *, double);
+  // Set the optimizer.
+  vtkSetMacro(OptimizerType, int);
+  void SetOptimizerTypeToAmoeba() {
+    this->SetOptimizerType(Amoeba); }
+  vtkGetMacro(OptimizerType, int);
 
   // Description:
   // Set the image interpolator.
   vtkSetMacro(InterpolatorType, int);
+  void SetInterpolatorTypeToNearest() {
+    this->SetInterpolatorType(Nearest); }
+  void SetInterpolatorTypeToLinear() {
+    this->SetInterpolatorType(Linear); }
+  void SetInterpolatorTypeToCubic() {
+    this->SetInterpolatorType(Cubic); }
   vtkGetMacro(InterpolatorType, int);
-
-  // Description:
-  // Get the name of the specified interpolator.
-  // A null is returned if i+1 is greater than number of available
-  // interpolators.
-  const char *GetInterpolatorName(int i);
 
   // Description:
   // Set the transform type.
   vtkSetMacro(TransformType, int);
+  void SetTransformTypeToRigid() {
+    this->SetTransformType(Rigid); }
+  void SetTransformTypeToSimilarity() {
+    this->SetTransformType(Similarity); }
   vtkGetMacro(TransformType, int);
-  
-  // Description:
-  // Get the name of the specified transform type.
-  // A null is returned if i+1 is greater than number of available
-  // transform types.
-  const char *GetTransformName(int i);
 
   // Description:
-  // Get the parameter name of the specified transform type.
-  // A null is returned if i+1 is greater than number of available
-  // parameters.
-  const char *GetTransformParameterName(int transform, int parameter);
+  // Set the size of the joint histogram for mutual information.
+  vtkSetVector2Macro(JointHistogramSize, int);
+  vtkGetVector2Macro(JointHistogramSize, int);
 
   // Description:
-  // Set the VTK transform that will be used to initialize the
-  // ITK transform.
-  // void SetInitialTransform(vtkAbstractTransform *);
+  // Initialize the transform.  This will also initialize the
+  // NumberOfEvaluations to zero.
+  void Initialize(vtkMatrix4x4 *matrix);
 
   // Description:
-  // Set the parameter for specific optimizer.
-  void SetTransformParameter(const char *, double);
+  // Set the tolerance that the optimizer will apply to the value returned
+  // by the image similarity metric.  The default value is 1e-4.
+  vtkSetMacro(MetricTolerance, double);
+  vtkGetMacro(MetricTolerance, double);
+
+  // Description:
+  // Set the tolerance that the optimizer will apply to the transform
+  // parameters.  Provide the value to use for the translation parameters,
+  // it will automatically be scaled when applied to the rotation and
+  // scale parameters.  The default value is 0.1.
+  vtkSetMacro(TransformTolerance, double);
+  vtkGetMacro(TransformTolerance, double);
+
+  // Description:
+  // Set the maximum number of iterations to perform.  The number of metric
+  // evaluations per iteration will depend on the optimizer.
+  vtkSetMacro(MaximumNumberOfIterations, int);
+  vtkGetMacro(MaximumNumberOfIterations, int);
+
+  // Description:
+  // Get the number of times that the metric has been evaluated.
+  int GetNumberOfEvaluations();
 
   // Description:
   // Get the last transform that was produced by the optimizer.
-  double GetTransformParameter(const char *);
+  vtkLinearTransform *GetTransform() { return this->Transform; }
 
   // Description:
-  // Get the last transform that was produced by the optimizer.
-  vtkTransform *GetLastTransform();
-  
-  // Description:
-  // Set the image registration metric.
-  vtkSetMacro(PreprocessorType, int);
-  vtkGetMacro(PreprocessorType, int);
+  // Get the value that is being minimized.
+  vtkGetMacro(Value, double);
 
   // Description:
-  // Get the name of the specified metric.
-  // A null is returned if i+1 is greater than number of available
-  // metrics.
-  const char *GetPreprocessorName(int i);
-
-  // Description:
-  // Get the parameter name of the specified metric.
-  // A null is returned if i+1 is greater than number of available
-  // parameter.
-  const char *GetPreprocessorParameterName(int metric, int parameter);
-
-  // Description:
-  // Set the parameter for specific optimizer.
-  void SetPreprocessorParameter(const char *, double);
+  // Iterate the registration.  Returns zero if the termination condition has
+  // been reached.
+  int Iterate();
 
   // Description:
   // Start registration.  The registration will run to completion,
   // according to the optimization parameters that were set.  To
   // see intermediate results, set an observer for ProgressEvents.
+  // There will be one ProgressEvent per iteration.  This will return
+  // zero if the maximum number of iterations was reached before convergence.
   int UpdateRegistration();
 
 protected:
   vtkImageRegistration();
   ~vtkImageRegistration();
 
-  int  Initialize();
-  void InitializeTransform();
-  void InitializePreprocessor();
-  void InitializeMetric();
-  void InitializeOptimizer();
-  int  ExecuteRegistration();
+  void ComputeImageRange(vtkImageData *data, double range[2]);
+  int ExecuteRegistration();
 
   // Functions overridden from Superclass
-  virtual int ProcessRequest(vtkInformation *, 
+  virtual int ProcessRequest(vtkInformation *,
                              vtkInformationVector **,
                              vtkInformationVector *);
-  virtual int RequestData(vtkInformation *, 
+  virtual int RequestData(vtkInformation *,
 			  vtkInformationVector **,
 			  vtkInformationVector *);
-  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request), 
+  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestInformation(vtkInformation *vtkNotUsed(request), 
+  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
   virtual int FillInputPortInformation(int port, vtkInformation* info);
@@ -270,46 +236,30 @@ protected:
   int                              MetricType;
   int                              InterpolatorType;
   int                              TransformType;
-  int                              PreprocessorType;
 
-  int                              CurrentIteration;
+  int                              JointHistogramSize[2];
+  int                              MaximumNumberOfIterations;
+  double                           MetricTolerance;
+  double                           TransformTolerance;
   double                           Value;
-  double                           CurPosition[12];
-  double                           SourceImageRescaleIntercept;
-  double                           SourceImageRescaleSlope;
-  double                           TargetImageRescaleIntercept;
-  double                           TargetImageRescaleSlope;
 
-  RegistrationInfo                 RegistrationArgs;
   vtkTimeStamp                     ExecuteTime;
 
-  //BTX
   vtkObject                       *Optimizer;
-  vtkAbstractTransform            *Transform;
-  vtkObject                       *Metric;
-  vtkTransform                    *LastTransform;
+  vtkAlgorithm                    *Metric;
+  vtkObject                       *Interpolator;
+  vtkLinearTransform              *Transform;
 
-  vtkImageReslice                 *SourceReslice;
-  vtkImageReslice                 *TargetReslice;
-  vtkImageGaussianSmooth          *SourceBlur;
-  vtkImageGaussianSmooth          *TargetBlur;
-  vtkImageShiftScale              *SourceRescale;
-  vtkImageShiftScale              *TargetRescale;
-  vtkImageAccumulate              *SourceAccumulate;
-  vtkImageAccumulate              *TargetAccumulate;
-  vtkImageRangeCalculator         *SourceRange;
-  vtkImageRangeCalculator         *TargetRange;
-  
-  vtkstd::vector< double >         MetricParameters;
-  vtkstd::vector< double >         OptimizerParameters;
-  vtkstd::vector< double >         TransformParameters;
-  vtkstd::vector< double >         PreprocessorParameters;
-  //ETX
+  vtkImageReslice                 *ImageReslice;
+  vtkImageShiftScale              *SourceImageQuantizer;
+  vtkImageShiftScale              *TargetImageQuantizer;
+
+  vtkImageRegistrationInfo        *RegistrationInfo;
 
 private:
   // Copy constructor and assigment operator are purposely not implemented
   vtkImageRegistration(const vtkImageRegistration&) {};
-  void operator=(const vtkImageRegistration&) {};  
+  void operator=(const vtkImageRegistration&) {};
 };
 
 #endif //__vtkImageRegistration_h

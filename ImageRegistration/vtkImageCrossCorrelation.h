@@ -1,103 +1,87 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkImageCrossCorrelation.h,v $
-  Language:  C++
-  Date:      $Date: 2007/08/24 20:02:25 $
-  Version:   $Revision: 1.7 $
-  Thanks:    Thanks to Yves who developed this class.
+  Module:    vtkImageCrossCorrelation.h
 
-Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
-All rights reserved.
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  All rights reserved.
+  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
- * Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
-
- * Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
- * Neither name of Ken Martin, Will Schroeder, or Bill Lorensen nor the names
-   of any contributors may be used to endorse or promote products derived
-   from this software without specific prior written permission.
-
- * Modified source versions must be plainly marked as such, and must not be
-   misrepresented as being the original software.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+     PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageCrossCorrelation - This computes the normalized cross-
-//          correlation of two images.
+// .NAME vtkImageCrossCorrelation - Cross correlation between two images
 // .SECTION Description
-// vtkImageCrossCorrelation downsamples according to outputextent.
-// KernelRadius is specified in "input extent" units.
+// vtkImageCrossCorrelation computes the cross correlation and the normalized
+// cross correlation of two input images.  The images must have the same
+// origin and spacing.
 
 #ifndef __vtkImageCrossCorrelation_h
 #define __vtkImageCrossCorrelation_h
 
-#include "vtkImageTwoInputFilter.h"
+#include "vtkThreadedImageAlgorithm.h"
 
-// For backwards compatibility with VTK 4.2
-#ifndef vtkFloatingPointType
-#define vtkFloatingPointType vtkFloatingPointType
-typedef float vtkFloatingPointType;
-#endif
+class vtkImageStencilData;
 
-class VTK_EXPORT vtkImageCrossCorrelation : public vtkImageTwoInputFilter
+class VTK_EXPORT vtkImageCrossCorrelation : public vtkThreadedImageAlgorithm
 {
 public:
-  vtkTypeMacro(vtkImageCrossCorrelation,vtkImageTwoInputFilter);
   static vtkImageCrossCorrelation *New();
+  vtkTypeMacro(vtkImageCrossCorrelation,vtkThreadedImageAlgorithm);
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // Set/Get the shrink factors
-  vtkSetVector6Macro(OutputExtent, int);
-  vtkGetVector6Macro(OutputExtent, int);
-
+  // Use a stencil to limit the calculations to a specific region of
+  // the input images.
+  void SetStencil(vtkImageStencilData *stencil);
+  vtkImageStencilData *GetStencil();
 
   // Description:
-  // Set/Get the kernel size
-  vtkSetVector3Macro(KernelRadius, float);
-  vtkGetVector3Macro(KernelRadius, float);
+  // Get the mutual information that was computed for the joint histogram.
+  // The result is only valid after the filter has executed.
+  vtkGetMacro(CrossCorrelation, double);
 
-  vtkGetVector3Macro(ShrinkFactors, float);
-    
+  // Description:
+  // Get the normalized mutual information that was computed for the joint
+  // histogram.  The result is only valid after the filter has executed.
+  vtkGetMacro(NormalizedCrossCorrelation, double);
+
+  // Description:
+  // This is part of the executive, but is public so that it can be accessed
+  // by non-member functions.
+  virtual void ThreadedRequestData(vtkInformation *request,
+                                   vtkInformationVector **inputVector,
+                                   vtkInformationVector *outputVector,
+                                   vtkImageData ***inData,
+                                   vtkImageData **outData, int ext[6], int id);
 protected:
   vtkImageCrossCorrelation();
-  ~vtkImageCrossCorrelation() {};
+  ~vtkImageCrossCorrelation();
 
-  float ShrinkFactors[3];
-  float KernelRadius[3];
-  int OutputExtent[6];
+  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
+                                 vtkInformationVector **inInfo,
+                                 vtkInformationVector *vtkNotUsed(outInfo));
+  virtual int RequestData(vtkInformation *,
+			  vtkInformationVector **,
+			  vtkInformationVector *);
 
-  void ExecuteInformation(vtkImageData **inDatas, vtkImageData *outData);
-  void ComputeInputUpdateExtent(int inExt[6], int outExt[6], 
-				int vtkNotUsed(whichInput));
-  void ExecuteInformation(){this->vtkImageTwoInputFilter::ExecuteInformation();};
-  void ThreadedExecute(vtkImageData **inDatas, vtkImageData *outData,
-		       int extent[6], int id);
+  virtual int FillInputPortInformation(int port, vtkInformation *info);
+  virtual int FillOutputPortInformation(int port, vtkInformation *info);
+
+  double CrossCorrelation;
+  double NormalizedCrossCorrelation;
+
+  double ThreadOutput[VTK_MAX_THREADS][4];
 
 private:
-  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&); // Not implemented.
-  void operator=(const vtkImageCrossCorrelation&); // Not implemented.
+  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&);  // Not implemented.
+  void operator=(const vtkImageCrossCorrelation&);  // Not implemented.
 };
 
 #endif
-
-
-
