@@ -384,10 +384,14 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   // get the target image center
   double bounds[6];
   double center[3];
+  double size[3];
   targetImage->GetBounds(bounds);
   center[0] = 0.5*(bounds[0] + bounds[1]);
   center[1] = 0.5*(bounds[2] + bounds[3]);
   center[2] = 0.5*(bounds[4] + bounds[5]);
+  size[0] = (bounds[1] - bounds[0]);
+  size[1] = (bounds[3] - bounds[2]);
+  size[2] = (bounds[5] - bounds[4]);
 
   vtkTransform *transform =
     vtkTransform::SafeDownCast(this->Transform);
@@ -556,26 +560,60 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   double scale = pow(fabs(scale3[0]*scale3[1]*scale3[2]), 1.0/3);
   */
 
+  // compute minimum spacing of target image
+  double spacing[3];
+  targetImage->GetSpacing(spacing);
+  double minspacing = spacing[0];
+  minspacing = ((minspacing < spacing[1]) ? minspacing : spacing[1]);
+  minspacing = ((minspacing < spacing[2]) ? minspacing : spacing[2]);
+
+  // compute a radius of gyration
+  double r = 1.0;
+  int dims = 0;
+  for (int ii = 0; ii < 3; ii++)
+    {
+    if (size[ii] > 1e-6)
+      {
+      r *= size[ii];
+      dims++;
+      }
+    }
+  r = 0.41*pow(r, 1.0/dims);
+
+  // compute parameter scales
+  double tscale = this->TransformTolerance*10;
+  tscale = ((tscale >= minspacing) ? tscale : minspacing);
+  double rscale = tscale/r;
+  double sscale = tscale/r;
+  if (rscale > 0.5)
+    {
+    rscale = 0.5;
+    }
+  if (sscale > 0.1)
+    {
+    sscale = 0.1;
+    }
+
   optimizer->Initialize();
 
   optimizer->SetParameterValue(0, 0);
-  optimizer->SetParameterScale(0, 1.0);
+  optimizer->SetParameterScale(0, tscale);
   optimizer->SetParameterValue(1, 0);
-  optimizer->SetParameterScale(1, 1.0);
+  optimizer->SetParameterScale(1, tscale);
   optimizer->SetParameterValue(2, 0);
-  optimizer->SetParameterScale(2, 1.0);
+  optimizer->SetParameterScale(2, tscale);
 
   optimizer->SetParameterValue(3, 0);
-  optimizer->SetParameterScale(3, 0.01);
+  optimizer->SetParameterScale(3, rscale);
   optimizer->SetParameterValue(4, 0);
-  optimizer->SetParameterScale(4, 0.01);
+  optimizer->SetParameterScale(4, rscale);
   optimizer->SetParameterValue(5, 0);
-  optimizer->SetParameterScale(5, 0.01);
+  optimizer->SetParameterScale(5, rscale);
 
   if (this->TransformType != vtkImageRegistration::Rigid)
     {
     optimizer->SetParameterValue(6, 1);
-    optimizer->SetParameterScale(6, 0.01);
+    optimizer->SetParameterScale(6, sscale);
     }
 
   this->Modified();
