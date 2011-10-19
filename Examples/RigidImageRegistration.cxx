@@ -258,11 +258,11 @@ int main (int argc, char *argv[])
   targetMatrix->MultiplyPoint(center, center);
 
   vtkCamera *camera = renderer->GetActiveCamera();
+  renderer->ResetCamera();
   camera->SetFocalPoint(center);
   camera->SetPosition(center[0], center[1], center[2] - 100);
   camera->SetViewUp(0.0, 1.0, 0.0);
   camera->ParallelProjectionOn();
-  renderer->ResetCamera();
   camera->SetParallelScale(132);
   renderer->ResetCameraClippingRange();
 
