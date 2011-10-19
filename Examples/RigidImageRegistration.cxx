@@ -147,6 +147,7 @@ int main (int argc, char *argv[])
   // load the images
 
   int n = 0;
+  bool isDICOM = false;
 
   // Read the source image
   vtkSmartPointer<vtkImageData> sourceImage =
@@ -161,6 +162,7 @@ int main (int argc, char *argv[])
   else
     {
     ReadDICOMImage(sourceImage, sourceMatrix, argv[1]);
+    isDICOM = true;
     }
 
   // Read the target image
@@ -176,6 +178,7 @@ int main (int argc, char *argv[])
   else
     {
     ReadDICOMImage(targetImage, targetMatrix, argv[2]);
+    isDICOM = true;
     }
 
   // -------------------------------------------------------
@@ -413,12 +416,23 @@ int main (int argc, char *argv[])
       {
       // re-initialize with the matrix from the previous step
       matrix->DeepCopy(registration->GetTransform()->GetMatrix());
+      registration->Initialize(matrix);
       }
-    registration->Initialize(matrix);
+    else if (isDICOM)
+      {
+      registration->Initialize(matrix);
+      }
+    else
+      {
+      // let registration class initialize the transform
+      registration->Initialize(0);
+      }
+
     initialized = true;
 
     while (registration->Iterate())
       {
+      // registration->UpdateRegistration();
       // will iterate until convergence or failure
       vtkMatrix4x4::Multiply4x4(
         targetMatrix,registration->GetTransform()->GetMatrix(),sourceMatrix);

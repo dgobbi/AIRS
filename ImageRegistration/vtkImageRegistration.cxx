@@ -400,8 +400,26 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   if (matrix)
     {
+    // if a matrix was given, use it to make a baseline
+    // for the registration transform
     vtkTransform *initialTransform = vtkTransform::New();
     initialTransform->Concatenate(matrix);
+    transform->SetInput(initialTransform);
+    initialTransform->Delete();
+    }
+  else
+    {
+    // if no matrix was given, set an initial translation
+    // from one image center to the other image center
+    double sbounds[6];
+    double scenter[3];
+    sourceImage->GetBounds(sbounds);
+    scenter[0] = 0.5*(sbounds[0] + sbounds[1]);
+    scenter[1] = 0.5*(sbounds[2] + sbounds[3]);
+    scenter[2] = 0.5*(sbounds[4] + sbounds[5]);
+    vtkTransform *initialTransform = vtkTransform::New();
+    initialTransform->Translate(
+      scenter[0]-center[0], scenter[1]-center[1], scenter[2]-center[2]);
     transform->SetInput(initialTransform);
     initialTransform->Delete();
     }
