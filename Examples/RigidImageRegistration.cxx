@@ -130,7 +130,7 @@ int main (int argc, char *argv[])
 {
   if (argc < 3)
     {
-    cout << "Usage 1: " << argv[0] << " file1.mnc file2.mnc" << endl;
+    cout << "Usage 1: " << argv[0] << " source.mnc target.mnc" << endl;
     cout << "Usage 2: " << argv[0] << " dicomdir1/ dicomdir2/" << endl;
     return EXIT_FAILURE;
     }
@@ -269,12 +269,6 @@ int main (int argc, char *argv[])
   renderWindow->Render();
 
   // -------------------------------------------------------
-  // make a timer
-  vtkSmartPointer<vtkTimerLog> timer =
-    vtkSmartPointer<vtkTimerLog>::New();
-  double startTime = timer->GetUniversalTime();
-
-  // -------------------------------------------------------
   // prepare for registration
 
   // display the images
@@ -282,6 +276,12 @@ int main (int argc, char *argv[])
   double targetSpacing[3], sourceSpacing[3];
   targetImage->GetSpacing(targetSpacing);
   sourceImage->GetSpacing(sourceSpacing);
+
+  for (int jj = 0; jj < 3; jj++)
+    {
+    targetSpacing[jj] = fabs(targetSpacing[jj]);
+    sourceSpacing[jj] = fabs(sourceSpacing[jj]);
+    }
 
   double minSpacing = sourceSpacing[0];
   if (minSpacing > sourceSpacing[1])
@@ -318,10 +318,9 @@ int main (int argc, char *argv[])
   // get the initial transformation
   vtkSmartPointer<vtkMatrix4x4> matrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  matrix->Element[0][3] = 10.0;
-  //matrix->DeepCopy(sourceMatrix);
-  //matrix->Invert();
-  //vtkMatrix4x4::Multiply4x4(targetMatrix, matrix, matrix);
+  matrix->DeepCopy(targetMatrix);
+  matrix->Invert();
+  vtkMatrix4x4::Multiply4x4(matrix, sourceMatrix, matrix);
 
   // set up the registration
   vtkSmartPointer<vtkImageRegistration> registration =
@@ -329,15 +328,21 @@ int main (int argc, char *argv[])
   registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
   registration->SetTransformTypeToRigid();
+  //registration->SetTransformTypeToSimilarity();
+  //registration->SetMetricTypeToNormalizedCrossCorrelation();
   registration->SetMetricTypeToNormalizedMutualInformation();
   registration->SetInterpolatorType(interpolatorType);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
-  registration->SetMaximumNumberOfIterations(2000);
+  registration->SetMaximumNumberOfIterations(500);
 
-  double lastTime = timer->GetUniversalTime();
-  cout << "setup took " << (lastTime - startTime) << "s" << endl;
+  // -------------------------------------------------------
+  // make a timer
+  vtkSmartPointer<vtkTimerLog> timer =
+    vtkSmartPointer<vtkTimerLog>::New();
+  double startTime = timer->GetUniversalTime();
+  double lastTime = startTime;
 
   // -------------------------------------------------------
   // do the registration
@@ -355,7 +360,7 @@ int main (int argc, char *argv[])
     if (stage == 0)
       {
       registration->SetInterpolatorTypeToNearest();
-      registration->SetTransformTolerance(fabs(minSpacing));
+      registration->SetTransformTolerance(minSpacing);
       }
     else
       {
@@ -364,9 +369,16 @@ int main (int argc, char *argv[])
       }
     if (blurFactor < 1.1)
       {
-      // full resolution: skip the blur filter
-      registration->SetTargetImage(targetImage);
-      registration->SetSourceImage(sourceImage);
+      // full resolution: no blurring or resampling
+      sourceBlur->SetInterpolator(0);
+      sourceBlur->SetInterpolationModeToNearestNeighbor();
+      sourceBlur->SetOutputSpacing(sourceSpacing);
+      sourceBlur->Update();
+
+      targetBlur->SetInterpolator(0);
+      targetBlur->SetInterpolationModeToNearestNeighbor();
+      targetBlur->SetOutputSpacing(targetSpacing);
+      targetBlur->Update();
       }
     else
       {
@@ -403,6 +415,7 @@ int main (int argc, char *argv[])
       matrix->DeepCopy(registration->GetTransform()->GetMatrix());
       }
     registration->Initialize(matrix);
+    initialized = true;
 
     while (registration->Iterate())
       {
