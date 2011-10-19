@@ -139,7 +139,7 @@ int main (int argc, char *argv[])
   // parameters for registration
 
   int interpolatorType = vtkImageRegistration::Linear;
-  int transformTolerance = 0.1; // tolerance on transformation result
+  double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
   double initialBlurFactor = 4.0;
 
