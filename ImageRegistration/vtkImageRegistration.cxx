@@ -359,7 +359,7 @@ void vtkImageRegistration::ComputeImageRange(
 {
   data->GetScalarRange(range);
 
-  range[0] = 0.0;
+  //range[0] = 0.0;
   if (range[0] >= range[1])
     {
     range[1] = range[0] + 1.0;
