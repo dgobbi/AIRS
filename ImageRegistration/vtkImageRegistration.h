@@ -282,8 +282,8 @@ protected:
 
 private:
   // Copy constructor and assigment operator are purposely not implemented
-  vtkImageRegistration(const vtkImageRegistration&) {};
-  void operator=(const vtkImageRegistration&) {};
+  vtkImageRegistration(const vtkImageRegistration&);
+  void operator=(const vtkImageRegistration&);
 };
 
 #endif //__vtkImageRegistration_h

@@ -321,8 +321,6 @@ void vtkEvaluateFunction(void * arg)
 
   vtkAmoebaMinimizer* optimizer =
     vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
-  vtkTransform* transform =
-    vtkTransform::SafeDownCast(registrationInfo->Transform);
   vtkImageMutualInformation *miMetric =
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
@@ -735,7 +733,7 @@ int vtkImageRegistration::FillInputPortInformation(int port,
 
 //----------------------------------------------------------------------------
 int vtkImageRegistration::FillOutputPortInformation(
-  int port, vtkInformation* info)
+  int vtkNotUsed(port), vtkInformation* vtkNotUsed(info))
 {
   return 1;
 }
@@ -743,7 +741,7 @@ int vtkImageRegistration::FillOutputPortInformation(
 //----------------------------------------------------------------------------
 int vtkImageRegistration::RequestInformation(
   vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
+  vtkInformationVector **vtkNotUsed(inputVector),
   vtkInformationVector *vtkNotUsed(outputVector))
 {
   return 1;
