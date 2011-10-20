@@ -417,9 +417,11 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     scenter[0] = 0.5*(sbounds[0] + sbounds[1]);
     scenter[1] = 0.5*(sbounds[2] + sbounds[3]);
     scenter[2] = 0.5*(sbounds[4] + sbounds[5]);
-    initialTransform->TransformPoint(scenter, scenter);
+    double tcenter[3];
+    initialTransform->TransformPoint(center, tcenter);
+    initialTransform->PostMultiply();
     initialTransform->Translate(
-      scenter[0]-center[0], scenter[1]-center[1], scenter[2]-center[2]);
+      scenter[0]-tcenter[0], scenter[1]-tcenter[1], scenter[2]-tcenter[2]);
     }
 
   // set the "base" transform as input to the main transform
