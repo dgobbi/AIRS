@@ -100,6 +100,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->MetricType = vtkImageRegistration::NormalizedMutualInformation;
   this->InterpolatorType = vtkImageRegistration::Linear;
   this->TransformType = vtkImageRegistration::Rigid;
+  this->InitializerType = vtkImageRegistration::None;
 
   this->Transform = vtkTransform::New();
   this->Metric = NULL;
@@ -182,6 +183,7 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MetricType: " << this->MetricType << "\n";
   os << indent << "InterpolatorType: " << this->InterpolatorType << "\n";
   os << indent << "TransformType: " << this->TransformType << "\n";
+  os << indent << "InitializerType: " << this->InitializerType << "\n";
   os << indent << "MetricTolerance: " << this->MetricTolerance << "\n";
   os << indent << "TransformTolerance: " << this->TransformTolerance << "\n";
   os << indent << "MaximumNumberOfIterations: "
@@ -396,33 +398,33 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   vtkTransform *transform =
     vtkTransform::SafeDownCast(this->Transform);
 
+  // create an initial transform
+  vtkTransform *initialTransform = vtkTransform::New();
   transform->Identity();
 
+  // initialize the base transform to the supplied matrix
   if (matrix)
     {
-    // if a matrix was given, use it to make a baseline
-    // for the registration transform
-    vtkTransform *initialTransform = vtkTransform::New();
     initialTransform->Concatenate(matrix);
-    transform->SetInput(initialTransform);
-    initialTransform->Delete();
     }
-  else
+
+  if (this->InitializerType == vtkImageRegistration::Centered)
     {
-    // if no matrix was given, set an initial translation
-    // from one image center to the other image center
+    // set an initial translation from one image center to the other image center
     double sbounds[6];
     double scenter[3];
     sourceImage->GetBounds(sbounds);
     scenter[0] = 0.5*(sbounds[0] + sbounds[1]);
     scenter[1] = 0.5*(sbounds[2] + sbounds[3]);
     scenter[2] = 0.5*(sbounds[4] + sbounds[5]);
-    vtkTransform *initialTransform = vtkTransform::New();
+    initialTransform->TransformPoint(scenter, scenter);
     initialTransform->Translate(
       scenter[0]-center[0], scenter[1]-center[1], scenter[2]-center[2]);
-    transform->SetInput(initialTransform);
-    initialTransform->Delete();
     }
+
+  // set the "base" transform as input to the main transform
+  transform->SetInput(initialTransform);
+  initialTransform->Delete();
 
   if ((this->MetricType ==
        vtkImageRegistration::MutualInformation ||

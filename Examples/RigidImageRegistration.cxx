@@ -147,7 +147,6 @@ int main (int argc, char *argv[])
   // load the images
 
   int n = 0;
-  bool isDICOM = false;
 
   // Read the source image
   vtkSmartPointer<vtkImageData> sourceImage =
@@ -162,7 +161,6 @@ int main (int argc, char *argv[])
   else
     {
     ReadDICOMImage(sourceImage, sourceMatrix, argv[1]);
-    isDICOM = true;
     }
 
   // Read the target image
@@ -178,7 +176,6 @@ int main (int argc, char *argv[])
   else
     {
     ReadDICOMImage(targetImage, targetMatrix, argv[2]);
-    isDICOM = true;
     }
 
   // -------------------------------------------------------
@@ -330,6 +327,7 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageRegistration>::New();
   registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
+  registration->SetInitializerTypeToCentered();
   registration->SetTransformTypeToRigid();
   //registration->SetTransformTypeToSimilarity();
   //registration->SetMetricTypeToNormalizedCrossCorrelation();
@@ -415,18 +413,11 @@ int main (int argc, char *argv[])
     if (initialized)
       {
       // re-initialize with the matrix from the previous step
+      registration->SetInitializerTypeToNone();
       matrix->DeepCopy(registration->GetTransform()->GetMatrix());
-      registration->Initialize(matrix);
       }
-    else if (isDICOM)
-      {
-      registration->Initialize(matrix);
-      }
-    else
-      {
-      // let registration class initialize the transform
-      registration->Initialize(0);
-      }
+
+    registration->Initialize(matrix);
 
     initialized = true;
 

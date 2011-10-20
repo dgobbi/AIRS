@@ -114,8 +114,16 @@ public:
     Similarity,
   };
 
+  // Initializer types
+  enum
+  {
+    None,
+    Centered,
+  };
+
   // Description:
-  // Set the image registration metric.
+  // Set the image registration metric.  The default is normalized
+  // cross correlation.
   vtkSetMacro(MetricType, int);
   void SetMetricTypeToCrossCorrelation() {
     this->SetMetricType(CrossCorrelation); }
@@ -128,14 +136,14 @@ public:
   vtkGetMacro(MetricType, int);
 
   // Description:
-  // Set the optimizer.
+  // Set the optimizer.  The default is Amoeba (Nelder-Mead Simplex).
   vtkSetMacro(OptimizerType, int);
   void SetOptimizerTypeToAmoeba() {
     this->SetOptimizerType(Amoeba); }
   vtkGetMacro(OptimizerType, int);
 
   // Description:
-  // Set the image interpolator.
+  // Set the image interpolator.  The default is Linear.
   vtkSetMacro(InterpolatorType, int);
   void SetInterpolatorTypeToNearest() {
     this->SetInterpolatorType(Nearest); }
@@ -146,7 +154,8 @@ public:
   vtkGetMacro(InterpolatorType, int);
 
   // Description:
-  // Set the transform type.
+  // Set the transform type.  The default is Rigid.  The Similarity
+  // transform type adds a universal scale factor.
   vtkSetMacro(TransformType, int);
   void SetTransformTypeToRigid() {
     this->SetTransformType(Rigid); }
@@ -155,13 +164,27 @@ public:
   vtkGetMacro(TransformType, int);
 
   // Description:
+  // Set the initializer type.  The default is None.  The Centered
+  // initializer sets an initial translation that will center the
+  // images over each other.
+  vtkSetMacro(InitializerType, int);
+  void SetInitializerTypeToNone() {
+    this->SetInitializerType(None); }
+  void SetInitializerTypeToCentered() {
+    this->SetInitializerType(Centered); }
+  vtkGetMacro(InitializerType, int);
+
+  // Description:
   // Set the size of the joint histogram for mutual information.
+  // The default size is 64 by 64.
   vtkSetVector2Macro(JointHistogramSize, int);
   vtkGetVector2Macro(JointHistogramSize, int);
 
   // Description:
   // Initialize the transform.  This will also initialize the
-  // NumberOfEvaluations to zero.
+  // NumberOfEvaluations to zero.  If a TransformInitializer is
+  // set, then only the rotation part of this matrix will be used,
+  // and the initial translation will be set from the initializer.
   void Initialize(vtkMatrix4x4 *matrix);
 
   // Description:
@@ -236,6 +259,7 @@ protected:
   int                              MetricType;
   int                              InterpolatorType;
   int                              TransformType;
+  int                              InitializerType;
 
   int                              JointHistogramSize[2];
   int                              MaximumNumberOfIterations;
