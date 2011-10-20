@@ -777,7 +777,7 @@ int vtkImageRegistration::RequestUpdateExtent(
 //----------------------------------------------------------------------------
 int vtkImageRegistration::RequestData(
   vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
+  vtkInformationVector **vtkNotUsed(inputVector),
   vtkInformationVector *vtkNotUsed(outputVector))
 {
   return 1;
