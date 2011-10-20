@@ -271,7 +271,6 @@ int main (int argc, char *argv[])
   // -------------------------------------------------------
   // prepare for registration
 
-  // display the images
   // get information about the images
   double targetSpacing[3], sourceSpacing[3];
   targetImage->GetSpacing(targetSpacing);
@@ -348,7 +347,7 @@ int main (int argc, char *argv[])
   // -------------------------------------------------------
   // do the registration
 
-  // do a multi-resolution registration
+  // the registration starts at low-resolution
   double blurFactor = initialBlurFactor;
   // two stages for each resolution:
   // first without interpolation, and then with interpolation
