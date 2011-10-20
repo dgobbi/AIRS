@@ -96,7 +96,8 @@ int vtkImageCrossCorrelation::FillInputPortInformation(int port, vtkInformation 
 }
 
 //----------------------------------------------------------------------------
-int vtkImageCrossCorrelation::FillOutputPortInformation(int port, vtkInformation* info)
+int vtkImageCrossCorrelation::FillOutputPortInformation(
+  int vtkNotUsed(port), vtkInformation* vtkNotUsed(info))
 {
   return 1;
 }
@@ -105,7 +106,7 @@ int vtkImageCrossCorrelation::FillOutputPortInformation(int port, vtkInformation
 int vtkImageCrossCorrelation::RequestInformation(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *outputVector)
+  vtkInformationVector *vtkNotUsed(outputVector))
 {
   return 1;
 }
@@ -137,71 +138,8 @@ int vtkImageCrossCorrelation::RequestUpdateExtent(
   return 1;
 }
 
-//----------------------------------------------------------------------------
-// anonymous namespace for internal classes and functions
+// begin anonymous namespace
 namespace {
-
-struct vtkImageCrossCorrelationThreadStruct
-{
-  vtkImageCrossCorrelation *Algorithm;
-  vtkInformation *Request;
-  vtkInformationVector **InputsInfo;
-  vtkInformationVector *OutputsInfo;
-};
-
-//----------------------------------------------------------------------------
-// override from vtkThreadedImageAlgorithm to split input extent, instead
-// of splitting the output extent
-VTK_THREAD_RETURN_TYPE vtkImageCrossCorrelationThreadedExecute(void *arg)
-{
-  vtkMultiThreader::ThreadInfo *ti =
-    static_cast<vtkMultiThreader::ThreadInfo *>(arg);
-  vtkImageCrossCorrelationThreadStruct *ts =
-    static_cast<vtkImageCrossCorrelationThreadStruct *>(ti->UserData);
-
-  int extent[6] = { 0, -1, 0, -1, 0, -1 };
-
-  bool foundConnection = false;
-  int numPorts = ts->Algorithm->GetNumberOfInputPorts();
-  for (int inPort = 0; inPort < numPorts; ++inPort)
-    {
-    int numConnections = ts->Algorithm->GetNumberOfInputConnections(inPort);
-    if (numConnections)
-      {
-      vtkInformation *inInfo =
-        ts->InputsInfo[inPort]->GetInformationObject(0);
-      vtkImageData *inData = vtkImageData::SafeDownCast(
-        inInfo->Get(vtkDataObject::DATA_OBJECT()));
-      if (inData)
-        {
-        inData->GetExtent(extent);
-        foundConnection = true;
-        break;
-        }
-      }
-    }
-
-  if (foundConnection)
-    {
-    // execute the actual method with appropriate extent
-    // first find out how many pieces extent can be split into.
-    int splitExt[6];
-    int total = ts->Algorithm->SplitExtent(
-      splitExt, extent, ti->ThreadID, ti->NumberOfThreads);
-
-    if (ti->ThreadID < total &&
-        splitExt[1] >= splitExt[0] &&
-        splitExt[3] >= splitExt[2] &&
-        splitExt[5] >= splitExt[4])
-      {
-      ts->Algorithm->ThreadedRequestData(
-        ts->Request, ts->InputsInfo, ts->OutputsInfo, NULL, NULL,
-        splitExt, ti->ThreadID);
-      }
-    }
-
-  return VTK_THREAD_RETURN_VALUE;
-}
 
 //----------------------------------------------------------------------------
 template<class T1, class T2>
@@ -291,25 +229,8 @@ int vtkImageCrossCorrelation::RequestData(
     this->ThreadOutput[k][3] = 0;
     }
 
-  // start of code copied from vtkThreadedImageAlgorithm
-
-  // setup the threads structure
-  vtkImageCrossCorrelationThreadStruct ts;
-  ts.Algorithm = this;
-  ts.Request = request;
-  ts.InputsInfo = inputVector;
-  ts.OutputsInfo = outputVector;
-
-  this->Threader->SetNumberOfThreads(this->NumberOfThreads);
-  this->Threader->SetSingleMethod(vtkImageCrossCorrelationThreadedExecute, &ts);
-
-  // always shut off debugging to avoid threading problems with GetMacros
-  int debug = this->Debug;
-  this->Debug = 0;
-  this->Threader->SingleMethodExecute();
-  this->Debug = debug;
-
-  // end of code copied from vtkThreadedImageAlgorithm
+  // defer to vtkThreadedImageAlgorithm
+  this->Superclass::RequestData(request, inputVector, outputVector);
 
   // various variables for computing the mutual information
   double xSum = 0;
@@ -355,7 +276,7 @@ int vtkImageCrossCorrelation::RequestData(
 void vtkImageCrossCorrelation::ThreadedRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
-  vtkInformationVector *outputVector,
+  vtkInformationVector *vtkNotUsed(outputVector),
   vtkImageData ***vtkNotUsed(inData),
   vtkImageData **vtkNotUsed(outData),
   int extent[6], int threadId)
