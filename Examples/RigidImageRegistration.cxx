@@ -114,14 +114,55 @@ void ReadMINCImage(
   reader->SetFileName(fileName);
   reader->Update();
 
-  vtkImageData *image = reader->GetOutput();
+  double spacing[3];
+  reader->GetOutput()->GetSpacing(spacing);
+  spacing[0] = fabs(spacing[0]);
+  spacing[1] = fabs(spacing[1]);
+  spacing[2] = fabs(spacing[2]);
+
+  // flip the image rows into a DICOM-style ordering
+  vtkSmartPointer<vtkImageReslice> flip =
+    vtkSmartPointer<vtkImageReslice>::New();
+
+  flip->SetInputConnection(reader->GetOutputPort());
+  flip->SetResliceAxesDirectionCosines(
+    -1,0,0, 0,-1,0, 0,0,1);
+  flip->SetOutputSpacing(spacing);
+  flip->Update();
+
+  vtkImageData *image = flip->GetOutput();
 
   // get the data
   data->CopyStructure(image);
   data->GetPointData()->PassData(image->GetPointData());
 
-  // generate the matrix
-  matrix->DeepCopy(reader->GetDirectionCosines());
+  // generate the matrix, but modify to use DICOM coords
+  static double xyFlipMatrix[16] =
+    { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+  // correct for the flip that was done earlier
+  vtkMatrix4x4::Multiply4x4(*reader->GetDirectionCosines()->Element,
+                            xyFlipMatrix, *matrix->Element);
+  // do the left/right, up/down dicom-to-minc transformation
+  vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
+  matrix->Modified();
+}
+
+void SetViewFromMatrix(
+  vtkRenderer *renderer,
+  vtkInteractorStyleImage *istyle,
+  vtkMatrix4x4 *matrix)
+{
+  istyle->SetCurrentRenderer(renderer);
+
+  // This view assumes the data uses the DICOM Patient Coordinate System.
+  // It provides a right-is-left view of axial and coronal images
+  double viewRight[4] = { 1.0, 0.0, 0.0, 0.0 };
+  double viewUp[4] = { 0.0, -1.0, 0.0, 0.0 };
+
+  matrix->MultiplyPoint(viewRight, viewRight);
+  matrix->MultiplyPoint(viewUp, viewUp);
+
+  istyle->SetImageOrientation(viewRight, viewUp);
 }
 
 };
@@ -209,6 +250,7 @@ int main (int argc, char *argv[])
 
   double sourceRange[2];
   sourceImage->GetScalarRange(sourceRange);
+  sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
   sourceProperty->CheckerboardOn();
@@ -232,6 +274,7 @@ int main (int argc, char *argv[])
 
   double targetRange[2];
   targetImage->GetScalarRange(targetRange);
+  targetProperty->SetInterpolationTypeToLinear();
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
   targetProperty->SetColorLevel(0.5*(targetRange[0]+targetRange[1]));
 
@@ -260,10 +303,9 @@ int main (int argc, char *argv[])
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
   camera->SetFocalPoint(center);
-  camera->SetPosition(center[0], center[1], center[2] - 100);
-  camera->SetViewUp(0.0, 1.0, 0.0);
   camera->ParallelProjectionOn();
   camera->SetParallelScale(132);
+  SetViewFromMatrix(renderer, istyle, targetMatrix);
   renderer->ResetCameraClippingRange();
 
   renderWindow->Render();
