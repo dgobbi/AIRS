@@ -740,15 +740,14 @@ void vtkImageHistogram::ThreadedRequestData(
   binRange[1] = vtkMath::Floor(maxBinRange + 0.5);
 
   // allocate the histogram
-  vtkIdType *histogram = new vtkIdType[binRange[1] - binRange[0] + 1];
+  int n = binRange[1] - binRange[0] + 1;
+  vtkIdType *histogram = new vtkIdType[n];
   this->ThreadOutput[threadId] = histogram;
+  vtkIdType *tmpPtr = histogram;
+  do { *tmpPtr++ = 0; } while (--n);
 
   // adjust the pointer to allow direct indexing
   histogram -= binRange[0];
-  for (int i = binRange[0]; i <= binRange[1]; i++)
-    {
-    histogram[i] = 0;
-    }
 
   // generate the histogram
   if (useFastExecute)
