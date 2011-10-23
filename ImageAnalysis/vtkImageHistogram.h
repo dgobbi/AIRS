@@ -128,6 +128,12 @@ protected:
   virtual int FillOutputPortInformation(int port, vtkInformation *info);
 
   // Description:
+  // Compute the range of the data.  The GetScalarRange() function of
+  // vtkImageData only computes the range of the first component, but
+  // this filter requires the range for all components.
+  void ComputeImageScalarRange(vtkImageData *data, double range[2]);
+
+  // Description:
   // This is a hook function for subclasses that analyze the histogram.
   virtual void ComputeStatistics();
 

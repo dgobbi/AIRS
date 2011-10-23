@@ -505,7 +505,7 @@ int vtkImageHistogram::RequestData(
       case VTK_UNSIGNED_INT:
       case VTK_LONG:
       case VTK_UNSIGNED_LONG:
-        image->GetScalarRange(scalarRange);
+        this->ComputeImageScalarRange(image, scalarRange);
         if (scalarRange[0] > 0) { scalarRange[0] = 0; }
         if (scalarRange[1] < 0) { scalarRange[1] = 0; }
         this->NumberOfBins = scalarRange[1] - scalarRange[0] + 1;
@@ -527,7 +527,7 @@ int vtkImageHistogram::RequestData(
         break;
       default:
         this->NumberOfBins = this->MaximumNumberOfBins;
-        image->GetScalarRange(scalarRange);
+        this->ComputeImageScalarRange(image, scalarRange);
         if (scalarRange[0] > 0) { scalarRange[0] = 0; }
         if (scalarRange[1] < 0) { scalarRange[1] = 0; }
         this->BinOrigin = scalarRange[0];
@@ -771,6 +771,30 @@ void vtkImageHistogram::ThreadedRequestData(
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
       }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageHistogram::ComputeImageScalarRange(
+  vtkImageData *data, double range[2])
+{
+  if (data->GetNumberOfScalarComponents() == 1)
+    {
+    data->GetScalarRange(range);
+    return;
+    }
+
+  int *extent = data->GetExtent();
+  void *inPtr = data->GetScalarPointerForExtent(extent);
+
+  switch (data->GetScalarType())
+    {
+    vtkTemplateAliasMacro(
+      vtkImageHistogramExecuteRange(
+        data, 0, static_cast<VTK_TT *>(inPtr),
+        extent, range));
+    default:
+      vtkErrorMacro(<< "Execute: Unknown ScalarType");
     }
 }
 
