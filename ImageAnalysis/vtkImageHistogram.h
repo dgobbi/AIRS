@@ -36,6 +36,14 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
+  // Scale types for the histogram.
+  enum {
+    Linear = 0,
+    Log = 1,
+    Sqrt = 2,
+    };
+
+  // Description:
   // If this is On, then the histogram binning will be done automatically.
   // For char and unsigned char data, there will be 256 bins with unit
   // spacing.  For data of type short and larger, there will be between
@@ -93,6 +101,20 @@ public:
   vtkGetVector2Macro(HistogramImageSize, int);
 
   // Description:
+  // Set the scale to use for the histogram image.  The default is
+  // a linear scale, but sqrt and log provide better visualization.
+  vtkSetClampMacro(HistogramImageScale, int,
+    vtkImageHistogram::Linear, vtkImageHistogram::Sqrt);
+  void SetHistogramImageScaleToLinear() {
+    this->SetHistogramImageScale(vtkImageHistogram::Linear); }
+  void SetHistogramImageScaleToLog() {
+    this->SetHistogramImageScale(vtkImageHistogram::Log); }
+  void SetHistogramImageScaleToSqrt() {
+    this->SetHistogramImageScale(vtkImageHistogram::Sqrt); }
+  vtkGetMacro(HistogramImageScale, int);
+  const char *GetHistogramImageScaleAsString();
+
+  // Description:
   // Get the histogram as a vtkIdTypeArray.  You must call Update()
   // before calling this method.
   vtkDataArray *GetHistogram();
@@ -141,6 +163,7 @@ protected:
   int MaximumNumberOfBins;
   
   int HistogramImageSize[2];
+  int HistogramImageScale;
   int GenerateHistogramImage;
 
   int NumberOfBins;

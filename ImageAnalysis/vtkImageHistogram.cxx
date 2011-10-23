@@ -49,6 +49,7 @@ vtkImageHistogram::vtkImageHistogram()
   this->GenerateHistogramImage = true;
   this->HistogramImageSize[0] = 256;
   this->HistogramImageSize[1] = 256;
+  this->HistogramImageScale = vtkImageHistogram::Linear;
 
   this->Histogram = vtkIdTypeArray::New();
   this->Total = 0;
@@ -84,9 +85,32 @@ void vtkImageHistogram::PrintSelf(ostream& os, vtkIndent indent)
      << (this->GenerateHistogramImage ? "On\n" : "Off\n") << "\n";
   os << indent << "HistogramImageSize: " << this->HistogramImageSize[0] << " "
      << this->HistogramImageSize[1] << "\n";
+  os << indent << "HistogramImageScale: "
+     << this->GetHistogramImageScaleAsString() << "\n";
 
   os << indent << "Total: " << this->Total << "\n";
   os << indent << "Histogram: " << this->Histogram << "\n";
+}
+
+//----------------------------------------------------------------------------
+const char *vtkImageHistogram::GetHistogramImageScaleAsString()
+{
+  const char *s = "Unknown";
+
+  switch (this->HistogramImageScale)
+    {
+    case vtkImageHistogram::Log:
+      s = "Log";
+      break;
+    case vtkImageHistogram::Sqrt:
+      s = "Sqrt";
+      break;
+    case vtkImageHistogram::Linear:
+      s = "Linear";
+      break;
+    }
+
+  return s;
 }
 
 //----------------------------------------------------------------------------
@@ -389,7 +413,7 @@ void vtkImageHistogramExecuteInt(
 //----------------------------------------------------------------------------
 void vtkImageHistogramGenerateImage(
   vtkIdType *histogram, int nx,
-  unsigned char *outPtr, int size[2], int extent[6])
+  unsigned char *outPtr, int scale, int size[2], int extent[6])
 {
   vtkIdType incX = 1;
   vtkIdType incY = (extent[1] - extent[0] + 1);
@@ -406,7 +430,19 @@ void vtkImageHistogramGenerateImage(
   double b = 0.0;
   if (peak > 0)
     {
-    b = (size[1] - 1)/(log(static_cast<double>(peak)) + 1.0);
+    double sum = peak;
+    switch (scale)
+      {
+      case vtkImageHistogram::Log:
+        sum = log(sum) + 1.0;
+        break;
+      case vtkImageHistogram::Sqrt:
+        sum = sqrt(sum);
+        break;
+      case vtkImageHistogram::Linear:
+        break;
+      }
+    b = (size[1] - 1)/sum;
     }
 
   // compute horizontal scale factor
@@ -432,11 +468,19 @@ void vtkImageHistogramGenerateImage(
     // scale the bin height
     if (sum > 0)
       {
-      sum = log(sum) + 1;
-      sum = (sum > 0 ? sum : 0);
+      switch (scale)
+        {
+        case vtkImageHistogram::Log:
+          sum = log(sum) + 1;
+          break;
+        case vtkImageHistogram::Sqrt:
+          sum = sqrt(sum);
+          break;
+        case vtkImageHistogram::Linear:
+          break;
+        }
       }
-    sum *= b;
-    int height = static_cast<int>(sum);
+    int height = static_cast<int>(sum*b);
     height = (height < extent[3] ? height : extent[3]);
     // draw the bin
     unsigned char *outPtr1 = outPtr;
@@ -649,7 +693,7 @@ int vtkImageHistogram::RequestData(
     vtkImageHistogramGenerateImage(
       this->Histogram->GetPointer(0), this->NumberOfBins,
       static_cast<unsigned char *>(image->GetScalarPointerForExtent(outExt)),
-      this->HistogramImageSize, outExt);
+      this->HistogramImageScale, this->HistogramImageSize, outExt);
     }
 
   return 1;
