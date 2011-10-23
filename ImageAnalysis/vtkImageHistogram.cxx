@@ -416,27 +416,18 @@ void vtkImageHistogramGenerateImage(
     a = nx*1.0/size[0];
     }
 
-  double nxm1 = nx - 1;
+  double x = extent[0]*a;
+  int ix = static_cast<int>(x);
   for (int i = extent[0]; i <= extent[1]; i++)
     {
-    double x = i*a;
-    int ix0 = static_cast<int>(x);
-    double sum = histogram[ix0];
-    if (a > 1.0)
+    // use max of the original bins to compute new bin height
+    double sum = histogram[ix];
+    x = (i + 1)*a;
+    int ix1 = static_cast<int>(x);
+    for (; ix < ix1; ix++)
       {
-      // use average of the original bins to compute new bin height
-      double f0 = 1.0 - (x - ix0);
-      x += a;
-      x = (x < nxm1 ? x : nxm1);
-      int ix1 = static_cast<int>(x);
-      double f1 = (x - ix1);
-      sum *= f0;
-      for (int ix = ix0+1; ix < ix1; ix++)
-        {
-        sum += histogram[ix];
-        }
-      sum += histogram[ix1]*f1;
-      sum /= (ix1 - ix0 - 1 + f0 + f1);
+      double v = histogram[ix];
+      sum = (sum > v ? sum : v);
       }
     // scale the bin height
     if (sum > 0)
