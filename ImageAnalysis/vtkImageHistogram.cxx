@@ -713,6 +713,12 @@ void vtkImageHistogram::ThreadedRequestData(
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
       }
+
+    // if no voxels (e.g. due to stencil) then return
+    if (scalarRange[0] > scalarRange[1])
+      {
+      return;
+      }
     }
 
   // convert to bin numbers
