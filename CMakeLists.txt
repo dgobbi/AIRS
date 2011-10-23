@@ -71,6 +71,9 @@ SET(AIRS_INCLUDE_DIRS)
 # ---------------------------------------------------------------
 # Include the Tcl and Python wrappers
 IF(VTK_WRAP_TCL AND ${VTK_MAJOR_VERSION} GREATER 4)
+  IF(VTK_TCL_INCLUDE_DIR)
+    INCLUDE_DIRECTORIES("${VTK_TCL_INCLUDE_DIR}")
+  ENDIF(VTK_TCL_INCLUDE_DIR)
   INCLUDE(${VTK_CMAKE_DIR}/vtkWrapTcl.cmake)
 ENDIF(VTK_WRAP_TCL AND ${VTK_MAJOR_VERSION} GREATER 4)
 

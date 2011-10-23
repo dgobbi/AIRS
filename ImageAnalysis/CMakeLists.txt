@@ -6,6 +6,9 @@ SET(KIT_LIBS vtkImaging)
 # Set your list of sources here.  Do not change the name of the
 # Kit_SRCS variable.
 SET(Kit_SRCS
+vtkImageHistogram.cxx
+vtkImageAutoRange.cxx
+vtkImageStatistics.cxx
 vtkImageRangeCalculator.cxx
 vtkSimpleShapeStencilSource.cxx
 )
