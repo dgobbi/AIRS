@@ -406,7 +406,7 @@ void vtkImageHistogramGenerateImage(
   double b = 0.0;
   if (peak > 0)
     {
-    b = (size[1] - 1)*1.0/(log(static_cast<double>(peak) + 1));
+    b = (size[1] - 1)/(log(static_cast<double>(peak)) + 1.0);
     }
 
   // compute horizontal scale factor
