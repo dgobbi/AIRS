@@ -212,7 +212,7 @@ int vtkImageRegistration::GetNumberOfEvaluations()
 void vtkImageRegistration::SetTargetImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
-  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+  this->SetNthInputConnection(1, 0, (input ? input->GetProducerPort() : 0));
 }
 
 //----------------------------------------------------------------------------
@@ -222,14 +222,14 @@ vtkImageData* vtkImageRegistration::GetTargetImage()
     {
     return NULL;
     }
-  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
 }
 
 //----------------------------------------------------------------------------
 void vtkImageRegistration::SetSourceImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
-  this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
+  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
 }
 
 //----------------------------------------------------------------------------
@@ -239,11 +239,11 @@ vtkImageData* vtkImageRegistration::GetSourceImage()
     {
     return NULL;
     }
-  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
+  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
 }
 
 //----------------------------------------------------------------------------
-void vtkImageRegistration::SetTargetImageStencil(vtkImageStencilData *stencil)
+void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
 {
   // if stencil is null, then set the input port to null
   this->SetNthInputConnection(2, 0,
@@ -251,7 +251,7 @@ void vtkImageRegistration::SetTargetImageStencil(vtkImageStencilData *stencil)
 }
 
 //----------------------------------------------------------------------------
-vtkImageStencilData* vtkImageRegistration::GetTargetImageStencil()
+vtkImageStencilData* vtkImageRegistration::GetSourceImageStencil()
 {
   if (this->GetNumberOfInputConnections(2) < 1)
     {
@@ -445,11 +445,11 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     return;
     }
 
-  // get the target image center
+  // get the source image center
   double bounds[6];
   double center[3];
   double size[3];
-  targetImage->GetBounds(bounds);
+  sourceImage->GetBounds(bounds);
   center[0] = 0.5*(bounds[0] + bounds[1]);
   center[1] = 0.5*(bounds[2] + bounds[3]);
   center[2] = 0.5*(bounds[4] + bounds[5]);
@@ -485,31 +485,31 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     initialMatrix->Element[2][3] = 0.0;
 
     // adjust the translation for the transform centering
-    double tcenter[4];
-    tcenter[0] = center[0];
-    tcenter[1] = center[1];
-    tcenter[2] = center[2];
-    tcenter[3] = 1.0;
+    double scenter[4];
+    scenter[0] = center[0];
+    scenter[1] = center[1];
+    scenter[2] = center[2];
+    scenter[3] = 1.0;
 
-    initialMatrix->MultiplyPoint(tcenter, tcenter);
+    initialMatrix->MultiplyPoint(scenter, scenter);
 
-    tx -= center[0] - tcenter[0];
-    ty -= center[1] - tcenter[1];
-    tz -= center[2] - tcenter[2];
+    tx -= center[0] - scenter[0];
+    ty -= center[1] - scenter[1];
+    tz -= center[2] - scenter[2];
     }
 
   if (this->InitializerType == vtkImageRegistration::Centered)
     {
     // set an initial translation from one image center to the other image center
-    double sbounds[6];
-    double scenter[3];
-    sourceImage->GetBounds(sbounds);
-    scenter[0] = 0.5*(sbounds[0] + sbounds[1]);
-    scenter[1] = 0.5*(sbounds[2] + sbounds[3]);
-    scenter[2] = 0.5*(sbounds[4] + sbounds[5]);
-    tx += scenter[0] - center[0];
-    ty += scenter[1] - center[1];
-    tz += scenter[2] - center[2];
+    double tbounds[6];
+    double tcenter[3];
+    targetImage->GetBounds(tbounds);
+    tcenter[0] = 0.5*(tbounds[0] + tbounds[1]);
+    tcenter[1] = 0.5*(tbounds[2] + tbounds[3]);
+    tcenter[2] = 0.5*(tbounds[4] + tbounds[5]);
+    tx += tcenter[0] - center[0];
+    ty += tcenter[1] - center[1];
+    tz += tcenter[2] - center[2];
     }
 
   // do the setup for mutual information
@@ -561,9 +561,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     }
 
   vtkImageReslice *reslice = this->ImageReslice;
-  reslice->SetInput(sourceImage);
-  reslice->SetInformationInput(targetImage);
-  reslice->SetStencil(this->GetTargetImageStencil());
+  reslice->SetInput(targetImage);
+  reslice->SetInformationInput(sourceImage);
+  reslice->SetStencil(this->GetSourceImageStencil());
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
   switch (this->InterpolatorType)
@@ -593,7 +593,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
 
-      metric->SetInput(targetImage);
+      metric->SetInput(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -605,7 +605,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
-      metric->SetInput(targetImage);
+      metric->SetInput(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       metric->SetNumberOfBins(this->JointHistogramSize);
@@ -614,11 +614,11 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       this->ComputeImageRange(targetImage, targetImageRange);
       this->ComputeImageRange(sourceImage, sourceImageRange);
 
-      metric->SetBinOrigin(targetImageRange[0], sourceImageRange[0]);
+      metric->SetBinOrigin(sourceImageRange[0], targetImageRange[0]);
       metric->SetBinSpacing(
-        (targetImageRange[1] - targetImageRange[0])/
-          (this->JointHistogramSize[0]-1),
         (sourceImageRange[1] - sourceImageRange[0])/
+          (this->JointHistogramSize[0]-1),
+        (targetImageRange[1] - targetImageRange[0])/
           (this->JointHistogramSize[1]-1));
       }
       break;
@@ -737,6 +737,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     optimizer->SetParameterValue(11, 0);
     optimizer->SetParameterScale(11, rscale*0.25);
     }
+
+  // build the initial transform from the parameters
+  vtkSetTransformParameters(this->RegistrationInfo);
 
   this->Modified();
 }

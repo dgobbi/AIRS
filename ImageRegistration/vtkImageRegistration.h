@@ -35,9 +35,10 @@ THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 =========================================================================*/
-// .NAME vtkImageRegistration - Atamai linear registration class
+// .NAME vtkImageRegistration - Perform linear image registration.
 // .SECTION Description
-// This class is VTK image registration class.
+// This class will find the transformation that registers the source
+// image to the target image.
 
 #ifndef __vtkImageRegistration_h
 #define __vtkImageRegistration_h
@@ -61,7 +62,9 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // The image to use as the moving/source image.
+  // The image to use as the source image.  The source voxels define
+  // the points at which the target image will be interpolated during
+  // the registration.
   void SetSourceImageInputConnection(vtkAlgorithmOutput *input) {
     this->SetInputConnection(0, input); }
   vtkAlgorithmOutput *GetSourceImageInputConnection() {
@@ -70,7 +73,12 @@ public:
   vtkImageData *GetSourceImage();
 
   // Description:
-  // The image to use as the fixed/target image.
+  // The image to use as the target image.  The target image will be
+  // resampled at the source voxel locations, after these locations
+  // have been passed through the source-to-target transform.  For
+  // best results, the target image should be the one with smaller
+  // voxel spacing, because it can be interpolated with higher accuracy
+  // than an image with larger voxel spacing.
   void SetTargetImageInputConnection(vtkAlgorithmOutput *input) {
     this->SetInputConnection(1, input); }
   vtkAlgorithmOutput *GetTargetImageInputConnection() {
@@ -81,8 +89,8 @@ public:
   // Description:
   // Set a stencil to apply to the fixed image, to register by using
   // only a portion of the image.  This can only be done for the fixed image.
-  void SetTargetImageStencil(vtkImageStencilData *stencil);
-  vtkImageStencilData *GetTargetImageStencil();
+  void SetSourceImageStencil(vtkImageStencilData *stencil);
+  vtkImageStencilData *GetSourceImageStencil();
 
   // Optimizer types
   enum
