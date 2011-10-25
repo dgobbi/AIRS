@@ -370,9 +370,10 @@ int main (int argc, char *argv[])
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
   registration->SetInitializerTypeToCentered();
   registration->SetTransformTypeToRigid();
-  //registration->SetTransformTypeToSimilarity();
-  //registration->SetMetricTypeToNormalizedCrossCorrelation();
+  //registration->SetTransformTypeToScaleTargetAxes();
+  //registration->SetTransformTypeToAffine();
   registration->SetMetricTypeToNormalizedMutualInformation();
+  //registration->SetMetricTypeToNormalizedCrossCorrelation();
   registration->SetInterpolatorType(interpolatorType);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);

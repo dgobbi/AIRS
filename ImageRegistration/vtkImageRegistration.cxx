@@ -67,6 +67,7 @@ struct vtkImageRegistrationInfo
   vtkLinearTransform *Transform;
   vtkObject *Optimizer;
   vtkAlgorithm *Metric;
+  vtkMatrix4x4 *InitialMatrix;
 
   int TransformType;
   int OptimizerType;
@@ -111,6 +112,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->RegistrationInfo->Transform = NULL;
   this->RegistrationInfo->Optimizer = NULL;
   this->RegistrationInfo->Metric = NULL;
+  this->RegistrationInfo->InitialMatrix = NULL;
   this->RegistrationInfo->TransformType = 0;
   this->RegistrationInfo->OptimizerType = 0;
   this->RegistrationInfo->MetricType = 0;
@@ -119,6 +121,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->JointHistogramSize[0] = 64;
   this->JointHistogramSize[1] = 64;
 
+  this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
   this->TargetImageQuantizer = vtkImageShiftScale::New();
   this->SourceImageQuantizer = vtkImageShiftScale::New();
@@ -160,6 +163,10 @@ vtkImageRegistration::~vtkImageRegistration()
     delete this->RegistrationInfo;
     }
 
+  if (this->InitialTransformMatrix)
+    {
+    this->InitialTransformMatrix->Delete();
+    }
   if (this->ImageReslice)
     {
     this->ImageReslice->Delete();
@@ -257,35 +264,15 @@ vtkImageStencilData* vtkImageRegistration::GetTargetImageStencil()
 //--------------------------------------------------------------------------
 namespace {
 
-void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
+void vtkTransformVersorRotation(
+  vtkTransform *transform, double rx, double ry, double rz)
 {
-  vtkAmoebaMinimizer* optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
-  vtkTransform* transform =
-    vtkTransform::SafeDownCast(registrationInfo->Transform);
-
-  double tx = optimizer->GetParameterValue(0);
-  double ty = optimizer->GetParameterValue(1);
-  double tz = optimizer->GetParameterValue(2);
-
-  double rx = optimizer->GetParameterValue(3);
-  double ry = optimizer->GetParameterValue(4);
-  double rz = optimizer->GetParameterValue(5);
-
-  double s = 1.0;
-  if (registrationInfo->TransformType != vtkImageRegistration::Rigid)
-    {
-    s = optimizer->GetParameterValue(6);
-    }
-
-  double *center = registrationInfo->Center;
-
   // compute quaternion from rotation parameters
   double qs = rx*rx + ry*ry + rz*rz;
   double qc = 1.0 - qs;
   while (qc < 0)
     {
-    // for rotations past 180 degrees
+    // for rotations past 180 degrees, wrap around
     qs -= 1.0;
     qc = 1.0 - qs;
     rx = -rx;
@@ -302,11 +289,88 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
     rz /= qs;
     }
 
+  if (qs > 0)
+    {
+    transform->RotateWXYZ(theta, rx, ry, rz);
+    }
+}
+
+void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
+{
+  vtkAmoebaMinimizer* optimizer =
+    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkTransform* transform =
+    vtkTransform::SafeDownCast(registrationInfo->Transform);
+  vtkMatrix4x4 *initialMatrix = registrationInfo->InitialMatrix;
+  int transformType = registrationInfo->TransformType;
+
+  double tx = optimizer->GetParameterValue(0);
+  double ty = optimizer->GetParameterValue(1);
+  double tz = optimizer->GetParameterValue(2);
+
+  double rx = 0.0;
+  double ry = 0.0;
+  double rz = 0.0;
+
+  if (transformType > vtkImageRegistration::Translation)
+    {
+    rx = optimizer->GetParameterValue(3);
+    ry = optimizer->GetParameterValue(4);
+    rz = optimizer->GetParameterValue(5);
+    }
+
+  double sx = 1.0;
+  double sy = 1.0;
+  double sz = 1.0;
+
+  if (transformType > vtkImageRegistration::Rigid)
+    {
+    sx = optimizer->GetParameterValue(6);
+    sy = sx;
+    sz = sx;
+    }
+
+  if (transformType > vtkImageRegistration::Similarity)
+    {
+    sx = sz*optimizer->GetParameterValue(7);
+    sy = sz*optimizer->GetParameterValue(8);
+    }
+
+  bool scaledAtSource =
+    (transformType == vtkImageRegistration::ScaleSourceAxes);
+
+  double qx = 0.0;
+  double qy = 0.0;
+  double qz = 0.0;
+
+  if (transformType >= vtkImageRegistration::Affine)
+    {
+    qx = optimizer->GetParameterValue(9);
+    qy = optimizer->GetParameterValue(10);
+    qz = optimizer->GetParameterValue(11);
+    }
+
+  double *center = registrationInfo->Center;
+
   transform->Identity();
   transform->PostMultiply();
   transform->Translate(-center[0], -center[1], -center[2]);
-  transform->RotateWXYZ(theta, rx, ry, rz);
-  transform->Scale(s,s,s);
+  if (scaledAtSource)
+    {
+    vtkTransformVersorRotation(transform, -qx, -qy, -qz);
+    transform->Scale(sx, sy, sz);
+    vtkTransformVersorRotation(transform, qx, qy, qz);
+    transform->Concatenate(initialMatrix);
+    vtkTransformVersorRotation(transform, rx, ry, rz);
+    }
+  else
+    {
+    vtkTransformVersorRotation(transform, rx, ry, rz);
+    transform->Concatenate(initialMatrix);
+    vtkTransformVersorRotation(transform, -qx, -qy, -qz);
+    transform->Scale(sx, sy, sz);
+    vtkTransformVersorRotation(transform, qx, qy, qz);
+    }
   transform->Translate(center[0], center[1], center[2]);
   transform->Translate(tx,ty,tz);
 }
@@ -395,15 +459,43 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   vtkTransform *transform =
     vtkTransform::SafeDownCast(this->Transform);
+  vtkMatrix4x4 *initialMatrix = this->InitialTransformMatrix;
 
   // create an initial transform
-  vtkTransform *initialTransform = vtkTransform::New();
+  initialMatrix->Identity();
   transform->Identity();
 
-  // initialize the base transform to the supplied matrix
+  // the initial translation
+  double tx = 0.0;
+  double ty = 0.0;
+  double tz = 0.0;
+
+  // initialize from the supplied matrix
   if (matrix)
     {
-    initialTransform->Concatenate(matrix);
+    // move the translation into tx, ty, tz variables
+    tx = matrix->Element[0][3];
+    ty = matrix->Element[1][3];
+    tz = matrix->Element[2][3];
+
+    // move rotation/scale/shear into the InitialTransformMatrix
+    initialMatrix->DeepCopy(matrix);
+    initialMatrix->Element[0][3] = 0.0;
+    initialMatrix->Element[1][3] = 0.0;
+    initialMatrix->Element[2][3] = 0.0;
+
+    // adjust the translation for the transform centering
+    double tcenter[4];
+    tcenter[0] = center[0];
+    tcenter[1] = center[1];
+    tcenter[2] = center[2];
+    tcenter[3] = 1.0;
+
+    initialMatrix->MultiplyPoint(tcenter, tcenter);
+
+    tx -= center[0] - tcenter[0];
+    ty -= center[1] - tcenter[1];
+    tz -= center[2] - tcenter[2];
     }
 
   if (this->InitializerType == vtkImageRegistration::Centered)
@@ -415,17 +507,12 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     scenter[0] = 0.5*(sbounds[0] + sbounds[1]);
     scenter[1] = 0.5*(sbounds[2] + sbounds[3]);
     scenter[2] = 0.5*(sbounds[4] + sbounds[5]);
-    double tcenter[3];
-    initialTransform->TransformPoint(center, tcenter);
-    initialTransform->PostMultiply();
-    initialTransform->Translate(
-      scenter[0]-tcenter[0], scenter[1]-tcenter[1], scenter[2]-tcenter[2]);
+    tx += scenter[0] - center[0];
+    ty += scenter[1] - center[1];
+    tz += scenter[2] - center[2];
     }
 
-  // set the "base" transform as input to the main transform
-  transform->SetInput(initialTransform);
-  initialTransform->Delete();
-
+  // do the setup for mutual information
   if ((this->MetricType ==
        vtkImageRegistration::MutualInformation ||
        this->MetricType ==
@@ -551,6 +638,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Transform = this->Transform;
   this->RegistrationInfo->Optimizer = this->Optimizer;
   this->RegistrationInfo->Metric = this->Metric;
+  this->RegistrationInfo->InitialMatrix = this->InitialTransformMatrix;
 
   this->RegistrationInfo->TransformType = this->TransformType;
   this->RegistrationInfo->OptimizerType = this->OptimizerType;
@@ -567,18 +655,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   optimizer->SetContractionRatio(0.618);
   optimizer->SetFunction(&vtkEvaluateFunction,
                          (void*)(this->RegistrationInfo));
-
-  /*
-  double rotation[3], translation[3], scale3[3];
-  transform->PreMultiply();
-  transform->Translate(center[0],center[1],center[2]);
-  transform->PostMultiply();
-  transform->Translate(-center[0],-center[1],-center[2]);
-  transform->GetOrientation(rotation);
-  transform->GetScale(scale3);
-  transform->GetPosition(translation);
-  double scale = pow(fabs(scale3[0]*scale3[1]*scale3[2]), 1.0/3);
-  */
 
   // compute minimum spacing of target image
   double spacing[3];
@@ -616,24 +692,50 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   optimizer->Initialize();
 
-  optimizer->SetParameterValue(0, 0);
+  // translation parameters
+  optimizer->SetParameterValue(0, tx);
   optimizer->SetParameterScale(0, tscale);
-  optimizer->SetParameterValue(1, 0);
+  optimizer->SetParameterValue(1, ty);
   optimizer->SetParameterScale(1, tscale);
-  optimizer->SetParameterValue(2, 0);
+  optimizer->SetParameterValue(2, tz);
   optimizer->SetParameterScale(2, tscale);
 
-  optimizer->SetParameterValue(3, 0);
-  optimizer->SetParameterScale(3, rscale);
-  optimizer->SetParameterValue(4, 0);
-  optimizer->SetParameterScale(4, rscale);
-  optimizer->SetParameterValue(5, 0);
-  optimizer->SetParameterScale(5, rscale);
-
-  if (this->TransformType != vtkImageRegistration::Rigid)
+  // rotation parameters
+  if (this->TransformType > vtkImageRegistration::Translation)
     {
+    optimizer->SetParameterValue(3, 0);
+    optimizer->SetParameterScale(3, rscale);
+    optimizer->SetParameterValue(4, 0);
+    optimizer->SetParameterScale(4, rscale);
+    optimizer->SetParameterValue(5, 0);
+    optimizer->SetParameterScale(5, rscale);
+    }
+
+  if (this->TransformType > vtkImageRegistration::Rigid)
+    {
+    // single scale factor
     optimizer->SetParameterValue(6, 1);
     optimizer->SetParameterScale(6, sscale);
+    }
+
+  if (this->TransformType > vtkImageRegistration::Similarity)
+    {
+    // extra scale factors, weighed at 25%
+    optimizer->SetParameterValue(7, 1);
+    optimizer->SetParameterScale(7, sscale*0.25);
+    optimizer->SetParameterValue(8, 1);
+    optimizer->SetParameterScale(8, sscale*0.25);
+    }
+
+  if (this->TransformType == vtkImageRegistration::Affine)
+    {
+    // extra rotation parameters, scaled at 25%
+    optimizer->SetParameterValue(9, 0);
+    optimizer->SetParameterScale(9, rscale*0.25);
+    optimizer->SetParameterValue(10, 0);
+    optimizer->SetParameterScale(10, rscale*0.25);
+    optimizer->SetParameterValue(11, 0);
+    optimizer->SetParameterScale(11, rscale*0.25);
     }
 
   this->Modified();

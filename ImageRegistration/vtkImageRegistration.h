@@ -110,8 +110,12 @@ public:
   // Transform types
   enum
   {
+    Translation,
     Rigid,
     Similarity,
+    ScaleSourceAxes,
+    ScaleTargetAxes,
+    Affine,
   };
 
   // Initializer types
@@ -155,12 +159,20 @@ public:
 
   // Description:
   // Set the transform type.  The default is Rigid.  The Similarity
-  // transform type adds a universal scale factor.
+  // transform type adds a universal scale factor, ScaleSourceAxes
+  // allows scaling along all three source image axes, ScaleTargetAxes
+  // allows scaling along all three target image axes. 
   vtkSetMacro(TransformType, int);
   void SetTransformTypeToRigid() {
     this->SetTransformType(Rigid); }
   void SetTransformTypeToSimilarity() {
     this->SetTransformType(Similarity); }
+  void SetTransformTypeToScaleSourceAxes() {
+    this->SetTransformType(ScaleSourceAxes); }
+  void SetTransformTypeToScaleTargetAxes() {
+    this->SetTransformType(ScaleTargetAxes); }
+  void SetTransformTypeToAffine() {
+    this->SetTransformType(Affine); }
   vtkGetMacro(TransformType, int);
 
   // Description:
@@ -274,6 +286,7 @@ protected:
   vtkObject                       *Interpolator;
   vtkLinearTransform              *Transform;
 
+  vtkMatrix4x4                    *InitialTransformMatrix;
   vtkImageReslice                 *ImageReslice;
   vtkImageShiftScale              *SourceImageQuantizer;
   vtkImageShiftScale              *TargetImageQuantizer;
