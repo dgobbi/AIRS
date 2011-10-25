@@ -507,9 +507,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     tcenter[0] = 0.5*(tbounds[0] + tbounds[1]);
     tcenter[1] = 0.5*(tbounds[2] + tbounds[3]);
     tcenter[2] = 0.5*(tbounds[4] + tbounds[5]);
-    tx += tcenter[0] - center[0];
-    ty += tcenter[1] - center[1];
-    tz += tcenter[2] - center[2];
+
+    tx = tcenter[0] - center[0];
+    ty = tcenter[1] - center[1];
+    tz = tcenter[2] - center[2];
     }
 
   // do the setup for mutual information
