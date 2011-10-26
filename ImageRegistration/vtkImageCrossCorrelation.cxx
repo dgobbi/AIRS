@@ -265,19 +265,17 @@ int vtkImageCrossCorrelation::RequestData(
 
   if (count > 0)
     {
-    crossCorrelation = xySum/count;
+    crossCorrelation = (xySum - xSum*ySum/count)/count;
 
     if (xxSum > 0 && yySum > 0)
       {
       normalizedCrossCorrelation = (xySum - xSum*ySum/count)/
         sqrt((xxSum - xSum*xSum/count)*(yySum - ySum*ySum/count));
 
-      double tol = 1e-12;
-      if (fabs((xySum-xSum*ySum/count)/(xySum+xSum*ySum/count)*2) < tol ||
-          fabs((xxSum-xSum*xSum/count)/(xxSum+xSum*xSum/count)*2) < tol ||
-          fabs((xySum-ySum*ySum/count)/(xySum+ySum*ySum/count)*2) < tol)
+      // was double precision able to capture the sums exactly?
+      if (xxSum > 1e16 || yySum > 1e16)
         {
-        vtkWarningMacro("Incorrect normalized cross correlation due to "
+        vtkWarningMacro("Possible incorrect result due to "
                         "insufficient precision in subtraction");
         }
       }
@@ -286,7 +284,6 @@ int vtkImageCrossCorrelation::RequestData(
   // output values
   this->CrossCorrelation = crossCorrelation;
   this->NormalizedCrossCorrelation = normalizedCrossCorrelation;
-
 
   return 1;
 }
