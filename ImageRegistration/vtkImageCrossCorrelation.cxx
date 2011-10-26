@@ -156,6 +156,8 @@ void vtkImageCrossCorrelationExecute(
 
   double xSum = 0;
   double ySum = 0;
+  double xxSum = 0;
+  double yySum = 0;
   double xySum = 0;
   double count = 0;
 
@@ -174,8 +176,10 @@ void vtkImageCrossCorrelationExecute(
         double x = *inPtr++;
         double y = *inPtr1++;
 
-        xSum += x*x;
-        ySum += y*y;
+        xSum += x;
+        ySum += y;
+        xxSum += x*x;
+        yySum += y*y;
         xySum += x*y;
         count++;
         }
@@ -186,8 +190,10 @@ void vtkImageCrossCorrelationExecute(
 
   output[0] = xSum;
   output[1] = ySum;
-  output[2] = xySum;
-  output[3] = count;
+  output[2] = xxSum;
+  output[3] = yySum;
+  output[4] = xySum;
+  output[5] = count;
 }
 
 //----------------------------------------------------------------------------
@@ -227,6 +233,8 @@ int vtkImageCrossCorrelation::RequestData(
     this->ThreadOutput[k][1] = 0;
     this->ThreadOutput[k][2] = 0;
     this->ThreadOutput[k][3] = 0;
+    this->ThreadOutput[k][4] = 0;
+    this->ThreadOutput[k][5] = 0;
     }
 
   // defer to vtkThreadedImageAlgorithm
@@ -235,6 +243,8 @@ int vtkImageCrossCorrelation::RequestData(
   // various variables for computing the mutual information
   double xSum = 0;
   double ySum = 0;
+  double xxSum = 0;
+  double yySum = 0;
   double xySum = 0;
   double count = 0;
 
@@ -243,8 +253,10 @@ int vtkImageCrossCorrelation::RequestData(
     {
     xSum += this->ThreadOutput[j][0];
     ySum += this->ThreadOutput[j][1];
-    xySum += this->ThreadOutput[j][2];
-    count += this->ThreadOutput[j][3];
+    xxSum += this->ThreadOutput[j][2];
+    yySum += this->ThreadOutput[j][3];
+    xySum += this->ThreadOutput[j][4];
+    count += this->ThreadOutput[j][5];
     }
 
   // minimum possible values
@@ -253,17 +265,28 @@ int vtkImageCrossCorrelation::RequestData(
 
   if (count > 0)
     {
-    crossCorrelation = xySum;
+    crossCorrelation = xySum/count;
 
-    if (xSum > 0 && ySum > 0)
+    if (xxSum > 0 && yySum > 0)
       {
-      normalizedCrossCorrelation = xySum/sqrt(xSum*ySum);
+      normalizedCrossCorrelation = (xySum - xSum*ySum/count)/
+        sqrt((xxSum - xSum*xSum/count)*(yySum - ySum*ySum/count));
+
+      double tol = 1e-12;
+      if (fabs((xySum-xSum*ySum/count)/(xySum+xSum*ySum/count)*2) < tol ||
+          fabs((xxSum-xSum*xSum/count)/(xxSum+xSum*xSum/count)*2) < tol ||
+          fabs((xySum-ySum*ySum/count)/(xySum+ySum*ySum/count)*2) < tol)
+        {
+        vtkWarningMacro("Incorrect normalized cross correlation due to "
+                        "insufficient precision in subtraction");
+        }
       }
     }
 
   // output values
   this->CrossCorrelation = crossCorrelation;
   this->NormalizedCrossCorrelation = normalizedCrossCorrelation;
+
 
   return 1;
 }

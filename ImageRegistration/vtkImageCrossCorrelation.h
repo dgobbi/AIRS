@@ -77,7 +77,7 @@ protected:
   double CrossCorrelation;
   double NormalizedCrossCorrelation;
 
-  double ThreadOutput[VTK_MAX_THREADS][4];
+  double ThreadOutput[VTK_MAX_THREADS][6];
 
 private:
   vtkImageCrossCorrelation(const vtkImageCrossCorrelation&);  // Not implemented.
