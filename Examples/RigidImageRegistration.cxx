@@ -403,12 +403,12 @@ int main (int argc, char *argv[])
     if (stage == 0)
       {
       registration->SetInterpolatorTypeToNearest();
-      registration->SetTransformTolerance(minSpacing);
+      registration->SetTransformTolerance(minSpacing*blurFactor);
       }
     else
       {
       registration->SetInterpolatorType(interpolatorType);
-      registration->SetTransformTolerance(transformTolerance);
+      registration->SetTransformTolerance(transformTolerance*blurFactor);
       }
     if (blurFactor < 1.1)
       {
