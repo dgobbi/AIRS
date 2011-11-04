@@ -94,20 +94,20 @@ public:
   vtkTypeMacro(vtkITKImageSegmentation3D, vtkITKImageAlgorithm);
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
-  //Description:
+  // Description:
   // Returns the number of inputs an algorithm requires if the
   //algorithm has been set, otherwise return -1
   int GetNumberOfInputs();
 
-  //Description:
+  // Description:
   // VTK style set/get input methods
   virtual void SetInput(vtkImageData *input);
   virtual vtkImageData* GetInput();
 
   // Description:
   // Set/Get the image to use as the input image.
-  void SetFeatureImage( vtkImageData *input);
-  vtkImageData* GetFeatureImage( );
+  void SetFeatureImage(vtkImageData *input);
+  vtkImageData* GetFeatureImage();
 
   // Description:
   // Set/Get the label image used to initialize the segmentation.
