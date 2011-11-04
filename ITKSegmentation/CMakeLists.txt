@@ -15,7 +15,7 @@ SET(KIT_EXTRA_LIBS
 # Kit_SRCS variable.
 SET(Kit_SRCS
   vtkITKImageAlgorithm.cxx
-  vtkITKKnowledgeBasedClassification.cxx
+  vtkITKImageSegmentation3D.cxx
 )
 
 SET(Kit_EXTRA_SRCS)

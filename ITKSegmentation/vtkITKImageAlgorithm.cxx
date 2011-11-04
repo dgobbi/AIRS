@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkITKImageAlgorithm.cxx,v $
+  Module:    vtkITKImageAlgorithm.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -22,7 +22,6 @@
 #include "vtkObjectFactory.h"
 
 
-
 vtkCxxRevisionMacro(vtkITKImageAlgorithm, "$Revision: 1.1 $");
 vtkStandardNewMacro(vtkITKImageAlgorithm);
 
@@ -32,6 +31,8 @@ vtkITKImageAlgorithm::vtkITKImageAlgorithm()
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfInputPorts(1);
 }
+
+//----------------------------------------------------------------------------
 vtkITKImageAlgorithm::~vtkITKImageAlgorithm()
 {
 }

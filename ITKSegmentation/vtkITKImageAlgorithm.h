@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkITKImageAlgorithm.h,v $
+  Module:    vtkITKImageAlgorithm.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkITKImageAlgorithm - superclass for VTK image algorithms that use ITK internally.
+// .NAME vtkITKImageAlgorithm - superclass for VTK algorithms that use ITK
 // .SECTION Description
 
 #ifndef __vtkITKImageAlgorithm_h
