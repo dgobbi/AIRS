@@ -18,6 +18,9 @@
 // standard deviation.  These statistics are computed from the histogram
 // of the image, rather than from the image itself, because this is more
 // efficient for large images.
+// .SECTION Thanks
+// Thanks to David Gobbi at the Seaman Family MR Centre and Dept. of Clinical
+// Neurosciences, Foothills Medical Centre, Calgary, for providing this class.
 
 #ifndef __vtkImageStatistics_h
 #define __vtkImageStatistics_h
@@ -50,7 +53,9 @@ protected:
   vtkImageStatistics();
   ~vtkImageStatistics();
 
-  virtual void ComputeStatistics();
+  virtual int RequestData(vtkInformation *,
+                          vtkInformationVector **,
+                          vtkInformationVector *);
 
   double Minimum;
   double Maximum;

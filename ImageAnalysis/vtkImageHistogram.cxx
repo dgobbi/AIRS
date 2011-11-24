@@ -29,10 +29,10 @@
 #include <math.h>
 
 // turn off 64-bit ints when templating over all types
-# undef vtk_use_int64
-# define vtk_use_int64 0
-# undef vtk_use_uint64
-# define vtk_use_uint64 0
+# undef VTK_USE_INT64
+# define VTK_USE_INT64 0
+# undef VTK_USE_UINT64
+# define VTK_USE_UINT64 0
 
 vtkStandardNewMacro(vtkImageHistogram);
 
@@ -679,9 +679,6 @@ int vtkImageHistogram::RequestData(
       }
     }
 
-  // allow derived classes to compute stuff from the histogram
-  this->ComputeStatistics();
-
   // generate the output image
   if (this->GetNumberOfOutputPorts() > 0 &&
       this->GenerateHistogramImage)
@@ -839,9 +836,4 @@ void vtkImageHistogram::ComputeImageScalarRange(
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
     }
-}
-
-//----------------------------------------------------------------------------
-void vtkImageHistogram::ComputeStatistics()
-{
 }

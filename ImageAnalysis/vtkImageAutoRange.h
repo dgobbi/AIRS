@@ -18,6 +18,9 @@
 // image by ignoring voxels that are much brighter than the rest of the
 // image.  This provides better results than using the full range of
 // the data, which often results in the image looking too dark.
+// .SECTION Thanks
+// Thanks to David Gobbi at the Seaman Family MR Centre and Dept. of Clinical
+// Neurosciences, Foothills Medical Centre, Calgary, for providing this class.
 
 #ifndef __vtkImageAutoRange_h
 #define __vtkImageAutoRange_h
@@ -61,7 +64,9 @@ protected:
   vtkImageAutoRange();
   ~vtkImageAutoRange();
 
-  virtual void ComputeStatistics();
+  virtual int RequestData(vtkInformation *,
+                          vtkInformationVector **,
+                          vtkInformationVector *);
 
   double AutoRange[2];
   double FullRange[2];

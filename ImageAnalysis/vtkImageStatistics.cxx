@@ -54,8 +54,13 @@ void vtkImageStatistics::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkImageStatistics::ComputeStatistics()
+int vtkImageStatistics::RequestData(
+  vtkInformation* request,
+  vtkInformationVector** inputVector,
+  vtkInformationVector* outputVector)
 {
+  this->Superclass::RequestData(request, inputVector, outputVector);
+
   vtkIdType total = this->Total;
   vtkIdType sum = 0;
   vtkIdType midSum = total/2;
@@ -115,4 +120,6 @@ void vtkImageStatistics::ComputeStatistics()
       this->StandardDeviation = sqrt(mom2/(total - 1))*binSpacing;
       }
     }
+
+  return 1;
 }

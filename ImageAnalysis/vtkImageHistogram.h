@@ -12,12 +12,16 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageHistogram - Generate the histogram for an image.
+// .NAME vtkImageHistogram - Compute the histogram for an image.
 // .SECTION Description
-// vtkImageHistogram generates a histogram from its input, and provides
-// a 2D image of the histogram as its output.  Unlike vtkImageAccumulate,
-// a multi-component image does not result in a multi-dimensional
-// histogram.  Instead, the histogram is computed over all components.
+// vtkImageHistogram generates a histogram from its input, and optionally
+// produces a 2D image of the histogram as its output.  Unlike the class
+// vtkImageAccumulate, a multi-component image does not result in a
+// multi-dimensional histogram.  Instead, the histogram is computed over
+// all components.
+// .SECTION Thanks
+// Thanks to David Gobbi at the Seaman Family MR Centre and Dept. of Clinical
+// Neurosciences, Foothills Medical Centre, Calgary, for providing this class.
 
 #ifndef __vtkImageHistogram_h
 #define __vtkImageHistogram_h
@@ -36,7 +40,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // Scale types for the histogram.
+  // Scale types for the histogram image.
   enum {
     Linear = 0,
     Log = 1,
@@ -59,26 +63,29 @@ public:
 
   // Description:
   // The maximum number of bins to use when AutomaticBinning is On.
-  // The default value is 65536, enough to capture the full range of
-  // short and unsigned short values.
+  // When AutomaticBinning is On, the size of the output histogram
+  // will be set to the full range of the input data values, unless
+  // the full range is greater than this value.  By default, the max
+  // value is 65536, which is large enough to capture the full range
+  // of 16-bit integers.
   vtkSetMacro(MaximumNumberOfBins, int);
   vtkGetMacro(MaximumNumberOfBins, int);
 
   // Description:
   // The number of bins in histogram (default 256).  This is automatically
-  // computed if AutomaticBinning is On. 
+  // computed unless AutomaticBinning is Off.
   vtkSetMacro(NumberOfBins, int);
   vtkGetMacro(NumberOfBins, int);
 
   // Description:
   // The value for the center of the first bin (default 0).  This is
-  // automatically computed if AutomaticBinning is On.
+  // automatically computed unless AutomaticBinning is Off.
   vtkSetMacro(BinOrigin, double);
   vtkGetMacro(BinOrigin, double);
 
   // Description:
-  // The bin spacing (default 1).  This is automatically computed if
-  // AutomaticBinning is On.
+  // The bin spacing (default 1).  This is automatically computed unless
+  // AutomaticBinning is Off.
   vtkSetMacro(BinSpacing, double);
   vtkGetMacro(BinSpacing, double);
 
@@ -143,8 +150,8 @@ protected:
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
   virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+                          vtkInformationVector **,
+                          vtkInformationVector *);
 
   virtual int FillInputPortInformation(int port, vtkInformation *info);
   virtual int FillOutputPortInformation(int port, vtkInformation *info);
@@ -155,13 +162,9 @@ protected:
   // this filter requires the range for all components.
   void ComputeImageScalarRange(vtkImageData *data, double range[2]);
 
-  // Description:
-  // This is a hook function for subclasses that analyze the histogram.
-  virtual void ComputeStatistics();
-
   int AutomaticBinning;
   int MaximumNumberOfBins;
-  
+
   int HistogramImageSize[2];
   int HistogramImageScale;
   int GenerateHistogramImage;

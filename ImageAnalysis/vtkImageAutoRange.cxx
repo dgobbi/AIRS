@@ -55,14 +55,20 @@ void vtkImageAutoRange::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkImageAutoRange::ComputeStatistics()
+int vtkImageAutoRange::RequestData(
+  vtkInformation* request,
+  vtkInformationVector** inputVector,
+  vtkInformationVector* outputVector)
 {
+  this->Superclass::RequestData(request, inputVector, outputVector);
+
   vtkIdType total = this->Total;
   vtkIdType sum = 0;
   vtkIdType lowSum = static_cast<vtkIdType>(total*0.005);
   vtkIdType highSum = static_cast<vtkIdType>(total*0.995);
   int lowVal = 0;
   int highVal = 0;
+  int nextVal = 0;
   int minVal = -1;
   int maxVal = 0;
   int nx = this->Histogram->GetNumberOfTuples();
@@ -73,6 +79,7 @@ void vtkImageAutoRange::ComputeStatistics()
     sum += c;
     lowVal = (sum > lowSum ? lowVal : ix);
     highVal = (sum > highSum ? highVal : ix);
+    nextVal = (sum > histogram[minVal+1] + 1 ? nextVal : ix);
     minVal = (sum > 0 ? minVal : ix);
     maxVal = (c == 0 ? maxVal : ix);
     }
@@ -80,14 +87,28 @@ void vtkImageAutoRange::ComputeStatistics()
     {
     minVal++;
     }
-
-  double binSpacing = this->BinSpacing;
-  double binOrigin = this->BinOrigin;
+  if (nextVal < maxVal)
+    {
+    nextVal++;
+    }
 
   // do the autorange: first expand range by 10% at each end
   int e = static_cast<int>(0.10*(highVal - lowVal));
   lowVal -= e;
   highVal += e;
+
+  // if there is an appreciable gap between the min value and
+  // the next non-zero histogram bin, use nextVal as minimum
+  // instead of lowVal
+  //int d = static_cast<int>(0.10*(maxVal - minVal));
+  //if (nextVal - minVal > d)
+  //  {
+  //  lowVal = nextVal;
+  //  }
+
+  double binSpacing = this->BinSpacing;
+  double binOrigin = this->BinOrigin;
+
   this->AutoRange[0] = lowVal*binSpacing + binOrigin;
   this->AutoRange[1] = highVal*binSpacing + binOrigin;
   this->FullRange[0] = minVal*binSpacing + binOrigin;
@@ -101,4 +122,6 @@ void vtkImageAutoRange::ComputeStatistics()
     {
     this->AutoRange[1] = this->FullRange[1];
     }
+
+  return 1;
 }
