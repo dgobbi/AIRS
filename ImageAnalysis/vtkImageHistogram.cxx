@@ -658,7 +658,7 @@ int vtkImageHistogram::RequestData(
       {
       int xmin = this->ThreadBinRange[j][0];
       int xmax = this->ThreadBinRange[j][1];
-      for (ix = xmin; ix < xmax; ++ix)
+      for (ix = xmin; ix <= xmax; ++ix)
         {
         vtkIdType c = *outPtr2++;
         histogram[ix] += c;
@@ -781,12 +781,12 @@ void vtkImageHistogram::ThreadedRequestData(
   vtkIdType *tmpPtr = histogram;
   do { *tmpPtr++ = 0; } while (--n);
 
-  // adjust the pointer to allow direct indexing
-  histogram -= binRange[0];
-
   // generate the histogram
   if (useFastExecute)
     {
+    // adjust the pointer to allow direct indexing
+    histogram -= binRange[0] + vtkMath::Floor(binOrigin + 0.5);
+
     // fast path for integer data
     switch(scalarType)
       {
@@ -800,6 +800,9 @@ void vtkImageHistogram::ThreadedRequestData(
     }
   else
     {
+    // adjust the pointer to allow direct indexing
+    histogram -= binRange[0];
+
     // bin via floating point shift/scale
     switch (scalarType)
       {
