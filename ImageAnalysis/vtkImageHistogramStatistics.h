@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkImageStatistics.h
+  Module:    vtkImageHistogramStatistics.h
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,46 +12,61 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageStatistics - Compute statistics for an image
+// .NAME vtkImageHistogramStatistics - Compute statistics for an image
 // .SECTION Description
-// vtkImageStatistics computes statistics such as mean, median, and
+// vtkImageHistogramStatistics computes statistics such as mean, median, and
 // standard deviation.  These statistics are computed from the histogram
 // of the image, rather than from the image itself, because this is more
-// efficient for large images.
+// efficient than computing the statistics while traversing the pixels.
+// If the input image is of type float or double, then the precision of
+// will depend on what the MaximumNumberOfBins has been set to.
 // .SECTION Thanks
 // Thanks to David Gobbi at the Seaman Family MR Centre and Dept. of Clinical
 // Neurosciences, Foothills Medical Centre, Calgary, for providing this class.
 
-#ifndef __vtkImageStatistics_h
-#define __vtkImageStatistics_h
+#ifndef __vtkImageHistogramStatistics_h
+#define __vtkImageHistogramStatistics_h
 
 #include "vtkImageHistogram.h"
 
 class vtkImageStencilData;
 class vtkIdTypeArray;
 
-class VTK_EXPORT vtkImageStatistics : public vtkImageHistogram
+class VTK_EXPORT vtkImageHistogramStatistics : public vtkImageHistogram
 {
 public:
-  static vtkImageStatistics *New();
-  vtkTypeMacro(vtkImageStatistics,vtkImageHistogram);
+  static vtkImageHistogramStatistics *New();
+  vtkTypeMacro(vtkImageHistogramStatistics,vtkImageHistogram);
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // Get basic statistics, these are computed from the histogram instead
-  // of being computed directly from the data in order to make the
-  // computation more efficient for large image.  Update must be called
-  // before this information is retrieved.
+  // Get the minimum value present in the image.  This value is computed
+  // when Update() is called.
   double GetMinimum() { return this->Minimum; }
+
+  // Description:
+  // Get the maximum value present in the image.  This value is computed
+  // when Update() is called.
   double GetMaximum() { return this->Maximum; }
+
+  // Description:
+  // Get the mean value of the image.  This value is computed when Update()
+  // is called.
   double GetMean() { return this->Mean; }
+
+  // Description:
+  // Get the median value.  This is computed when Update() is called.
   double GetMedian() { return this->Median; }
+
+  // Description:
+  // Get the standard deviation of the values in the image.  This is
+  // computed when Update() is called.
   double GetStandardDeviation() { return this->StandardDeviation; }
 
 protected:
-  vtkImageStatistics();
-  ~vtkImageStatistics();
+  vtkImageHistogramStatistics();
+  ~vtkImageHistogramStatistics();
 
   virtual int RequestData(vtkInformation *,
                           vtkInformationVector **,
@@ -64,8 +79,8 @@ protected:
   double Median;
 
 private:
-  vtkImageStatistics(const vtkImageStatistics&);  // Not implemented.
-  void operator=(const vtkImageStatistics&);  // Not implemented.
+  vtkImageHistogramStatistics(const vtkImageHistogramStatistics&);  // Not implemented.
+  void operator=(const vtkImageHistogramStatistics&);  // Not implemented.
 };
 
 #endif

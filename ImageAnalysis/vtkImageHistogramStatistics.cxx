@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkImageStatistics.cxx
+  Module:    vtkImageHistogramStatistics.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,18 +12,18 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkImageStatistics.h"
+#include "vtkImageHistogramStatistics.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkIdTypeArray.h"
 
 #include <math.h>
 
-vtkStandardNewMacro(vtkImageStatistics);
+vtkStandardNewMacro(vtkImageHistogramStatistics);
 
 //----------------------------------------------------------------------------
 // Constructor sets default values
-vtkImageStatistics::vtkImageStatistics()
+vtkImageHistogramStatistics::vtkImageHistogramStatistics()
 {
   this->AutomaticBinning = true;
 
@@ -37,12 +37,12 @@ vtkImageStatistics::vtkImageStatistics()
 }
 
 //----------------------------------------------------------------------------
-vtkImageStatistics::~vtkImageStatistics()
+vtkImageHistogramStatistics::~vtkImageHistogramStatistics()
 {
 }
 
 //----------------------------------------------------------------------------
-void vtkImageStatistics::PrintSelf(ostream& os, vtkIndent indent)
+void vtkImageHistogramStatistics::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 
@@ -54,7 +54,7 @@ void vtkImageStatistics::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-int vtkImageStatistics::RequestData(
+int vtkImageHistogramStatistics::RequestData(
   vtkInformation* request,
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
