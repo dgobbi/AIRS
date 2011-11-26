@@ -273,7 +273,7 @@ void vtkTransformVersorRotation(
   while (qc < 0)
     {
     // for rotations past 180 degrees, wrap around
-    qs -= 1.0;
+    qs = fabs(2.0 - qs);
     qc = 1.0 - qs;
     rx = -rx;
     ry = -ry;
