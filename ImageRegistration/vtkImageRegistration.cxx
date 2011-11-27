@@ -667,18 +667,16 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   minspacing = ((minspacing < spacing[1]) ? minspacing : spacing[1]);
   minspacing = ((minspacing < spacing[2]) ? minspacing : spacing[2]);
 
-  // compute a radius of gyration
-  double r = 1.0;
-  int dims = 0;
+  // compute a radius of gyration from the two larger dimensions
+  double r2 = 0.0;
+  double mindim = VTK_DOUBLE_MAX;
   for (int ii = 0; ii < 3; ii++)
     {
-    if (size[ii] > 1e-6)
-      {
-      r *= size[ii];
-      dims++;
-      }
+    mindim = (size[ii] > mindim ? mindim : size[ii]);
+    r2 += size[ii]*size[ii];
     }
-  r = 0.41*pow(r, 1.0/dims);
+  r2 -= mindim*mindim;
+  double r = sqrt(r2/12);
 
   // compute parameter scales
   double tscale = this->TransformTolerance*10;
