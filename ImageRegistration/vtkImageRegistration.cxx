@@ -61,6 +61,9 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageMutualInformation.h"
 #include "vtkImageCrossCorrelation.h"
 
+// C header files
+#include <math.h>
+
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
 {
@@ -325,15 +328,15 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 
   if (transformType > vtkImageRegistration::Rigid)
     {
-    sx = optimizer->GetParameterValue(6);
+    sx = fabs(optimizer->GetParameterValue(6));
     sy = sx;
     sz = sx;
     }
 
   if (transformType > vtkImageRegistration::Similarity)
     {
-    sx = sz*optimizer->GetParameterValue(7);
-    sy = sz*optimizer->GetParameterValue(8);
+    sx = sz*fabs(optimizer->GetParameterValue(7));
+    sy = sz*fabs(optimizer->GetParameterValue(8));
     }
 
   bool scaledAtSource =
