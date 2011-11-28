@@ -64,6 +64,35 @@ public:
   // computed when Update() is called.
   double GetStandardDeviation() { return this->StandardDeviation; }
 
+  // Description:
+  // Set the percentiles to use for automatic view range computation.
+  // This allows one to compute a range that does not include outliers
+  // that are significantly darker or significantly brighter than the
+  // rest of the pixels in the image.  The default is to use the first
+  // percentile and the 99th percentile.
+  vtkSetVector2Macro(AutoRangePercentiles, double);
+  vtkGetVector2Macro(AutoRangePercentiles, double);
+
+  // Description:
+  // Set lower and upper expansion factors to apply to the auto range
+  // that was computed from the AutoRangePercentiles.  Any outliers that
+  // are within this expanded range will be included, even if they are
+  // beyond the percentile.  This allows inclusion of values that are
+  // just slightly outside of the percentile, while rejecting values
+  // that are far beyond the percentile.  The default is to expand the
+  // range by a factor of 0.1 at each end.  The range will never be
+  // expanded beyond the Minimum or Maximum pixel values.
+  vtkSetVector2Macro(AutoRangeExpansionFactors, double);
+  vtkGetVector2Macro(AutoRangeExpansionFactors, double);
+
+  // Description:
+  // Get an automatically computed view range for the image, for use
+  // with the lookup table or image property that is used when viewing
+  // the image.  The use of this range will avoid situations where an
+  // image looks too dark because a few pixels happen to be much brighter
+  // than the rest.
+  vtkGetVector2Macro(AutoRange, double);
+
 protected:
   vtkImageHistogramStatistics();
   ~vtkImageHistogramStatistics();
@@ -77,6 +106,10 @@ protected:
   double Mean;
   double StandardDeviation;
   double Median;
+
+  double AutoRange[2];
+  double AutoRangePercentiles[2];
+  double AutoRangeExpansionFactors[2];
 
 private:
   vtkImageHistogramStatistics(const vtkImageHistogramStatistics&);  // Not implemented.

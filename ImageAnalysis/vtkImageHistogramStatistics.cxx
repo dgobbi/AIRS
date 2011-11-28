@@ -26,6 +26,7 @@ vtkStandardNewMacro(vtkImageHistogramStatistics);
 vtkImageHistogramStatistics::vtkImageHistogramStatistics()
 {
   this->AutomaticBinning = true;
+  this->GenerateHistogramImage = false;
 
   this->Minimum = 0;
   this->Maximum = 0;
@@ -33,7 +34,12 @@ vtkImageHistogramStatistics::vtkImageHistogramStatistics()
   this->Mean = 0;
   this->StandardDeviation = 0;
 
-  this->SetNumberOfOutputPorts(0);
+  this->AutoRange[0] = 0;
+  this->AutoRange[1] = 1;
+  this->AutoRangePercentiles[0] = 1;
+  this->AutoRangePercentiles[1] = 99;
+  this->AutoRangeExpansionFactors[0] = 0.1;
+  this->AutoRangeExpansionFactors[1] = 0.1;
 }
 
 //----------------------------------------------------------------------------
@@ -51,6 +57,15 @@ void vtkImageHistogramStatistics::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Median: " << this->Median << "\n";
   os << indent << "Mean: " << this->Mean << "\n";
   os << indent << "StandardDeviation: " << this->StandardDeviation << "\n";
+
+  os << indent << "AutoRange: " << this->AutoRange[0] << " "
+     << this->AutoRange[1] << "\n";
+  os << indent << "AutoRangePercentiles: "
+     << this->AutoRangePercentiles[0] << " "
+     << this->AutoRangePercentiles[1] << "\n";
+  os << indent << "AutoRangeExpansionFactors: "
+     << this->AutoRangeExpansionFactors[0] << " "
+     << this->AutoRangeExpansionFactors[1] << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -61,9 +76,16 @@ int vtkImageHistogramStatistics::RequestData(
 {
   this->Superclass::RequestData(request, inputVector, outputVector);
 
+  double lowPercentile = this->AutoRangePercentiles[0]*0.01;
+  double highPercentile = this->AutoRangePercentiles[1]*0.01;
+
   vtkIdType total = this->Total;
   vtkIdType sum = 0;
+  vtkIdType lowSum = static_cast<vtkIdType>(total*lowPercentile);
+  vtkIdType highSum = static_cast<vtkIdType>(total*highPercentile);
   vtkIdType midSum = total/2;
+  int lowVal = 0;
+  int highVal = 0;
   int midVal = 0;
   int minVal = -1;
   int maxVal = 0;
@@ -78,6 +100,8 @@ int vtkImageHistogramStatistics::RequestData(
     double dc = static_cast<double>(c);
     mom1 += dc*ix;
     mom2 += dc*ix*ix;
+    lowVal = (sum > lowSum ? lowVal : ix);
+    highVal = (sum > highSum ? highVal : ix);
     midVal = (sum > midSum ? midVal : ix);
     minVal = (sum > 0 ? minVal : ix);
     maxVal = (c == 0 ? maxVal : ix);
@@ -119,6 +143,27 @@ int vtkImageHistogramStatistics::RequestData(
         }
       this->StandardDeviation = sqrt(mom2/(total - 1))*binSpacing;
       }
+    }
+
+  // do the autorange: first expand range by 10% at each end
+  double lowEF = this->AutoRangeExpansionFactors[0];
+  double highEF = this->AutoRangeExpansionFactors[1];
+  int lowExpansion = static_cast<int>(lowEF*(highVal - lowVal));
+  int highExpansion = static_cast<int>(highEF*(highVal - lowVal));
+  lowVal -= lowExpansion;
+  highVal += highExpansion;
+
+  this->AutoRange[0] = lowVal*binSpacing + binOrigin;
+  this->AutoRange[1] = highVal*binSpacing + binOrigin;
+
+  // clamp the auto range to the full data range
+  if (this->AutoRange[0] < this->Minimum)
+    {
+    this->AutoRange[0] = this->Minimum;
+    }
+  if (this->AutoRange[1] > this->Maximum)
+    {
+    this->AutoRange[1] = this->Maximum;
     }
 
   return 1;

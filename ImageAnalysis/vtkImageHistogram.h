@@ -124,7 +124,7 @@ public:
   // Description:
   // Get the histogram as a vtkIdTypeArray.  You must call Update()
   // before calling this method.
-  vtkDataArray *GetHistogram();
+  vtkIdTypeArray *GetHistogram();
 
   // Description:
   // Get the total count of the histogram.  This will be the number of

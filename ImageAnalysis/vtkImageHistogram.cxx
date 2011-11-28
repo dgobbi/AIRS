@@ -114,7 +114,7 @@ const char *vtkImageHistogram::GetHistogramImageScaleAsString()
 }
 
 //----------------------------------------------------------------------------
-vtkDataArray *vtkImageHistogram::GetHistogram()
+vtkIdTypeArray *vtkImageHistogram::GetHistogram()
 {
   return this->Histogram;
 }
@@ -594,14 +594,14 @@ int vtkImageHistogram::RequestData(
     {
     for (int i = 0; i < numberOfOutputs; ++i)
       {
-      vtkInformation* info = outputVector->GetInformationObject(i);
+      vtkInformation* outInfo = outputVector->GetInformationObject(i);
       vtkImageData *outData = vtkImageData::SafeDownCast(
-        info->Get(vtkDataObject::DATA_OBJECT()));
+        outInfo->Get(vtkDataObject::DATA_OBJECT()));
       if (outData)
         {
         int updateExtent[6];
-        info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
-                  updateExtent);
+        outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
+                     updateExtent);
         this->AllocateOutputData(outData, updateExtent);
         }
       }
