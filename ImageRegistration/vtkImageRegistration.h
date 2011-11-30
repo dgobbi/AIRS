@@ -237,7 +237,7 @@ public:
 
   // Description:
   // Get the value that is being minimized.
-  vtkGetMacro(Value, double);
+  vtkGetMacro(MetricValue, double);
 
   // Description:
   // Iterate the registration.  Returns zero if the termination condition has
@@ -285,7 +285,7 @@ protected:
   int                              MaximumNumberOfIterations;
   double                           MetricTolerance;
   double                           TransformTolerance;
-  double                           Value;
+  double                           MetricValue;
 
   vtkTimeStamp                     ExecuteTime;
 

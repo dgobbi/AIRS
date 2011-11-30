@@ -129,7 +129,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->TargetImageQuantizer = vtkImageShiftScale::New();
   this->SourceImageQuantizer = vtkImageShiftScale::New();
 
-  this->Value = 0.0;
+  this->MetricValue = 0.0;
 
   this->MetricTolerance = 1e-4;
   this->TransformTolerance = 1e-1;
@@ -200,7 +200,7 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
      << this->MaximumNumberOfIterations << "\n";
   os << indent << "JointHistogramSize: " << this->JointHistogramSize[0] << " "
      << this->JointHistogramSize[1] << "\n";
-  os << indent << "Value: " << this->Value << "\n";
+  os << indent << "MetricValue: " << this->MetricValue << "\n";
   os << indent << "NumberOfEvaluations: "
      << this->RegistrationInfo->NumberOfEvaluations << "\n";
 }
@@ -776,7 +776,7 @@ int vtkImageRegistration::ExecuteRegistration()
         }
       converged = !optimizer->Iterate();
       vtkSetTransformParameters(this->RegistrationInfo);
-      this->Value = optimizer->GetFunctionValue();
+      this->MetricValue = optimizer->GetFunctionValue();
       }
 
     if (converged && !this->AbortExecute)
@@ -805,7 +805,7 @@ int vtkImageRegistration::Iterate()
       result = 0;
       }
     vtkSetTransformParameters(this->RegistrationInfo);
-    this->Value = optimizer->GetFunctionValue();
+    this->MetricValue = optimizer->GetFunctionValue();
     return result;
     }
 
