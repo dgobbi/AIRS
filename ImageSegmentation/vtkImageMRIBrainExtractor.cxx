@@ -127,6 +127,7 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 vtkImageMRIBrainExtractor::~vtkImageMRIBrainExtractor()
 {
   this->brainMesh->Delete();
+  this->OriginalPoints->Delete();
 }
 
 //----------------------------------------------------------------------------
