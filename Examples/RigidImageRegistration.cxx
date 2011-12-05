@@ -27,6 +27,7 @@ Module:    RigidImageRegistration.cxx
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
+#include <vtkImageFastBlur.h>
 #include <vtkImageSincInterpolator.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -340,10 +341,12 @@ int main (int argc, char *argv[])
   sourceBlurKernel->SetWindowFunctionToHamming();
 
   // reduce the source resolution
-  vtkSmartPointer<vtkImageReslice> sourceBlur =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkSmartPointer<vtkImageFastBlur> sourceBlur =
+    vtkSmartPointer<vtkImageFastBlur>::New();
   sourceBlur->SetInput(sourceImage);
+  sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
+  sourceBlur->InterpolateOn();
 
   // blur target with Hamming-windowed sinc
   vtkSmartPointer<vtkImageSincInterpolator> targetBlurKernel =
@@ -351,10 +354,12 @@ int main (int argc, char *argv[])
   targetBlurKernel->SetWindowFunctionToHamming();
 
   // keep target at full resolution
-  vtkSmartPointer<vtkImageReslice> targetBlur =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkSmartPointer<vtkImageFastBlur> targetBlur =
+    vtkSmartPointer<vtkImageFastBlur>::New();
   targetBlur->SetInput(targetImage);
+  targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
+  targetBlur->InterpolateOn();
 
   // get the initial transformation
   vtkSmartPointer<vtkMatrix4x4> matrix =
@@ -414,12 +419,12 @@ int main (int argc, char *argv[])
       {
       // full resolution: no blurring or resampling
       sourceBlur->SetInterpolator(0);
-      sourceBlur->SetInterpolationModeToNearestNeighbor();
+      sourceBlur->InterpolateOff();
       sourceBlur->SetOutputSpacing(sourceSpacing);
       sourceBlur->Update();
 
       targetBlur->SetInterpolator(0);
-      targetBlur->SetInterpolationModeToNearestNeighbor();
+      sourceBlur->InterpolateOff();
       targetBlur->SetOutputSpacing(targetSpacing);
       targetBlur->Update();
       }

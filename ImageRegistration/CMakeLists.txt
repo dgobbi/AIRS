@@ -11,6 +11,7 @@ vtkCalcCentroid.cxx
 vtkCenteredTransform.cxx
 vtkImage3DNoiseSource.cxx
 vtkImageDataStatistics.cxx
+vtkImageFastBlur.cxx
 vtkImageMutualInformation.cxx
 vtkImageSingleMutualInformation.cxx
 vtkCalcCrossCorrelation.cxx
