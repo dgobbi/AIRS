@@ -602,7 +602,8 @@ void vtkImageFastBlurFilter3D(
     int idZMax = extent[5];
     int pixelCounter = extent[1] - extent[0] + 1;
 
-    vtkIdType progressGoal = (idYMax - idYMin - 1)*(idZMax - idZMin - 1);
+    vtkIdType progressGoal = (idYMax - idYMin + 1);
+    progressGoal *= (idZMax - idZMin + 1);
     vtkIdType progressCount = 0;
     vtkIdType progressStep = (progressGoal + 49)/50;
 
