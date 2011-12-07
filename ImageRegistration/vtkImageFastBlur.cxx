@@ -343,15 +343,23 @@ int vtkImageFastBlur::RequestUpdateExtent(
 
 namespace {
 
-#define VTK_RESIZE_CONVERT_UNSIGNED(T) \
+#define VTK_RESIZE_CONVERT_UNSIGNED(T, minval, maxval) \
 void vtkImageFastBlurConvert(double v, T &u) \
 { \
+  static double vmin = minval; \
+  static double vmax = maxval; \
+  v = (v > vmin ? v : vmin); \
+  v = (v < vmax ? v : vmax); \
   u = static_cast<T>(v + 0.5); \
 }
 
-#define VTK_RESIZE_CONVERT_SIGNED(T) \
+#define VTK_RESIZE_CONVERT_SIGNED(T, minval, maxval) \
 void vtkImageFastBlurConvert(double v, T &u) \
 { \
+  static double vmin = minval; \
+  static double vmax = maxval; \
+  v = (v > vmin ? v : vmin); \
+  v = (v < vmax ? v : vmax); \
   u = static_cast<T>(vtkMath::Floor(v + 0.5)); \
 }
 
@@ -361,12 +369,12 @@ void vtkImageFastBlurConvert(double v, T &u) \
   u = static_cast<T>(v); \
 }
 
-VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt8);
-VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt16);
-VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt32);
-VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt8);
-VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt16);
-VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt32);
+VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt8, 0.0, 255.0);
+VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt16, 0.0, 65535.0);
+VTK_RESIZE_CONVERT_UNSIGNED(vtkTypeUInt32, 0.0, 4294967295.0);
+VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt8, -128.0, 127.0);
+VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt16, -32768.0, 32767.0);
+VTK_RESIZE_CONVERT_SIGNED(vtkTypeInt32, -2147483648.0, 2147483647.0);
 VTK_RESIZE_CONVERT_FLOAT(vtkTypeFloat32);
 VTK_RESIZE_CONVERT_FLOAT(vtkTypeFloat64);
 
@@ -412,7 +420,8 @@ void vtkImageFastBlurFilterX(
           }
         while (--k);
         tmpPtr++;
-        *outPtr++ = val;
+        vtkImageFastBlurConvert(val, *outPtr);
+        outPtr++;
         }
       while (--i);
       a += kernelSize;
@@ -462,7 +471,8 @@ void vtkImageFastBlurFilterYOrZ(
         }
       while (--k);
       i++;
-      *outPtr++ = val;
+      vtkImageFastBlurConvert(val, *outPtr);
+      outPtr++;
       }
     while (--rowCounter);
     }
@@ -871,11 +881,10 @@ void vtkImageFastBlur::ThreadedRequestData(vtkInformation *,
   newmat[3][3] = 1;
 
   // fill in the interpolation tables
-  int clipExt[6];
   vtkAbstractImageInterpolator *interpolator = this->GetInternalInterpolator();
+  int clipExt[6];
   vtkInterpolationWeights *weights;
-  interpolator->PrecomputeWeightsForExtent(
-    *newmat, extent, clipExt, weights);
+  interpolator->PrecomputeWeightsForExtent(*newmat, extent, clipExt, weights);
 
   // prepare table for use by this filter
   int kernelSizeX = weights->KernelSize[0];
