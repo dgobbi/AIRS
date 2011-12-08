@@ -37,6 +37,22 @@
 vtkStandardNewMacro(vtkImageFastBlur);
 vtkCxxSetObjectMacro(vtkImageFastBlur,Interpolator,vtkAbstractImageInterpolator);
 
+template<class F>
+inline int vtkImageFastBlurFloor(double x, F &f)
+{
+  x += (103079215104.0 + VTK_INTERPOLATE_FLOOR_TOL);
+  long long i = static_cast<long long>(x);
+  f = x - i;
+  return static_cast<int>(i - 103079215104LL);
+}
+
+inline int vtkImageFastBlurRound(double x)
+{
+  x += (103079215104.5 + VTK_INTERPOLATE_FLOOR_TOL);
+  long long i = static_cast<long long>(x);
+  return static_cast<int>(i - 103079215104LL);
+}
+
 //----------------------------------------------------------------------------
 vtkImageFastBlur::vtkImageFastBlur()
 {
@@ -297,7 +313,7 @@ int vtkImageFastBlur::RequestUpdateExtent(
       if ((kernelSize & 1) == 0)
         {
         double f;
-        int k = vtkInterpolateFloor(range[ii], f);
+        int k = vtkImageFastBlurFloor(range[ii], f);
         if (k - extra < extent[2*j])
           {
           extent[2*j] = k - extra;
@@ -311,7 +327,7 @@ int vtkImageFastBlur::RequestUpdateExtent(
       // else is for kernels with odd size
       else
         {
-        int k = vtkInterpolateRound(range[ii]);
+        int k = vtkImageFastBlurRound(range[ii]);
         if (k < extent[2*j])
           {
           extent[2*j] = k - extra;
