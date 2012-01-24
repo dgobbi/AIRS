@@ -379,6 +379,7 @@ void vtkImageMRIBrainExtractorExecute(
   int outExt[6], int vtkNotUsed(id),
   IT *inPtr, OT *vtkNotUsed(outPtr))
 {
+  // The parameters for the algorithm
   double T2, T98, TH, Tm;
   double COG[3], R;
 
@@ -393,25 +394,18 @@ void vtkImageMRIBrainExtractorExecute(
     inData, inPtr, outExt, T2, T98, TH, Tm, COG, R);
 
   // vtkPolyData time
-  double RSphere;
-  int nPoints, ptId;
   vtkPolyData *brainPolyData = vtkPolyData::New();
   vtkIdListCollection *pointNeighbourList = vtkIdListCollection::New();
 
   // Initialize a sphere inside the brain and for each point on the sphere,
   // build a list of its first-order neighbours
-  RSphere = R/2.0;
-
-  int xSize, ySize, zSize;
-  xSize = extent[1] - extent[0];
-  ySize = extent[3] - extent[2];
-  zSize = extent[5] - extent[4];
+  double RSphere = 0.5*R;
 
   vtkBEBuildAndLinkPolyData(
     COG, RSphere, self->GetNumberOfTessellations(),
     brainPolyData, pointNeighbourList);
 
-  nPoints = brainPolyData->GetNumberOfPoints();
+  vtkIdType nPoints = brainPolyData->GetNumberOfPoints();
 
   int nIterations, iteration, nNeighbours;
   double dotp, suml2, this_suml2;
@@ -448,10 +442,6 @@ void vtkImageMRIBrainExtractorExecute(
   d2 = self->GetD2();
 
   // Find and store neighbours
-  double point[3];
-  int cellIdx, cellId, nIdx, nId;
-  vtkIdType *pointCells, npts, *pts;
-  unsigned short nCells;
 
   // Switching from VTK containers to STL containers
   // because they're much faster for iterating over
@@ -473,27 +463,31 @@ void vtkImageMRIBrainExtractorExecute(
 
   // Loop over each point in brainPolyData and save it into an STL vector.
   // Also, use vtkPolyData functions to figure out where our neighbours are
-  for (ptId = 0; ptId < nPoints ; ptId++)
+  for (vtkIdType ptId = 0; ptId < nPoints ; ptId++)
     {
     // Our target point
+    double point[3];
     brainPolyData->GetPoint(ptId, point);
 
     pt = point; // pass the c array into a c++ class for the vector
     brainPoints[ptId] = pt;
 
     // The cells attached to the target point
+    unsigned short nCells;
+    vtkIdType *pointCells;
     brainPolyData->GetPointCells( ptId, nCells, pointCells );
 
     // The points inside the attached cells
-    for (cellIdx = 0; cellIdx < nCells; cellIdx++)
+    for (unsigned short cellIdx = 0; cellIdx < nCells; cellIdx++)
       {
-      cellId = pointCells[cellIdx];
+      vtkIdType cellId = pointCells[cellIdx];
+      vtkIdType npts, *pts;
       brainPolyData->GetCellPoints(cellId, npts, pts);
 
       // If the point is not our target point, it's a neighbour
-      for (nIdx = 0; nIdx < npts ; nIdx++ )
+      for (vtkIdType nIdx = 0; nIdx < npts ; nIdx++ )
         {
-        nId = pts[nIdx];
+        vtkIdType nId = pts[nIdx];
         vIds[nIdx] = nId;
 
         if (ptId != nId)
@@ -808,7 +802,7 @@ void vtkImageMRIBrainExtractorExecute(
     }
   // Switch back to VTK containers
   vtkPoints *newPoints = brainPolyData->GetPoints();
-  for (ptId = 0; ptId < nPoints; ptId++)
+  for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
     {
     target = brainPoints[ptId];
     newPoints->SetPoint( ptId, target.xyz );
