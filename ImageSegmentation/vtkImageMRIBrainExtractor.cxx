@@ -136,100 +136,81 @@ static void vtkBECalculateInitialParameters(
   double &T2, double &T98, double &TH,
   double &Tm, double COG[3], double &R)
 {
-  double ScalarTypeMin, ScalarTypeMax;
-  int lowerThreshold, upperThreshold;
-  int voxelCount;
+  int scalarTypeMin = static_cast<int>(inData->GetScalarTypeMin());
+  int scalarTypeMax = static_cast<int>(inData->GetScalarTypeMax());
 
-  ScalarTypeMin = inData->GetScalarTypeMin();
-  ScalarTypeMax = inData->GetScalarTypeMax();
+  int nBins = scalarTypeMax - scalarTypeMin + 1;
+  vtkIdType *hist = new vtkIdType[nBins];
 
-  int nBins = (int)(ScalarTypeMax - ScalarTypeMin);
-  std::vector<int> hist(nBins);
-  std::vector<int>::iterator histIter;
-  int idx, sum;
-
-  IT *tmpPtr;;
-  tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
+  IT *tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
 
   // initialize the histogram
-  for (histIter = hist.begin(); histIter != hist.end(); histIter++)
+  for (int j = 0; j < nBins; j++)
     {
-    *histIter = 0;
+    hist[j] = 0;
     }
+
+  vtkIdType voxelCount = (inExt[1] - inExt[0] + 1);
+  voxelCount *= (inExt[3] - inExt[2] + 1);
+  voxelCount *= (inExt[5] - inExt[4] + 1);
+
+  vtkIdType lowerThreshold = static_cast<vtkIdType>(0.02*voxelCount);
+  vtkIdType upperThreshold = static_cast<vtkIdType>(0.98*voxelCount);
 
   // accumulate histogram bins
-  voxelCount = 0;
-
-  int idx2, idx1, idx0;
-  for (idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+  for (vtkIdType iv = 0; iv < voxelCount; iv++)
     {
-    for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+    int idx = static_cast<int>(tmpPtr[iv] - scalarTypeMin);
+    hist[idx]++;
+    }
+
+  // compute thresholds
+  int histogramSum = 0;
+
+  for (int bin = 0; bin < nBins; bin++)
+    {
+    int f = hist[bin];
+    histogramSum += f;
+    int v = bin + scalarTypeMin;
+
+    if (histogramSum <= lowerThreshold)
       {
-      for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
-        {
-        idx = (int)((double)*tmpPtr-ScalarTypeMin);
-        sum = hist[idx];
-        hist[idx] = sum+1;
-        voxelCount++; tmpPtr++;
-        }
+      T2 = v;
+      }
+    if (histogramSum <= upperThreshold)
+      {
+      T98 = v;
       }
     }
 
-  lowerThreshold = int(0.02*voxelCount);
-  upperThreshold = int(0.98*voxelCount);
-
-  int histogramSum;
-  int minFound, maxFound, i;
-  histogramSum = 0;
-  minFound = 0;
-  maxFound = 0;
-  i = 0;
-  for (histIter = hist.begin(); histIter != hist.end(); histIter++)
-    {
-    histogramSum += *histIter;
-
-    if (!minFound && histogramSum > lowerThreshold)
-      {
-      T2 = (double)(i+ScalarTypeMin);
-      minFound = 1;
-      }
-    else if (!maxFound && histogramSum > upperThreshold)
-      {
-      T98 = (double)(i+ScalarTypeMin);
-      maxFound = 1;
-      }
-    i++;
-    }
+  delete [] hist;
 
   TH = T2 + (0.10*(T98-T2));
 
 
   //------------------------
-  int count;
-  double voxelVolume, totalVolume;
-
   double XMoment = 0.0;
   double YMoment = 0.0;
   double ZMoment = 0.0;
   double totalMass = 0.0;
-  double mass;
 
   double *spacing = inData->GetSpacing();
   double *origin = inData->GetOrigin();
 
-  tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
+  tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
 
-  count = 0;
-  for (idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+  vtkIdType count = 0;
+  for (int idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
     {
-    for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+    for (int idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
       {
-      for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
+      for (int idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
         {
-        if (*tmpPtr > TH)
+        double mass = static_cast<double>(*tmpPtr);
+        if (mass > TH)
           {
           // Limit our mass so it's not an outliner value
-          mass = std::min((double)*tmpPtr, T98);
+          mass = ((mass <= T98) ? mass : T98);
           XMoment += mass*idx0;
           YMoment += mass*idx1;
           ZMoment += mass*idx2;
@@ -241,38 +222,42 @@ static void vtkBECalculateInitialParameters(
       }
     }
 
+  if (totalMass == 0)
+    {
+    vtkGenericWarningMacro("In vtkMRIBrainExtractor, image is all black");
+    COG[0] = COG[1] = COG[2] = 0.0;
+    Tm = 0.0;
+    return;
+    }
+
   COG[0] = ((XMoment / totalMass) * spacing[0]) + origin[0];
   COG[1] = ((YMoment / totalMass) * spacing[1]) + origin[1];
   COG[2] = ((ZMoment / totalMass) * spacing[2]) + origin[2];
 
-  voxelVolume = fabs(spacing[0]*spacing[1]*spacing[2]);
-  totalVolume = voxelVolume*count;
+  double voxelVolume = fabs(spacing[0]*spacing[1]*spacing[2]);
+  double totalVolume = voxelVolume*count;
 
   R = pow( (3*totalVolume)/(4*vtkMath::DoublePi()) , 1.0/3.0 );
 
-  std::vector<double> inContainer;
+  tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
 
-  double distance2;
+  std::vector<double> inContainer;
+  double R2 = R*R;
   double position[3];
 
-  tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
-
-  double R2;
-  R2 = pow(R,2);
-
-  for (idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+  for (int idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
     {
-    position[2] = (idx2*spacing[2])+origin[2];
-    for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+    position[2] = idx2*spacing[2] + origin[2];
+    for (int idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
       {
-      position[1] = (idx1*spacing[1])+origin[1];
-      for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
+      position[1] = idx1*spacing[1] + origin[1];
+      for (int idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
         {
         if (T2 < *tmpPtr && *tmpPtr < T98)
           {
-          position[0] = (idx0*spacing[0])+origin[0];
+          position[0] = idx0*spacing[0] + origin[0];
 
-          distance2 = vtkMath::Distance2BetweenPoints(position, COG);
+          double distance2 = vtkMath::Distance2BetweenPoints(position, COG);
 
           // Are we within R?
           if (distance2 < R2)
@@ -290,14 +275,14 @@ static void vtkBECalculateInitialParameters(
 
   // Tm is the median value of the voxel within R of COG and < T
   // it's odd
-  if ( size%2 )
+  if (size%2 == 1)
     {
-    Tm = inContainer[ size/2 ];
+    Tm = inContainer[size/2];
     }
   // it's even - average
   else
     {
-    Tm = (double)((inContainer[size/2-1]+inContainer[size/2])/2.0);
+    Tm = 0.5*(inContainer[size/2-1] + inContainer[size/2]);
     }
 
   inContainer.clear();
@@ -372,7 +357,6 @@ static void vtkBEBuildAndLinkPolyData(
           myNeighbours->InsertUniqueId(ptId2);
           }
         }
-
       }
 
     pointNeighbourList->AddItem( myNeighbours );
@@ -415,7 +399,7 @@ void vtkImageMRIBrainExtractorExecute(
   vtkIdListCollection *pointNeighbourList = vtkIdListCollection::New();
 
   // Initialize a sphere inside the brain and for each point on the sphere,
-  // build a list of it's first-order neighbours
+  // build a list of its first-order neighbours
   RSphere = R/2.0;
 
   int xSize, ySize, zSize;
@@ -607,7 +591,8 @@ void vtkImageMRIBrainExtractorExecute(
     nIter = pointNeighbourIds.begin();
     vIter = pointNeighbourVertIds.begin();
     uIter = updatePoints.begin();
-    for (ptIter = brainPoints.begin(); ptIter!=brainPoints.end();
+    for (ptIter = brainPoints.begin();
+         ptIter != brainPoints.end();
          ptIter++, nIter++, vIter++, uIter++)
       {
       target = *ptIter;
@@ -654,7 +639,7 @@ void vtkImageMRIBrainExtractorExecute(
 
       // Mean location
       for (neighbourIdIter = thisPointNeighbourIds.begin();
-           neighbourIdIter!=thisPointNeighbourIds.end();
+           neighbourIdIter != thisPointNeighbourIds.end();
            neighbourIdIter++)
         {
         neighbour = brainPoints[*neighbourIdIter];
@@ -693,7 +678,7 @@ void vtkImageMRIBrainExtractorExecute(
       //r = l2/(2*vtkMath::Norm(s_n));
       r = 2*vtkMath::Norm(s_n)/l2; // actually the inverse
 
-      // the smothness fraction
+      // the smoothness fraction
       //f2 = 0.5*(1+tanh(F*(1/r-E)));
       f2 = 0.5*(1+tanh(F*(r-E))); // use r inverse
 
