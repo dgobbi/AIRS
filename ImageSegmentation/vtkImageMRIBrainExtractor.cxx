@@ -97,7 +97,7 @@ vtkStandardNewMacro(vtkImageMRIBrainExtractor);
 //----------------------------------------------------------------------------
 vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 {
-  this->brainMesh = vtkPolyData::New();
+  this->BrainMesh = vtkPolyData::New();
   this->OriginalPoints = vtkPoints::New();
   // Defaults
   this->BT = 0.5;
@@ -112,20 +112,20 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 //----------------------------------------------------------------------------
 vtkImageMRIBrainExtractor::~vtkImageMRIBrainExtractor()
 {
-  this->brainMesh->Delete();
+  this->BrainMesh->Delete();
   this->OriginalPoints->Delete();
 }
 
 //----------------------------------------------------------------------------
 void vtkImageMRIBrainExtractor::SetBrainMesh(vtkPolyData *mesh)
 {
-  this->brainMesh->DeepCopy(mesh);
+  this->BrainMesh->DeepCopy(mesh);
 }
 
 //----------------------------------------------------------------------------
 vtkPolyData *vtkImageMRIBrainExtractor::GetBrainMesh()
 {
-  return (vtkPolyData *)(this->brainMesh);
+  return this->BrainMesh;
 }
 
 // Description:
@@ -776,7 +776,9 @@ void vtkImageMRIBrainExtractorExecute(
 
           // Max search up to d2
           if (d<d2)
+            {
             Imax = std::max(Imax, value);
+            }
 
           d += 1.0; // Step by 1mm?
           }

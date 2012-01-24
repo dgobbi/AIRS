@@ -121,7 +121,7 @@ protected:
 
   void ExecuteData(vtkDataObject *out);
 
-  vtkPolyData *brainMesh;
+  vtkPolyData *BrainMesh;
   double BT;
   int NumberOfIterations;
   int NumberOfTessellations;
