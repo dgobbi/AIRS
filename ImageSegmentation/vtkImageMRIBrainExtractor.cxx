@@ -50,6 +50,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkMath.h"
 #include "vtkSmoothPolyDataFilter.h"
 #include "vtkCleanPolyData.h"
+#include "vtkImageIterator.h"
 
 #include <math.h>
 #include <iostream>
@@ -107,6 +108,13 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
   this->D2 = 10.0; //mm
   this->RMin = 3.0; //mm
   this->RMax = 10.0; //mm
+
+  this->BrainExtent[0] = VTK_INT_MIN;
+  this->BrainExtent[1] = VTK_INT_MAX;
+  this->BrainExtent[2] = VTK_INT_MIN;
+  this->BrainExtent[3] = VTK_INT_MAX;
+  this->BrainExtent[4] = VTK_INT_MIN;
+  this->BrainExtent[5] = VTK_INT_MAX;
 }
 
 //----------------------------------------------------------------------------
@@ -132,7 +140,7 @@ vtkPolyData *vtkImageMRIBrainExtractor::GetBrainMesh()
 // This templated function executes the filter for any type of data.
 template <class IT>
 static void vtkBECalculateInitialParameters(
-  vtkImageData *inData, IT *vtkNotUsed(inPtr), int inExt[6],
+  vtkImageData *inData, IT *vtkNotUsed(inPtr), int extent[6],
   double &T2, double &T98, double &TH,
   double &Tm, double COG[3], double &R)
 {
@@ -142,26 +150,32 @@ static void vtkBECalculateInitialParameters(
   int nBins = scalarTypeMax - scalarTypeMin + 1;
   vtkIdType *hist = new vtkIdType[nBins];
 
-  IT *tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
-
   // initialize the histogram
   for (int j = 0; j < nBins; j++)
     {
     hist[j] = 0;
     }
 
-  vtkIdType voxelCount = (inExt[1] - inExt[0] + 1);
-  voxelCount *= (inExt[3] - inExt[2] + 1);
-  voxelCount *= (inExt[5] - inExt[4] + 1);
+  vtkIdType voxelCount = (extent[1] - extent[0] + 1);
+  voxelCount *= (extent[3] - extent[2] + 1);
+  voxelCount *= (extent[5] - extent[4] + 1);
 
   vtkIdType lowerThreshold = static_cast<vtkIdType>(0.02*voxelCount);
   vtkIdType upperThreshold = static_cast<vtkIdType>(0.98*voxelCount);
 
   // accumulate histogram bins
-  for (vtkIdType iv = 0; iv < voxelCount; iv++)
+  vtkImageIterator<IT> inIter(inData, extent);
+  while (!inIter.IsAtEnd())
     {
-    int idx = static_cast<int>(tmpPtr[iv] - scalarTypeMin);
-    hist[idx]++;
+    IT *tmpPtr = inIter.BeginSpan();
+    IT *tmpPtrEnd = inIter.EndSpan();
+    while (tmpPtr != tmpPtrEnd)
+      {
+      int idx = static_cast<int>(*tmpPtr - scalarTypeMin);
+      hist[idx]++;
+      tmpPtr++;
+      }
+    inIter.NextSpan();
     }
 
   // compute thresholds
@@ -197,14 +211,16 @@ static void vtkBECalculateInitialParameters(
   double *spacing = inData->GetSpacing();
   double *origin = inData->GetOrigin();
 
-  tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
-
   vtkIdType count = 0;
-  for (int idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+  vtkIdType inIncX, inIncY, inIncZ;
+  inData->GetContinuousIncrements(extent, inIncX, inIncY, inIncZ);
+  IT *tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(extent));
+
+  for (int idx2 = extent[4]; idx2 <= extent[5]; idx2++)
     {
-    for (int idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+    for (int idx1 = extent[2]; idx1 <= extent[3]; idx1++)
       {
-      for (int idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
+      for (int idx0 = extent[0]; idx0 <= extent[1]; idx0++)
         {
         double mass = static_cast<double>(*tmpPtr);
         if (mass > TH)
@@ -219,7 +235,9 @@ static void vtkBECalculateInitialParameters(
           }
         tmpPtr++;
         }
+      tmpPtr += inIncY;
       }
+    tmpPtr += inIncZ;
     }
 
   if (totalMass == 0)
@@ -240,19 +258,18 @@ static void vtkBECalculateInitialParameters(
   R = pow( (3*totalVolume)/(4*vtkMath::DoublePi()) , 1.0/3.0 );
 
   // Compute the median value within a sphere of radius R
-  tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
+  tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(extent));
 
   std::vector<double> inContainer;
   double R2 = R*R;
   double position[3];
-
-  for (int idx2 = inExt[4]; idx2 <= inExt[5]; idx2++)
+  for (int idx2 = extent[4]; idx2 <= extent[5]; idx2++)
     {
     position[2] = idx2*spacing[2] + origin[2];
-    for (int idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
+    for (int idx1 = extent[2]; idx1 <= extent[3]; idx1++)
       {
       position[1] = idx1*spacing[1] + origin[1];
-      for (int idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
+      for (int idx0 = extent[0]; idx0 <= extent[1]; idx0++)
         {
         if (T2 < *tmpPtr && *tmpPtr < T98)
           {
@@ -268,14 +285,16 @@ static void vtkBECalculateInitialParameters(
           }
         tmpPtr++;
         }
+      tmpPtr += inIncY;
       }
+    tmpPtr += inIncZ;
     }
 
   int size = static_cast<int>(inContainer.size());
   if (size == 0)
     {
     vtkGenericWarningMacro("In vtkMRIBrainExtractor, can't compute median.");
-    Tm = 0.o;
+    Tm = 0.0;
     return;
     }
 
@@ -397,9 +416,23 @@ void vtkImageMRIBrainExtractorExecute(
   inData->GetSpacing(spacing);
   inData->GetOrigin(origin);
 
+  int brainExtent[6];
+  self->GetBrainExtent(brainExtent);
+  for (int k = 0; k < 3; k++)
+    {
+    if (brainExtent[2*k] < extent[2*k])
+      {
+      brainExtent[2*k] = extent[2*k];
+      }
+    if (brainExtent[2*k+1] > extent[2*k+1])
+      {
+      brainExtent[2*k+1] = extent[2*k+1];
+      }
+    }
+
   // vtkImageData-based parameters
   vtkBECalculateInitialParameters(
-    inData, inPtr, outExt, T2, T98, TH, Tm, COG, R);
+    inData, inPtr, brainExtent, T2, T98, TH, Tm, COG, R);
 
   // vtkPolyData time
   vtkPolyData *brainPolyData = vtkPolyData::New();

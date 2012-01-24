@@ -56,6 +56,13 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
+  // Set the region where the brain is expected to be.  If this is
+  // not set, or if it is set to be larger than the full extent of
+  // the image, then the full extent of the image will be used.  
+  vtkSetVector6Macro(BrainExtent, int);
+  vtkGetVector6Macro(BrainExtent, int);
+
+  // Description:
   // Get the vtkPolyData representing the brain surface
   vtkPolyData *GetBrainMesh();
   void SetBrainMesh(vtkPolyData *mesh);
@@ -121,6 +128,7 @@ protected:
 
   void ExecuteData(vtkDataObject *out);
 
+  int BrainExtent[6];
   vtkPolyData *BrainMesh;
   double BT;
   int NumberOfIterations;
