@@ -54,23 +54,9 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <math.h>
 #include <iostream>
 
-#if ((VTK_MAJOR_VERSION == 4)&&(VTK_MINOR_VERSION <= 2))
 #include <vector>
 #include <algorithm>
 #include <numeric>
-#else
-#include <vtkstd/vector>
-#include <vtkstd/algorithm>
-#include <vtkstd/numeric>
-#endif
-
-// visual studio 6 does not define std::min or std::max
-#ifdef _MSC_VER
-#if (_MSC_VER < 1300)
-#define min _cpp_min
-#define max _cpp_max
-#endif /* (_MSC_VER < 1300) */
-#endif /* _MSC_VER */
 
 // A convenience class for using C arrays in STL vectors
 class myVertIds
@@ -146,7 +132,7 @@ vtkPolyData *vtkImageMRIBrainExtractor::GetBrainMesh()
 // This templated function executes the filter for any type of data.
 template <class IT>
 static void vtkBECalculateInitialParameters(
-  vtkImageData *inData, IT *inPtr, int inExt[6],
+  vtkImageData *inData, IT *vtkNotUsed(inPtr), int inExt[6],
   double &T2, double &T98, double &TH,
   double &Tm, double COG[3], double &R)
 {
@@ -228,13 +214,8 @@ static void vtkBECalculateInitialParameters(
   double totalMass = 0.0;
   double mass;
 
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
-  float *spacing = inData->GetSpacing();
-  float *origin = inData->GetOrigin();
-#else
   double *spacing = inData->GetSpacing();
   double *origin = inData->GetOrigin();
-#endif
 
   tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
 
@@ -411,18 +392,14 @@ template <class IT, class OT>
 void vtkImageMRIBrainExtractorExecute(
   vtkImageMRIBrainExtractor *self,
   vtkImageData *inData, vtkImageData *outData,
-  int outExt[6], int id,
-  IT *inPtr, OT *outPtr)
+  int outExt[6], int vtkNotUsed(id),
+  IT *inPtr, OT *vtkNotUsed(outPtr))
 {
   double T2, T98, TH, Tm;
   double COG[3], R;
 
   int extent[6];
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
-  float origin[3], spacing[3];
-#else
   double origin[3], spacing[3];
-#endif
   inData->GetExtent(extent);
   inData->GetSpacing(spacing);
   inData->GetOrigin(origin);
@@ -487,11 +464,7 @@ void vtkImageMRIBrainExtractorExecute(
   d2 = self->GetD2();
 
   // Find and store neighbours
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
-  float point[3];
-#else
   double point[3];
-#endif
   int cellIdx, cellId, nIdx, nId;
   vtkIdType *pointCells, npts, *pts;
   unsigned short nCells;
@@ -869,11 +842,9 @@ void vtkImageMRIBrainExtractorExecute(
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
   theStencil->SetInput( brainPolyData );
-#if (VTK_MAJOR_VERSION > 4)
   theStencil->SetOutputSpacing(spacing);
   theStencil->SetOutputOrigin(origin);
   theStencil->SetOutputWholeExtent(extent);
-#endif
 
   imageStencil->SetStencil( theStencil->GetOutput() );
   imageStencil->SetInput(inData);
@@ -914,18 +885,11 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
 
   switch (inData->GetScalarType())
     {
-#if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro7(vtkImageMRIBrainExtractorExecute, this, inData,
-                      outData, outExt, id,
-                      static_cast<VTK_TT *>(inPtr),
-                      static_cast<VTK_TT *>(outPtr));
-#else
     vtkTemplateMacro(
       vtkImageMRIBrainExtractorExecute(this, inData,
                                        outData, outExt, id,
                                        static_cast<VTK_TT *>(inPtr),
                                        static_cast<VTK_TT *>(outPtr)));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;
