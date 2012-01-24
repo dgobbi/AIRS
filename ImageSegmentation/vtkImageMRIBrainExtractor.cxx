@@ -413,7 +413,7 @@ void vtkImageMRIBrainExtractorExecute(
   std::vector<double> Id2;
   double value, d;
   double direction[3];
-  double end[3], start[3];
+  int end[3], start[3];
   double fend[3], fstart[3];
   myPoint newtarget;
   double location[3];
@@ -564,7 +564,7 @@ void vtkImageMRIBrainExtractorExecute(
         target = *ptIter;
         thisPointNeighbourIds = *nIter;
 
-        nNeighbours = (int)thisPointNeighbourIds.size();
+        nNeighbours = static_cast<int>(thisPointNeighbourIds.size());
 
         this_suml2 = 0.0;
         for (neighbourIdIter = thisPointNeighbourIds.begin();
@@ -577,7 +577,7 @@ void vtkImageMRIBrainExtractorExecute(
 
         suml2 += this_suml2/nNeighbours;
         }
-      l2 = suml2/(double)nPoints;
+      l2 = suml2/static_cast<double>(nPoints);
       l = sqrt(l2);
       u3multiplier = 0.05*l; // just calc this when l changes
       }
@@ -596,7 +596,7 @@ void vtkImageMRIBrainExtractorExecute(
       // reset the normal and average location of our neighbours
       n_hat[0] = n_hat[1] = n_hat[2] = 0.0;
       temp2[0] = temp2[1] = temp2[2] = 0.0;
-      nNeighbours = (int)thisPointNeighbourIds.size();
+      nNeighbours = static_cast<int>(thisPointNeighbourIds.size());
 
       //Normal
       // loop over each neighour's vertex ids
@@ -701,34 +701,34 @@ void vtkImageMRIBrainExtractorExecute(
       fend[2] = fstart[2] + (d1-1.0)*direction[2];
 
       //Change to voxel coordinates
-      start[0] = (fstart[0]-origin[0])/spacing[0] + 0.5;
-      start[1] = (fstart[1]-origin[1])/spacing[1] + 0.5;
-      start[2] = (fstart[2]-origin[2])/spacing[2] + 0.5;
+      location[0] = (fstart[0]-origin[0])/spacing[0];
+      location[1] = (fstart[1]-origin[1])/spacing[1];
+      location[2] = (fstart[2]-origin[2])/spacing[2];
 
-      end[0] = (fend[0]-origin[0])/spacing[0] + 0.5;
-      end[1] = (fend[1]-origin[1])/spacing[1] + 0.5;
-      end[2] = (fend[2]-origin[2])/spacing[2] + 0.5;
+      start[0] = static_cast<int>(location[0] + 0.5);
+      start[1] = static_cast<int>(location[1] + 0.5);
+      start[2] = static_cast<int>(location[2] + 0.5);
+
+      end[0] = static_cast<int>((fend[0]-origin[0])/spacing[0] + 0.5);
+      end[1] = static_cast<int>((fend[1]-origin[1])/spacing[1] + 0.5);
+      end[2] = static_cast<int>((fend[2]-origin[2])/spacing[2] + 0.5);
 
       // If the search remains inside the volume, continue.
-      if (extent[0] <= (int)start[0] && (int)start[0] <= extent[1] &&
-          extent[2] <= (int)start[1] && (int)start[1] <= extent[3] &&
-          extent[4] <= (int)start[2] && (int)start[2] <= extent[5] &&
-          extent[0] <= (int)end[0]   && (int)end[0] <= extent[1] &&
-          extent[2] <= (int)end[1]   && (int)end[1] <= extent[3] &&
-          extent[4] <= (int)end[2]   && (int)end[2] <= extent[5])
+      if (extent[0] <= start[0] && start[0] <= extent[1] &&
+          extent[2] <= start[1] && start[1] <= extent[3] &&
+          extent[4] <= start[2] && start[2] <= extent[5] &&
+          extent[0] <= end[0]   && end[0] <= extent[1] &&
+          extent[2] <= end[1]   && end[1] <= extent[3] &&
+          extent[4] <= end[2]   && end[2] <= extent[5])
         {
         Imin = Tm;
         Imax = TH;
 
-        location[0] = start[0];
-        location[1] = start[1];
-        location[2] = start[2];
+        idx = (start[0]*incs[0]+
+               start[1]*incs[1]+
+               start[2]*incs[2]);
 
-        idx = ((int)location[0]*incs[0]+
-               (int)location[1]*incs[1]+
-               (int)location[2]*incs[2]);
-
-        value = (double)inPtr[idx];
+        value = static_cast<double>(inPtr[idx]);
 
         Imin = std::min(Imin, value);
         Imax = std::max(Imax, value);
@@ -745,10 +745,10 @@ void vtkImageMRIBrainExtractorExecute(
           location[1] += incY;
           location[2] += incZ;
 
-          idx = ((int)location[0]*incs[0]+
-                 (int)location[1]*incs[1]+
-                 (int)location[2]*incs[2]);
-          value = (double)inPtr[idx]; // here's the stall
+          idx = (static_cast<int>(location[0] + 0.5)*incs[0]+
+                 static_cast<int>(location[1] + 0.5)*incs[1]+
+                 static_cast<int>(location[2] + 0.5)*incs[2]);
+          value = static_cast<double>(inPtr[idx]); // here's the stall
 
           // Min search up to d1
           Imin = std::min(Imin, value);
