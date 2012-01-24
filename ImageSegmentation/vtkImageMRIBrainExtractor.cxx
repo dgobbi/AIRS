@@ -9,7 +9,7 @@ conditions are met:
 1) Redistribution of the source code, in verbatim or modified
    form, must retain the above copyright notice, this license,
    the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.  
+   license and/or the following disclaimer.
 
 2) Redistribution in binary form must include the above copyright
    notice, a copy of this license and the following disclaimer
@@ -114,9 +114,9 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
   this->brainMesh = vtkPolyData::New();
   this->OriginalPoints = vtkPoints::New();
   // Defaults
-  this->BT = 0.5; 
+  this->BT = 0.5;
   this->NumberOfIterations = 1000;
-  this->NumberOfTessellations = 4; 
+  this->NumberOfTessellations = 4;
   this->D1 = 20.0; //mm
   this->D2 = 10.0; //mm
   this->RMin = 3.0; //mm
@@ -132,22 +132,23 @@ vtkImageMRIBrainExtractor::~vtkImageMRIBrainExtractor()
 
 //----------------------------------------------------------------------------
 void vtkImageMRIBrainExtractor::SetBrainMesh(vtkPolyData *mesh)
-{ 
+{
   this->brainMesh->DeepCopy(mesh);
 }
 
 //----------------------------------------------------------------------------
 vtkPolyData *vtkImageMRIBrainExtractor::GetBrainMesh()
-{ 
+{
   return (vtkPolyData *)(this->brainMesh);
 }
 
 // Description:
 // This templated function executes the filter for any type of data.
 template <class IT>
-static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int inExt[6], 
-					    double &T2, double &T98, double &TH, 
-					    double &Tm, double COG[3], double &R)
+static void vtkBECalculateInitialParameters(
+  vtkImageData *inData, IT *inPtr, int inExt[6],
+  double &T2, double &T98, double &TH,
+  double &Tm, double COG[3], double &R)
 {
   double ScalarTypeMin, ScalarTypeMax;
   int lowerThreshold, upperThreshold;
@@ -166,7 +167,9 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 
   // initialize the histogram
   for (histIter = hist.begin(); histIter != hist.end(); histIter++)
-    *histIter = 0; 
+    {
+    *histIter = 0;
+    }
 
   // accumulate histogram bins
   voxelCount = 0;
@@ -177,15 +180,14 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
     for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
       {
       for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
-	{
-	idx = (int)((double)*tmpPtr-ScalarTypeMin);
-	sum = hist[idx];
-	hist[idx] = sum+1;
-	voxelCount++; tmpPtr++;
-	}
+        {
+        idx = (int)((double)*tmpPtr-ScalarTypeMin);
+        sum = hist[idx];
+        hist[idx] = sum+1;
+        voxelCount++; tmpPtr++;
+        }
       }
     }
-  
 
   lowerThreshold = int(0.02*voxelCount);
   upperThreshold = int(0.98*voxelCount);
@@ -213,27 +215,27 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
     i++;
     }
 
-  TH = T2 + (0.10*(T98-T2));  
+  TH = T2 + (0.10*(T98-T2));
 
 
   //------------------------
   int count;
   double voxelVolume, totalVolume;
-  
+
   double XMoment = 0.0;
   double YMoment = 0.0;
   double ZMoment = 0.0;
   double totalMass = 0.0;
   double mass;
 
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
   float *spacing = inData->GetSpacing();
   float *origin = inData->GetOrigin();
 #else
   double *spacing = inData->GetSpacing();
   double *origin = inData->GetOrigin();
 #endif
-  
+
   tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
 
   count = 0;
@@ -242,22 +244,22 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
     for (idx1 = inExt[2]; idx1 <= inExt[3]; idx1++)
       {
       for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
-	{
-	if (*tmpPtr > TH) 
-	  {
-	  // Limit our mass so it's not an outliner value
-	  mass = std::min((double)*tmpPtr, T98);
-	  XMoment += mass*idx0;
-	  YMoment += mass*idx1;
-	  ZMoment += mass*idx2;
-	  totalMass += mass;
-	  count += 1;
-	  }
-	tmpPtr++;
-	}
+        {
+        if (*tmpPtr > TH)
+          {
+          // Limit our mass so it's not an outliner value
+          mass = std::min((double)*tmpPtr, T98);
+          XMoment += mass*idx0;
+          YMoment += mass*idx1;
+          ZMoment += mass*idx2;
+          totalMass += mass;
+          count += 1;
+          }
+        tmpPtr++;
+        }
       }
     }
-  
+
   COG[0] = ((XMoment / totalMass) * spacing[0]) + origin[0];
   COG[1] = ((YMoment / totalMass) * spacing[1]) + origin[1];
   COG[2] = ((ZMoment / totalMass) * spacing[2]) + origin[2];
@@ -274,7 +276,6 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
 
   tmpPtr = (IT *)inData->GetScalarPointerForExtent(inExt);
 
-  
   double R2;
   R2 = pow(R,2);
 
@@ -285,21 +286,21 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
       {
       position[1] = (idx1*spacing[1])+origin[1];
       for (idx0 = inExt[0]; idx0 <= inExt[1]; idx0++)
-	{
-	if (T2 < *tmpPtr && *tmpPtr < T98) 
-	  {
-	  position[0] = (idx0*spacing[0])+origin[0];
+        {
+        if (T2 < *tmpPtr && *tmpPtr < T98)
+          {
+          position[0] = (idx0*spacing[0])+origin[0];
 
-	  distance2 = vtkMath::Distance2BetweenPoints(position, COG);
-		 
-	  // Are we within R?
-	  if (distance2 < R2)
-	    {
-	    inContainer.push_back( *tmpPtr );
-	    }
-	  }
-	tmpPtr++;
-	}
+          distance2 = vtkMath::Distance2BetweenPoints(position, COG);
+
+          // Are we within R?
+          if (distance2 < R2)
+            {
+            inContainer.push_back( *tmpPtr );
+            }
+          }
+        tmpPtr++;
+        }
       }
     }
 
@@ -309,18 +310,23 @@ static void vtkBECalculateInitialParameters(vtkImageData *inData, IT *inPtr, int
   // Tm is the median value of the voxel within R of COG and < T
   // it's odd
   if ( size%2 )
+    {
     Tm = inContainer[ size/2 ];
-  // it's even - average 
+    }
+  // it's even - average
   else
+    {
     Tm = (double)((inContainer[size/2-1]+inContainer[size/2])/2.0);
+    }
 
   inContainer.clear();
 }
 
 // Description:
-static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
-				      vtkPolyData *brainPolyData, 
-				      vtkIdListCollection *pointNeighbourList)
+static void vtkBEBuildAndLinkPolyData(
+  double COG[3], double R, int Nsubs,
+  vtkPolyData *brainPolyData,
+  vtkIdListCollection *pointNeighbourList)
 {
   int nPoints, ptId, cellIdx, cellId, ptIdx2, ptId2;
   vtkIdType *pointCells, npts, *pts;
@@ -335,7 +341,8 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
   icosahedron->GetOutput()->Update();
 
   // Subdivide each triangle into 4.
-  vtkLinearSubdivisionFilter *subdivideSphere = vtkLinearSubdivisionFilter::New();
+  vtkLinearSubdivisionFilter *subdivideSphere =
+    vtkLinearSubdivisionFilter::New();
   subdivideSphere->SetInput(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
   subdivideSphere->GetOutput()->Update();
@@ -351,7 +358,7 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
   // Smooth the subdivided sphere
   vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
   smoothSphere->SetInput( subdivideSphere->GetOutput() );
-  smoothSphere->SetSource( constraintSphere->GetOutput() ); 
+  smoothSphere->SetSource( constraintSphere->GetOutput() );
   smoothSphere->GetOutput()->Update();
 
   // The brain sphere
@@ -368,7 +375,7 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
 
     // The cells attached to the target point
     brainPolyData->GetPointCells( ptId, nCells, pointCells );
-	  
+
     // The points inside the attached cells
     for (cellIdx = 0; cellIdx < nCells; cellIdx++)
       {
@@ -377,13 +384,13 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
 
       // If the point is not our target point, it's a neighbour
       for ( ptIdx2 = 0; ptIdx2 < npts ; ptIdx2++ )
-	{
-	ptId2 = pts[ptIdx2];
-	if (ptId != ptId2)
-	  {
-	  myNeighbours->InsertUniqueId(ptId2);
-	  }
-	}
+        {
+        ptId2 = pts[ptIdx2];
+        if (ptId != ptId2)
+          {
+          myNeighbours->InsertUniqueId(ptId2);
+          }
+        }
 
       }
 
@@ -401,17 +408,17 @@ static void vtkBEBuildAndLinkPolyData(double COG[3], double R, int Nsubs,
 //----------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
 template <class IT, class OT>
-void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
-				      vtkImageData *inData,
-				      vtkImageData *outData, 
-				      int outExt[6], int id,
-				      IT *inPtr, OT *outPtr)
+void vtkImageMRIBrainExtractorExecute(
+  vtkImageMRIBrainExtractor *self,
+  vtkImageData *inData, vtkImageData *outData,
+  int outExt[6], int id,
+  IT *inPtr, OT *outPtr)
 {
-  double T2, T98, TH, Tm; 
+  double T2, T98, TH, Tm;
   double COG[3], R;
 
   int extent[6];
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
   float origin[3], spacing[3];
 #else
   double origin[3], spacing[3];
@@ -421,7 +428,8 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   inData->GetOrigin(origin);
 
   // vtkImageData-based parameters
-  vtkBECalculateInitialParameters(inData, inPtr, outExt, T2, T98, TH, Tm, COG, R);
+  vtkBECalculateInitialParameters(
+    inData, inPtr, outExt, T2, T98, TH, Tm, COG, R);
 
   // vtkPolyData time
   double RSphere;
@@ -438,8 +446,9 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   ySize = extent[3] - extent[2];
   zSize = extent[5] - extent[4];
 
-  vtkBEBuildAndLinkPolyData(COG, RSphere, self->GetNumberOfTessellations(), 
-			    brainPolyData, pointNeighbourList);
+  vtkBEBuildAndLinkPolyData(
+    COG, RSphere, self->GetNumberOfTessellations(),
+    brainPolyData, pointNeighbourList);
 
   nPoints = brainPolyData->GetNumberOfPoints();
 
@@ -449,7 +458,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   std::vector<double> Id2;
   double value, d;
   double direction[3];
-  double end[3], start[3]; 
+  double end[3], start[3];
   double fend[3], fstart[3];
   myPoint newtarget;
   double location[3];
@@ -478,7 +487,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   d2 = self->GetD2();
 
   // Find and store neighbours
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3) 
+#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 3)
   float point[3];
 #else
   double point[3];
@@ -517,7 +526,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
     // The cells attached to the target point
     brainPolyData->GetPointCells( ptId, nCells, pointCells );
-	  
+
     // The points inside the attached cells
     for (cellIdx = 0; cellIdx < nCells; cellIdx++)
       {
@@ -526,20 +535,20 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
       // If the point is not our target point, it's a neighbour
       for (nIdx = 0; nIdx < npts ; nIdx++ )
-	{
-	nId = pts[nIdx];
-	vIds[nIdx] = nId;
+        {
+        nId = pts[nIdx];
+        vIds[nIdx] = nId;
 
-	if (ptId != nId)
-	  {
-	  if (std::find( thisPointNeighbourIds.begin(),
-			 thisPointNeighbourIds.end(),
-			 nId) == thisPointNeighbourIds.end()) // not found
-	    {
-	    thisPointNeighbourIds.push_back(nId);
-	    }
-	  }
-	}
+        if (ptId != nId)
+          {
+          if (std::find( thisPointNeighbourIds.begin(),
+                         thisPointNeighbourIds.end(),
+                         nId) == thisPointNeighbourIds.end()) // not found
+            {
+            thisPointNeighbourIds.push_back(nId);
+            }
+          }
+        }
       thisPointNeighbourVertIds.push_back(vIds);
       }
     pointNeighbourIds[ptId] = thisPointNeighbourIds;
@@ -558,7 +567,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
   double u3multiplier;
 
   // avoid compiler warnings
-  Tl = l = l2 = Imin = Imax = 0.0; 
+  Tl = l = l2 = Imin = Imax = 0.0;
   incX = incY = incZ = 0.0;
   nNeighbours = 0;
   u3multiplier = 1.0;
@@ -581,7 +590,9 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
   // Copy brain points as original points
   vtkPoints *originalPoints = self->GetOriginalPoints();//vtkPoints::New();
-  for (ptIter = brainPoints.begin(); ptIter != brainPoints.end(); ptIter++, nIter++)
+  for (ptIter = brainPoints.begin();
+       ptIter != brainPoints.end();
+       ptIter++, nIter++)
     {
     target = *ptIter;
     originalPoints->InsertNextPoint(target.xyz);
@@ -593,26 +604,28 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
     if (iteration%50 == 0)
       {
       suml2 = 0.0;
-	  
+
       nIter = pointNeighbourIds.begin();
-      for (ptIter = brainPoints.begin(); ptIter != brainPoints.end(); ptIter++, nIter++)
-	{
-	target = *ptIter;
-	thisPointNeighbourIds = *nIter;
+      for (ptIter = brainPoints.begin();
+           ptIter != brainPoints.end();
+           ptIter++, nIter++)
+        {
+        target = *ptIter;
+        thisPointNeighbourIds = *nIter;
 
-	nNeighbours = (int)thisPointNeighbourIds.size();
+        nNeighbours = (int)thisPointNeighbourIds.size();
 
-	this_suml2 = 0.0;
-	for (neighbourIdIter = thisPointNeighbourIds.begin(); 
-	     neighbourIdIter!=thisPointNeighbourIds.end(); neighbourIdIter++)
-	  {
-	  neighbour = brainPoints[*neighbourIdIter];
-	  this_suml2 += vtkMath::Distance2BetweenPoints(target.xyz, 
-							neighbour.xyz);
-	  }
+        this_suml2 = 0.0;
+        for (neighbourIdIter = thisPointNeighbourIds.begin();
+             neighbourIdIter!=thisPointNeighbourIds.end(); neighbourIdIter++)
+          {
+          neighbour = brainPoints[*neighbourIdIter];
+          this_suml2 += vtkMath::Distance2BetweenPoints(target.xyz,
+                                                        neighbour.xyz);
+          }
 
-	suml2 += this_suml2/nNeighbours;
-	}
+        suml2 += this_suml2/nNeighbours;
+        }
       l2 = suml2/(double)nPoints;
       l = sqrt(l2);
       u3multiplier = 0.05*l; // just calc this when l changes
@@ -622,7 +635,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
     vIter = pointNeighbourVertIds.begin();
     uIter = updatePoints.begin();
     for (ptIter = brainPoints.begin(); ptIter!=brainPoints.end();
-	 ptIter++, nIter++, vIter++, uIter++)
+         ptIter++, nIter++, vIter++, uIter++)
       {
       target = *ptIter;
       thisPointNeighbourIds = *nIter;
@@ -631,61 +644,61 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
       // reset the normal and average location of our neighbours
       n_hat[0] = n_hat[1] = n_hat[2] = 0.0;
       temp2[0] = temp2[1] = temp2[2] = 0.0;
-      nNeighbours = (int)thisPointNeighbourIds.size();  
+      nNeighbours = (int)thisPointNeighbourIds.size();
 
-      //Normal 
+      //Normal
       // loop over each neighour's vertex ids
       for( neighbourVertIdsIter =  thisPointNeighbourVertIds.begin();
-	   neighbourVertIdsIter != thisPointNeighbourVertIds.end();
-	   neighbourVertIdsIter++)
-	{
-	// 3 Ids that give us the location of our neighbours verts
-	vIds = *neighbourVertIdsIter; 
+           neighbourVertIdsIter != thisPointNeighbourVertIds.end();
+           neighbourVertIdsIter++)
+        {
+        // 3 Ids that give us the location of our neighbours verts
+        vIds = *neighbourVertIdsIter;
 
-	v0 = brainPoints[vIds[0]];
-	v1 = brainPoints[vIds[1]];
-	v2 = brainPoints[vIds[2]];
+        v0 = brainPoints[vIds[0]];
+        v1 = brainPoints[vIds[1]];
+        v2 = brainPoints[vIds[2]];
 
-	// Find the normal of our triangle.  We used vtkPolyData->GetPointCells
-	// to find our neighbours so we can be vtk-certain that v1
-	// is our target
-	temp0[0] = v2.xyz[0] - v1.xyz[0];
-	temp0[1] = v2.xyz[1] - v1.xyz[1];
-	temp0[2] = v2.xyz[2] - v1.xyz[2];
+        // Find the normal of our triangle.  We used vtkPolyData->GetPointCells
+        // to find our neighbours so we can be vtk-certain that v1
+        // is our target
+        temp0[0] = v2.xyz[0] - v1.xyz[0];
+        temp0[1] = v2.xyz[1] - v1.xyz[1];
+        temp0[2] = v2.xyz[2] - v1.xyz[2];
 
-	temp1[0] = v0.xyz[0] - v1.xyz[0];
-	temp1[1] = v0.xyz[1] - v1.xyz[1];
-	temp1[2] = v0.xyz[2] - v1.xyz[2];
+        temp1[0] = v0.xyz[0] - v1.xyz[0];
+        temp1[1] = v0.xyz[1] - v1.xyz[1];
+        temp1[2] = v0.xyz[2] - v1.xyz[2];
 
-	vtkMath::Cross(temp0, temp1, cross);
+        vtkMath::Cross(temp0, temp1, cross);
 
-	n_hat[0] += cross[0];
-	n_hat[1] += cross[1];
-	n_hat[2] += cross[2];
-	}
+        n_hat[0] += cross[0];
+        n_hat[1] += cross[1];
+        n_hat[2] += cross[2];
+        }
 
       vtkMath::Normalize(n_hat);
-	  
-      // Mean location
-      for (neighbourIdIter = thisPointNeighbourIds.begin(); 
-	   neighbourIdIter!=thisPointNeighbourIds.end(); 
-	   neighbourIdIter++)
-	{
-	neighbour = brainPoints[*neighbourIdIter];
-	temp2[0] += neighbour.xyz[0];
-	temp2[1] += neighbour.xyz[1];
-	temp2[2] += neighbour.xyz[2];
-	}
 
-      // s is a vector that takes target to the mean position of 
+      // Mean location
+      for (neighbourIdIter = thisPointNeighbourIds.begin();
+           neighbourIdIter!=thisPointNeighbourIds.end();
+           neighbourIdIter++)
+        {
+        neighbour = brainPoints[*neighbourIdIter];
+        temp2[0] += neighbour.xyz[0];
+        temp2[1] += neighbour.xyz[1];
+        temp2[2] += neighbour.xyz[2];
+        }
+
+      // s is a vector that takes target to the mean position of
       // it's neighbours
       s[0] = temp2[0]/nNeighbours - target.xyz[0];
       s[1] = temp2[1]/nNeighbours - target.xyz[1];
       s[2] = temp2[2]/nNeighbours - target.xyz[2];
- 
+
       // s is decomposed into a normal component s_n
       // and a tangential component s_t
-      dotp = vtkMath::Dot(s,n_hat); // this can be smarter, since n_hat is a unit v
+      dotp = vtkMath::Dot(s,n_hat);
       s_n[0] = dotp*n_hat[0];
       s_n[1] = dotp*n_hat[1];
       s_n[2] = dotp*n_hat[2];
@@ -704,7 +717,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
       // Update component 2: surface smothness control
 
       // the sigmoid function
-      //r = l2/(2*vtkMath::Norm(s_n)); 
+      //r = l2/(2*vtkMath::Norm(s_n));
       r = 2*vtkMath::Norm(s_n)/l2; // actually the inverse
 
       // the smothness fraction
@@ -746,72 +759,76 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
 
       // If the search remains inside the volume, continue.
       if (extent[0] <= (int)start[0] && (int)start[0] <= extent[1] &&
-	  extent[2] <= (int)start[1] && (int)start[1] <= extent[3] &&
-	  extent[4] <= (int)start[2] && (int)start[2] <= extent[5] &&
-	  extent[0] <= (int)end[0]   && (int)end[0] <= extent[1] &&
-	  extent[2] <= (int)end[1]   && (int)end[1] <= extent[3] &&
-	  extent[4] <= (int)end[2]   && (int)end[2] <= extent[5])
-	{
-	Imin = Tm;
-	Imax = TH;
+          extent[2] <= (int)start[1] && (int)start[1] <= extent[3] &&
+          extent[4] <= (int)start[2] && (int)start[2] <= extent[5] &&
+          extent[0] <= (int)end[0]   && (int)end[0] <= extent[1] &&
+          extent[2] <= (int)end[1]   && (int)end[1] <= extent[3] &&
+          extent[4] <= (int)end[2]   && (int)end[2] <= extent[5])
+        {
+        Imin = Tm;
+        Imax = TH;
 
-	location[0] = start[0];
-	location[1] = start[1];
-	location[2] = start[2];
+        location[0] = start[0];
+        location[1] = start[1];
+        location[2] = start[2];
 
-	idx = ((int)location[0]*incs[0]+
-	       (int)location[1]*incs[1]+
-	       (int)location[2]*incs[2]);
+        idx = ((int)location[0]*incs[0]+
+               (int)location[1]*incs[1]+
+               (int)location[2]*incs[2]);
 
-	value = (double)inPtr[idx];
+        value = (double)inPtr[idx];
 
-	Imin = std::min(Imin, value);
-	Imax = std::max(Imax, value);
+        Imin = std::min(Imin, value);
+        Imax = std::max(Imax, value);
 
-	incX = direction[0]/spacing[0];
-	incY = direction[1]/spacing[1];
-	incZ = direction[2]/spacing[2];
+        incX = direction[0]/spacing[0];
+        incY = direction[1]/spacing[1];
+        incZ = direction[2]/spacing[2];
 
-	d = 1.0;
-	// this loop causes alot of stalling on G4 PPCs.
-	while (d<d1)
-	  {
-	  location[0] += incX;
-	  location[1] += incY;
-	  location[2] += incZ;
+        d = 1.0;
+        // this loop causes alot of stalling on G4 PPCs.
+        while (d<d1)
+          {
+          location[0] += incX;
+          location[1] += incY;
+          location[2] += incZ;
 
-	  idx = ((int)location[0]*incs[0]+
-		 (int)location[1]*incs[1]+
-		 (int)location[2]*incs[2]);
-	  value = (double)inPtr[idx]; // here's the stall
+          idx = ((int)location[0]*incs[0]+
+                 (int)location[1]*incs[1]+
+                 (int)location[2]*incs[2]);
+          value = (double)inPtr[idx]; // here's the stall
 
-	  // Min search up to d1
-	  Imin = std::min(Imin, value);
+          // Min search up to d1
+          Imin = std::min(Imin, value);
 
-	  // Max search up to d2
-	  if (d<d2)
-	    Imax = std::max(Imax, value);
+          // Max search up to d2
+          if (d<d2)
+            Imax = std::max(Imax, value);
 
-	  d += 1.0; // Step by 1mm?
-	  }
+          d += 1.0; // Step by 1mm?
+          }
 
-	Imin = std::max(T2, Imin);
-	Imax = std::min(Tm, Imax);
+        Imin = std::max(T2, Imin);
+        Imax = std::min(Tm, Imax);
 
-	// The local background
-	Tl = (Imax-T2)*bt+T2; 
+        // The local background
+        Tl = (Imax-T2)*bt+T2;
 
-	// Decide which way u3 should go
-	if ((Imax-T2) > 0) 
-	  f3 = 2.0*(Imin-Tl)/(Imax-T2);
-	else
-	  f3 = 2.0*(Imin-Tl);
+        // Decide which way u3 should go
+        if ((Imax-T2) > 0)
+          {
+          f3 = 2.0*(Imin-Tl)/(Imax-T2);
+          }
+        else
+          {
+          f3 = 2.0*(Imin-Tl);
+          }
 
-	// NOTE: in the paper (eq. 13) this is s_n_hat, the wrong direction!
-	u3[0] = u3multiplier*f3*n_hat[0];
-	u3[1] = u3multiplier*f3*n_hat[1];
-	u3[2] = u3multiplier*f3*n_hat[2];
-	}
+        // NOTE: in the paper (eq. 13) this is s_n_hat, the wrong direction!
+        u3[0] = u3multiplier*f3*n_hat[0];
+        u3[1] = u3multiplier*f3*n_hat[1];
+        u3[2] = u3multiplier*f3*n_hat[2];
+        }
 
       //  The final update vector
       u[0] = u1[0] + u2[0] + u3[0];
@@ -823,7 +840,7 @@ void vtkImageMRIBrainExtractorExecute(vtkImageMRIBrainExtractor *self,
       temp0[1] = target.xyz[1] + u[1];
       temp0[2] = target.xyz[2] + u[2];
 
-      *uIter = temp0;	  
+      *uIter = temp0;
       }
     // we've got new points
     std::copy(updatePoints.begin(), updatePoints.end(), brainPoints.begin());
@@ -887,8 +904,8 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
   int id = 0; // not multi-threaded
 
   if (inData->GetScalarType() != outData->GetScalarType())
-    { 
-    vtkErrorMacro("Execute: Output ScalarType " 
+    {
+    vtkErrorMacro("Execute: Output ScalarType "
                   << outData->GetScalarType()
                   << ", must Input ScalarType "
                   << inData->GetScalarType());
@@ -899,15 +916,15 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
     {
 #if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro7(vtkImageMRIBrainExtractorExecute, this, inData,
-                      outData, outExt, id, 
+                      outData, outExt, id,
                       static_cast<VTK_TT *>(inPtr),
                       static_cast<VTK_TT *>(outPtr));
 #else
     vtkTemplateMacro(
       vtkImageMRIBrainExtractorExecute(this, inData,
-				       outData, outExt, id, 
-				       static_cast<VTK_TT *>(inPtr),
-				       static_cast<VTK_TT *>(outPtr)));
+                                       outData, outExt, id,
+                                       static_cast<VTK_TT *>(inPtr),
+                                       static_cast<VTK_TT *>(outPtr)));
 #endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");

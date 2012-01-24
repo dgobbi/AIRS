@@ -9,7 +9,7 @@ conditions are met:
 1) Redistribution of the source code, in verbatim or modified
    form, must retain the above copyright notice, this license,
    the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.  
+   license and/or the following disclaimer.
 
 2) Redistribution in binary form must include the above copyright
    notice, a copy of this license and the following disclaimer
@@ -31,14 +31,14 @@ THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
 =========================================================================*/
-// .NAME vtkImageMRIBrainExtractor - Extract brain from non-brain in an MRI image.
+// .NAME vtkImageMRIBrainExtractor - Create brain mask for an MR image.
 // .SECTION Description
-// vtkImageMRIBrainExtractor uses a heuristic approach(1) to segmenting brain 
-// from non-brain in T1-weighted MRI images.  Use the GetOutput method to get 
-// the segmented (brain only) vtkImageData and the GetBrainMesh to get the 
+// vtkImageMRIBrainExtractor uses a heuristic approach(1) to segment brain
+// from non-brain in T1-weighted MRI images.  Use the GetOutput method to get
+// the segmented (brain only) vtkImageData and the GetBrainMesh to get the
 // vtkPolyData outlining the brain surface.
 //
-// 1. Smith, S.M., "Fast Robust Automated Brain Extraction," 
+// 1. Smith, S.M., "Fast Robust Automated Brain Extraction,"
 // Human Brain Mapping, 17:143-155, 2002.
 
 
@@ -61,93 +61,60 @@ public:
   void SetBrainMesh(vtkPolyData *mesh);
 
   // Description:
-  // BT (0.0, 1.0) is a fractional constant that controls the fit of the brain surface 
-  // segmentation.  0.5 is the default. 
+  // BT (0.0, 1.0) is a fractional constant that controls the fit of the
+  // brain surface segmentation.  0.5 is the default.
   vtkSetMacro(BT, double);
-
-  // Description:
-  // BT (0.0, 1.0) is a fractional constant that controls the fit of the brain surface 
-  // segmentation.  0.5 is the default. 
   vtkGetMacro(BT, double);
 
   // Description:
-  // D1 is the distance (mm) that is searched for minimum intensity values during 
-  // segmentation.  Typically D1 = 2*D2. Default is 20mm.
+  // D1 is the distance (mm) that is searched for minimum intensity values
+  // during segmentation.  Typically D1 = 2*D2. Default is 20mm.
   vtkSetMacro(D1, double);
-
-  // Description:
-  // D1 is the distance (mm) that is searched for minimum intensity values during 
-  // segmentation.  Typically D1 = 2*D2. Default is 20mm.
   vtkGetMacro(D1, double);
 
   // Description:
-  // D2 is the distance (mm) that is searched for maximum intensity values during 
-  // segmentation.  Typically D2 = 0.5*D1. Default is 10mm.
+  // D2 is the distance (mm) that is searched for maximum intensity values
+  // during segmentation.  Typically D2 = 0.5*D1. Default is 10mm.
   vtkSetMacro(D2, double);
-
-  // Description:
-  // D2 is the distance (mm) that is searched for maximum intensity values during 
-  // segmentation.  Typically D2 = 0.5*D1. Default is 10mm.
   vtkGetMacro(D2, double);
 
   // Description:
   // Number of iterations used to deform the brain mesh. Default is 1000.
   vtkSetMacro(NumberOfIterations, int);
-
-  // Description:
-  // Number of iterations used to deform the brain mesh. Default is 1000.
   vtkGetMacro(NumberOfIterations, int);
 
   // Description:
-  // Number of tessellations of an icosahedron (20-sided polygon).  The default is 4
-  // which gives 2562 points over the surface of the brain.
+  // Number of tessellations of an icosahedron (20-sided polygon).  The
+  // default is 4, which gives 2562 points over the surface of the brain.
   vtkSetMacro(NumberOfTessellations, int);
-
-  // Description:
-  // Number of tessellations of an icosahedron (20-sided polygon).  The default is 4
-  // which gives 2562 points over the surface of the brain.
   vtkGetMacro(NumberOfTessellations, int);
 
   // Description:
-  // The minimum acceptable radius of curvature.  A local radius of curvature below this
-  // value will cause increased smoothing. The default is 3.0.
+  // The minimum acceptable radius of curvature.  A local radius of
+  // curvature below this value will cause increased smoothing. The
+  // default is 3.0.
   vtkSetMacro(RMin, double);
-
-  // Description:
-  // The minimum acceptable radius of curvature.  A local radius of curvature below this
-  // value will cause increased smoothing. The default is 3.0.
   vtkGetMacro(RMin, double);
 
   // Description:
-  // The maximum acceptable radius of curvature.  A local radius of curvautre above RMin
-  // and below RMax is smoothed acording to a non-linear function that decreases from 
-  // RMin to RMax.  A local radius of curvature about RMax will result in no smoothing. 
+  // The maximum acceptable radius of curvature.  A local radius of
+  // curvature above RMin and below RMax is smoothed according to a
+  // non-linear function that decreases from RMin to RMax.  A local
+  // radius of curvature about RMax will result in no smoothing.
   // The default is 10.0.
   vtkSetMacro(RMax, double);
-
-  // Description:
-  // The maximum acceptable radius of curvature.  A local radius of curvautre above RMin
-  // and below RMax is smoothed acording to a non-linear function that decreases from 
-  // RMin to RMax.  A local radius of curvature about RMax will result in no smoothing. 
-  // The default is 10.0.
   vtkGetMacro(RMax, double);
 
   // Description:
   // The points on the BrainMesh after deformation
   vtkSetObjectMacro(BrainPoints, vtkPoints);
-
-  // Description:
-  // The points on the BrainMesh after deformation
   vtkGetObjectMacro(BrainPoints, vtkPoints);
 
   // Description:
   // The points on the BrainMesh before deformation
   vtkGetObjectMacro(OriginalPoints, vtkPoints);
-
-  // Description:
-  // The points on the BrainMesh before deformation
   vtkSetObjectMacro(OriginalPoints, vtkPoints);
-  
+
 protected:
   vtkImageMRIBrainExtractor();
   ~vtkImageMRIBrainExtractor();
