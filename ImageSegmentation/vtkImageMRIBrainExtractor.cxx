@@ -209,7 +209,7 @@ static void vtkBECalculateInitialParameters(
         double mass = static_cast<double>(*tmpPtr);
         if (mass > TH)
           {
-          // Limit our mass so it's not an outliner value
+          // Limit our mass so it's not an outlier value
           mass = ((mass <= T98) ? mass : T98);
           XMoment += mass*idx0;
           YMoment += mass*idx1;
@@ -239,6 +239,7 @@ static void vtkBECalculateInitialParameters(
 
   R = pow( (3*totalVolume)/(4*vtkMath::DoublePi()) , 1.0/3.0 );
 
+  // Compute the median value within a sphere of radius R
   tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(inExt));
 
   std::vector<double> inContainer;
@@ -270,8 +271,15 @@ static void vtkBECalculateInitialParameters(
       }
     }
 
+  int size = static_cast<int>(inContainer.size());
+  if (size == 0)
+    {
+    vtkGenericWarningMacro("In vtkMRIBrainExtractor, can't compute median.");
+    Tm = 0.o;
+    return;
+    }
+
   std::sort(inContainer.begin(), inContainer.end());
-  int size = inContainer.size();
 
   // Tm is the median value of the voxel within R of COG and < T
   // it's odd
@@ -815,7 +823,7 @@ void vtkImageMRIBrainExtractorExecute(
   cleanPoly->SetInput( brainPolyData );
   cleanPoly->GetOutput()->Update();
 
-  brainPolyData->DeepCopy( cleanPoly->GetOutput() );
+  brainPolyData->ShallowCopy( cleanPoly->GetOutput() );
   self->SetBrainMesh( brainPolyData );
 
   //Use the brain mesh to stencil out the non-brain
@@ -832,7 +840,7 @@ void vtkImageMRIBrainExtractorExecute(
   imageStencil->SetBackgroundValue(T2);
   imageStencil->GetOutput()->Update();
 
-  outData->DeepCopy(imageStencil->GetOutput());
+  outData->ShallowCopy(imageStencil->GetOutput());
 
   //Clean up
   theStencil->Delete();
