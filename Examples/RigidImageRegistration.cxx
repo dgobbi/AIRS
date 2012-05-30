@@ -27,7 +27,7 @@ Module:    RigidImageRegistration.cxx
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
-#include <vtkImageFastBlur.h>
+#include <vtkImageReslice.h>
 #include <vtkImageSincInterpolator.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -37,6 +37,7 @@ Module:    RigidImageRegistration.cxx
 
 #include <vtkMINCImageReader.h>
 #include <vtkDICOMImageReader.h>
+#include <vtkMNITransformWriter.h>
 
 #include <vtkRenderer.h>
 #include <vtkCamera.h>
@@ -168,14 +169,59 @@ void SetViewFromMatrix(
 
 };
 
+void printUsage(const char *cmdname)
+{
+    cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm source.mnc target.mnc"
+         << endl;
+    cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir1/ dicomdir2/"
+         << endl;
+}
+
 int main (int argc, char *argv[])
 {
   if (argc < 3)
     {
-    cout << "Usage 1: " << argv[0] << " source.mnc target.mnc" << endl;
-    cout << "Usage 2: " << argv[0] << " dicomdir1/ dicomdir2/" << endl;
+    printUsage(argv[0]);
     return EXIT_FAILURE;
     }
+
+  // -------------------------------------------------------
+  // the files
+  int argi = 1;
+  const char *xfmfile = NULL;
+  const char *sourcefile;
+  const char *targetfile;
+  bool display = true;
+
+  if (strcmp(argv[argi], "--nodisplay") == 0)
+    {
+    display = false;
+    argi++;
+    }
+  if (strcmp(argv[argi], "-o") == 0)
+    {
+    if (argc <= argi + 1)
+      {
+      cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
+      return EXIT_FAILURE;
+      }
+    xfmfile = argv[argi + 1];
+    argi += 2;
+    size_t m = strlen(xfmfile);
+    if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
+      {
+      cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
+      return EXIT_FAILURE;
+      }
+    }
+
+  if (argc <= argi + 1)
+    {
+    printUsage(argv[0]);
+    return EXIT_FAILURE;
+    }
+  sourcefile = argv[argi];
+  targetfile = argv[argi + 1];
 
   // -------------------------------------------------------
   // parameters for registration
@@ -195,14 +241,14 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> sourceMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  n = strlen(argv[1]);
-  if (n > 4 && strcmp(&argv[1][n-4], ".mnc") == 0)
+  n = strlen(sourcefile);
+  if (n > 4 && strcmp(&sourcefile[n-4], ".mnc") == 0)
     {
-    ReadMINCImage(sourceImage, sourceMatrix, argv[1]);
+    ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
     }
   else
     {
-    ReadDICOMImage(sourceImage, sourceMatrix, argv[1]);
+    ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
     }
 
   // Read the target image
@@ -210,14 +256,14 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  n = strlen(argv[2]);
-  if (n > 4 && strcmp(&argv[2][n-4], ".mnc") == 0)
+  n = strlen(targetfile);
+  if (n > 4 && strcmp(&targetfile[n-4], ".mnc") == 0)
     {
-    ReadMINCImage(targetImage, targetMatrix, argv[2]);
+    ReadMINCImage(targetImage, targetMatrix, targetfile);
     }
   else
     {
-    ReadDICOMImage(targetImage, targetMatrix, argv[2]);
+    ReadDICOMImage(targetImage, targetMatrix, targetfile);
     }
 
   // -------------------------------------------------------
@@ -232,7 +278,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkInteractorStyleImage> istyle =
     vtkSmartPointer<vtkInteractorStyleImage>::New();
 
-  istyle->SetInteractionModeToImage3D();
+  istyle->SetInteractionModeToImageSlicing();
   interactor->SetInteractorStyle(istyle);
   renderWindow->SetInteractor(interactor);
   renderWindow->AddRenderer(renderer);
@@ -309,7 +355,10 @@ int main (int argc, char *argv[])
   SetViewFromMatrix(renderer, istyle, targetMatrix);
   renderer->ResetCameraClippingRange();
 
-  renderWindow->Render();
+  if (display)
+    {
+    renderWindow->Render();
+    }
 
   // -------------------------------------------------------
   // prepare for registration
@@ -341,10 +390,10 @@ int main (int argc, char *argv[])
   sourceBlurKernel->SetWindowFunctionToBlackman();
 
   // reduce the source resolution
-  vtkSmartPointer<vtkImageFastBlur> sourceBlur =
-    vtkSmartPointer<vtkImageFastBlur>::New();
+  vtkSmartPointer<vtkImageReslice> sourceBlur =
+    vtkSmartPointer<vtkImageReslice>::New();
   sourceBlur->SetInput(sourceImage);
-  sourceBlur->SetResizeMethodToOutputSpacing();
+  //sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->InterpolateOn();
 
@@ -354,10 +403,10 @@ int main (int argc, char *argv[])
   targetBlurKernel->SetWindowFunctionToBlackman();
 
   // keep target at full resolution
-  vtkSmartPointer<vtkImageFastBlur> targetBlur =
-    vtkSmartPointer<vtkImageFastBlur>::New();
+  vtkSmartPointer<vtkImageReslice> targetBlur =
+    vtkSmartPointer<vtkImageReslice>::New();
   targetBlur->SetInput(targetImage);
-  targetBlur->SetResizeMethodToOutputSpacing();
+  //targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->InterpolateOn();
 
@@ -475,7 +524,10 @@ int main (int argc, char *argv[])
       vtkMatrix4x4::Multiply4x4(
         targetMatrix,registration->GetTransform()->GetMatrix(),sourceMatrix);
       sourceMatrix->Modified();
-      interactor->Render();
+      if (display)
+        {
+        interactor->Render();
+        }
       }
 
     double newTime = timer->GetUniversalTime();
@@ -497,6 +549,17 @@ int main (int argc, char *argv[])
     }
 
   cout << "registration took " << (lastTime - startTime) << "s" << endl;
+
+  // -------------------------------------------------------
+  // write the output matrix
+  if (xfmfile)
+    {
+    vtkSmartPointer<vtkMNITransformWriter> writer =
+      vtkSmartPointer<vtkMNITransformWriter>::New();
+    writer->SetFileName(xfmfile);
+    writer->SetTransform(registration->GetTransform());
+    writer->Update();
+    }
 
   // -------------------------------------------------------
   // allow user to interact
