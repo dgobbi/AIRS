@@ -580,7 +580,7 @@ void vtkImageFloodFillExecute(vtkImageFloodFill *self,
 
   // create the seed stack
   // stack has methods empty(), top(), push(), and pop()
-  vtkstd::stack<vtkFloodFillSeed> seedStack;
+  std::stack<vtkFloodFillSeed> seedStack;
 
   // initialize with the seeds provided by the user
   vtkPoints *points = self->GetSeedPoints();
