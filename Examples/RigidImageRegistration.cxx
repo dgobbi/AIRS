@@ -27,7 +27,7 @@ Module:    RigidImageRegistration.cxx
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
-#include <vtkImageReslice.h>
+#include <vtkImageResize.h>
 #include <vtkImageSincInterpolator.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -390,10 +390,10 @@ int main (int argc, char *argv[])
   sourceBlurKernel->SetWindowFunctionToBlackman();
 
   // reduce the source resolution
-  vtkSmartPointer<vtkImageReslice> sourceBlur =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkSmartPointer<vtkImageResize> sourceBlur =
+    vtkSmartPointer<vtkImageResize>::New();
   sourceBlur->SetInput(sourceImage);
-  //sourceBlur->SetResizeMethodToOutputSpacing();
+  sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->InterpolateOn();
 
@@ -403,10 +403,10 @@ int main (int argc, char *argv[])
   targetBlurKernel->SetWindowFunctionToBlackman();
 
   // keep target at full resolution
-  vtkSmartPointer<vtkImageReslice> targetBlur =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkSmartPointer<vtkImageResize> targetBlur =
+    vtkSmartPointer<vtkImageResize>::New();
   targetBlur->SetInput(targetImage);
-  //targetBlur->SetResizeMethodToOutputSpacing();
+  targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->InterpolateOn();
 
