@@ -563,13 +563,25 @@ int main (int argc, char *argv[])
   // do the subtraction
   double iScale =
     (targetRange[1] - targetRange[0])/(sourceRange[1] - sourceRange[0]);
-  double iShift = targetRange[0]/iScale - sourceRange[0];
+  double iShift = 0.0; //targetRange[0]/iScale - sourceRange[0];
+
+  vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
+    vtkSmartPointer<vtkImageSincInterpolator>::New();
+  sincInterpolator->SetWindowFunctionToBlackman();
+
+  vtkSmartPointer<vtkImageReslice> resample =
+    vtkSmartPointer<vtkImageReslice>::New();
+  resample->SetInput(sourceImage);
+  resample->SetInformationInput(targetImage);
+  resample->SetInterpolator(sincInterpolator);
+  resample->SetResliceTransform(registration->GetTransform()->GetInverse());
+  resample->Update();
 
   vtkSmartPointer<vtkImageShiftScale> shiftScale =
     vtkSmartPointer<vtkImageShiftScale>::New();
   shiftScale->SetShift(iShift);
   shiftScale->SetScale(iScale);
-  shiftScale->SetInput(sourceImage);
+  shiftScale->SetInput(resample->GetOutput());
   shiftScale->ClampOverflowOn();
   shiftScale->Update();
 
