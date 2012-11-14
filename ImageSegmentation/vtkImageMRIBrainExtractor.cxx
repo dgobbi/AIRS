@@ -99,7 +99,6 @@ vtkStandardNewMacro(vtkImageMRIBrainExtractor);
 vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 {
   this->BrainMesh = vtkPolyData::New();
-  this->OriginalPoints = vtkPoints::New();
   // Defaults
   this->BT = 0.5;
   this->NumberOfIterations = 1000;
@@ -121,7 +120,6 @@ vtkImageMRIBrainExtractor::vtkImageMRIBrainExtractor()
 vtkImageMRIBrainExtractor::~vtkImageMRIBrainExtractor()
 {
   this->BrainMesh->Delete();
-  this->OriginalPoints->Delete();
 }
 
 //----------------------------------------------------------------------------
@@ -179,7 +177,7 @@ static void vtkBECalculateInitialParameters(
     }
 
   // compute thresholds
-  int histogramSum = 0;
+  vtkIdType histogramSum = 0;
 
   for (int bin = 0; bin < nBins; bin++)
     {
@@ -191,16 +189,13 @@ static void vtkBECalculateInitialParameters(
       {
       T2 = v;
       }
-    if (histogramSum <= upperThreshold)
+    else if (histogramSum <= upperThreshold)
       {
       T98 = v;
       }
     }
 
-  delete [] hist;
-
   TH = T2 + (0.10*(T98-T2));
-
 
   //------------------------
   double XMoment = 0.0;
@@ -255,64 +250,66 @@ static void vtkBECalculateInitialParameters(
   double voxelVolume = fabs(spacing[0]*spacing[1]*spacing[2]);
   double totalVolume = voxelVolume*count;
 
-  R = pow( (3*totalVolume)/(4*vtkMath::DoublePi()) , 1.0/3.0 );
+  R = pow( (3.0*totalVolume)/(4.0*vtkMath::Pi()), 1.0/3.0 );
 
   // Compute the median value within a sphere of radius R
   tmpPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(extent));
 
-  std::vector<double> inContainer;
+  // initialize the histogram
+  for (int j = 0; j < nBins; j++)
+    {
+    hist[j] = 0;
+    }
+  voxelCount = 0;
+
   double R2 = R*R;
-  double position[3];
   for (int idx2 = extent[4]; idx2 <= extent[5]; idx2++)
     {
-    position[2] = idx2*spacing[2] + origin[2];
+    double zz = idx2*spacing[2] + origin[2] - COG[2];
+    zz *= zz;
     for (int idx1 = extent[2]; idx1 <= extent[3]; idx1++)
       {
-      position[1] = idx1*spacing[1] + origin[1];
+      double yy = idx1*spacing[1] + origin[1] - COG[1];
+      yy = zz + yy*yy;
+      double xx = extent[0]*spacing[0] + origin[0] - COG[0];
       for (int idx0 = extent[0]; idx0 <= extent[1]; idx0++)
         {
         if (T2 < *tmpPtr && *tmpPtr < T98)
           {
-          position[0] = idx0*spacing[0] + origin[0];
-
-          double distance2 = vtkMath::Distance2BetweenPoints(position, COG);
+          double distance2 = yy + xx*xx;
 
           // Are we within R?
           if (distance2 < R2)
             {
-            inContainer.push_back( *tmpPtr );
+            hist[static_cast<int>(*tmpPtr - scalarTypeMin)] += 1;
+            voxelCount++;
             }
           }
         tmpPtr++;
+        xx += spacing[0];
         }
       tmpPtr += inIncY;
       }
     tmpPtr += inIncZ;
     }
 
-  int size = static_cast<int>(inContainer.size());
-  if (size == 0)
+  histogramSum = 0;
+  vtkIdType medianThreshold = voxelCount/2;
+  for (int bin = 0; bin < nBins; bin++)
     {
-    vtkGenericWarningMacro("In vtkMRIBrainExtractor, can't compute median.");
-    Tm = 0.0;
-    return;
+    int f = hist[bin];
+    histogramSum += f;
+
+    if (histogramSum > medianThreshold)
+      {
+      Tm = static_cast<double>(bin) -
+        (histogramSum - 0.5*voxelCount)/f +
+        scalarTypeMin;
+      break;
+      }
     }
 
-  std::sort(inContainer.begin(), inContainer.end());
-
-  // Tm is the median value of the voxel within R of COG and < T
-  // it's odd
-  if (size%2 == 1)
-    {
-    Tm = inContainer[size/2];
-    }
-  // it's even - average
-  else
-    {
-    Tm = 0.5*(inContainer[size/2-1] + inContainer[size/2]);
-    }
-
-  inContainer.clear();
+  delete [] hist;
 }
 
 // Description:
@@ -395,6 +392,73 @@ static void vtkBEBuildAndLinkPolyData(
   subdivideSphere->Delete();
   constraintSphere->Delete();
   smoothSphere->Delete();
+}
+
+//----------------------------------------------------------------------------
+void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
+  vtkPolyData *data, double cen[3])
+{
+  vtkPoints *points = data->GetPoints();
+  vtkCellArray *polys = data->GetPolys();
+  double vol = 0.0;
+  cen[0] = 0.0;
+  cen[1] = 0.0;
+  cen[2] = 0.0;
+
+  /* only use polys, ignore strips */
+  if (polys)
+    {
+    vtkIdType n = polys->GetNumberOfCells();
+    vtkIdType l = 0;
+    vtkIdType *ptIds;
+    vtkIdType nPts;
+    for (vtkIdType i = 0; i < n; i++)
+      {
+      polys->GetCell(l, nPts, ptIds);
+      l += nPts + 1;
+      double v1[3];
+      double v2[3];
+      double p0[3];
+      double p1[3];
+      vtkIdType m = nPts - 1;
+      points->GetPoint(ptIds[m], p1);
+      points->GetPoint(ptIds[0], p0);
+      v2[0] = p1[0] - p0[0];
+      v2[1] = p1[1] - p0[1];
+      v2[2] = p1[2] - p0[2];
+
+      for (vtkIdType j = 1; j < m; j++)
+        {
+        v1[0] = v2[0];
+        v1[1] = v2[1];
+        v1[2] = v2[2];
+
+        points->GetPoint(ptIds[j], p1);
+        v2[0] = p1[0] - p0[0];
+        v2[1] = p1[1] - p0[1];
+        v2[2] = p1[2] - p0[2];
+
+        /* scalar triple product gives volume times six*/
+        double pvol = 0.0;
+        pvol += p0[0]*(v1[1] * v2[2] - v1[2] * v2[1]);
+        pvol += p0[1]*(v1[2] * v2[0] - v1[0] * v2[2]);
+        pvol += p0[2]*(v1[0] * v2[1] - v1[1] * v2[0]);
+        vol += pvol;
+
+        /* this gives tetrahedron centroid times 4*6 */
+        cen[0] += pvol*(2*p0[0] + v1[0] + p1[0]);
+        cen[1] += pvol*(2*p0[1] + v1[1] + p1[1]);
+        cen[2] += pvol*(2*p0[2] + v1[2] + p1[2]);
+        }
+      }
+    }
+
+  if (vol != 0)
+    {
+    cen[0] /= 4*vol;
+    cen[1] /= 4*vol;
+    cen[2] /= 4*vol;
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -581,7 +645,7 @@ void vtkImageMRIBrainExtractorExecute(
   std::vector<myPoint>::iterator uIter;
 
   // Copy brain points as original points
-  vtkPoints *originalPoints = self->GetOriginalPoints();//vtkPoints::New();
+  vtkPoints *originalPoints = vtkPoints::New();
   for (ptIter = brainPoints.begin();
        ptIter != brainPoints.end();
        ptIter++, nIter++)
@@ -881,6 +945,7 @@ void vtkImageMRIBrainExtractorExecute(
   brainPolyData->Delete();
   cleanPoly->Delete();
   pointNeighbourList->Delete();
+  originalPoints->Delete();
 }
 
 //----------------------------------------------------------------------------

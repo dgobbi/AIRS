@@ -46,7 +46,9 @@ POSSIBILITY OF SUCH DAMAGES.
 #define __vtkImageMRIBrainExtractor_h
 
 #include "vtkImageToImageFilter.h"
-#include "vtkPolyData.h"
+
+class vtkPolyData;
+class vtkPoints;
 
 class VTK_EXPORT vtkImageMRIBrainExtractor : public vtkImageToImageFilter
 {
@@ -112,21 +114,12 @@ public:
   vtkSetMacro(RMax, double);
   vtkGetMacro(RMax, double);
 
-  // Description:
-  // The points on the BrainMesh after deformation
-  vtkSetObjectMacro(BrainPoints, vtkPoints);
-  vtkGetObjectMacro(BrainPoints, vtkPoints);
-
-  // Description:
-  // The points on the BrainMesh before deformation
-  vtkGetObjectMacro(OriginalPoints, vtkPoints);
-  vtkSetObjectMacro(OriginalPoints, vtkPoints);
-
 protected:
   vtkImageMRIBrainExtractor();
   ~vtkImageMRIBrainExtractor();
 
   void ExecuteData(vtkDataObject *out);
+  static void ComputeMeshCentroid(vtkPolyData *data, double cen[3]);
 
   int BrainExtent[6];
   vtkPolyData *BrainMesh;
@@ -137,9 +130,6 @@ protected:
   double D2;
   double RMin;
   double RMax;
-
-  vtkPoints *BrainPoints;
-  vtkPoints *OriginalPoints;
 
 private:
   vtkImageMRIBrainExtractor(const vtkImageMRIBrainExtractor&);  // Not implemented.
