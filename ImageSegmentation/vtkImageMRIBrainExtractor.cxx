@@ -34,7 +34,6 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageMRIBrainExtractor.h"
 #include "vtkObjectFactory.h"
 #include "vtkImageData.h"
-#include "vtkImageAccumulate.h"
 #include "vtkPolyDataToImageStencil.h"
 #include "vtkImageStencil.h"
 #include "vtkPolyData.h"
@@ -58,6 +57,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <vector>
 #include <algorithm>
 #include <numeric>
+
+namespace {
 
 // A convenience class for using C arrays in STL vectors
 class myVertIds
@@ -93,6 +94,8 @@ public:
   double& operator[](int i) { return xyz[i]; };
 };
 
+}
+
 vtkStandardNewMacro(vtkImageMRIBrainExtractor);
 
 //----------------------------------------------------------------------------
@@ -123,17 +126,80 @@ vtkImageMRIBrainExtractor::~vtkImageMRIBrainExtractor()
 }
 
 //----------------------------------------------------------------------------
-void vtkImageMRIBrainExtractor::SetBrainMesh(vtkPolyData *mesh)
-{
-  this->BrainMesh->DeepCopy(mesh);
-}
-
-//----------------------------------------------------------------------------
 vtkPolyData *vtkImageMRIBrainExtractor::GetBrainMesh()
 {
   return this->BrainMesh;
 }
 
+//----------------------------------------------------------------------------
+void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
+  vtkPolyData *data, double cen[3])
+{
+  vtkPoints *points = data->GetPoints();
+  vtkCellArray *polys = data->GetPolys();
+  double vol = 0.0;
+  cen[0] = 0.0;
+  cen[1] = 0.0;
+  cen[2] = 0.0;
+
+  /* only use polys, ignore strips */
+  if (polys)
+    {
+    vtkIdType n = polys->GetNumberOfCells();
+    vtkIdType l = 0;
+    vtkIdType *ptIds;
+    vtkIdType nPts;
+    for (vtkIdType i = 0; i < n; i++)
+      {
+      polys->GetCell(l, nPts, ptIds);
+      l += nPts + 1;
+      double v1[3];
+      double v2[3];
+      double p0[3];
+      double p1[3];
+      vtkIdType m = nPts - 1;
+      points->GetPoint(ptIds[m], p1);
+      points->GetPoint(ptIds[0], p0);
+      v2[0] = p1[0] - p0[0];
+      v2[1] = p1[1] - p0[1];
+      v2[2] = p1[2] - p0[2];
+
+      for (vtkIdType j = 1; j < m; j++)
+        {
+        v1[0] = v2[0];
+        v1[1] = v2[1];
+        v1[2] = v2[2];
+
+        points->GetPoint(ptIds[j], p1);
+        v2[0] = p1[0] - p0[0];
+        v2[1] = p1[1] - p0[1];
+        v2[2] = p1[2] - p0[2];
+
+        /* scalar triple product gives volume times six*/
+        double pvol = 0.0;
+        pvol += p0[0]*(v1[1] * v2[2] - v1[2] * v2[1]);
+        pvol += p0[1]*(v1[2] * v2[0] - v1[0] * v2[2]);
+        pvol += p0[2]*(v1[0] * v2[1] - v1[1] * v2[0]);
+        vol += pvol;
+
+        /* this gives tetrahedron centroid times 4*6 */
+        cen[0] += pvol*(3*p0[0] + v1[0] + v2[0]);
+        cen[1] += pvol*(3*p0[1] + v1[1] + v2[1]);
+        cen[2] += pvol*(3*p0[2] + v1[2] + v2[2]);
+        }
+      }
+    }
+
+  if (vol != 0)
+    {
+    cen[0] /= 4*vol;
+    cen[1] /= 4*vol;
+    cen[2] /= 4*vol;
+    }
+}
+
+namespace {
+//----------------------------------------------------------------------------
 // Description:
 // This templated function executes the filter for any type of data.
 template <class IT>
@@ -312,6 +378,7 @@ static void vtkBECalculateInitialParameters(
   delete [] hist;
 }
 
+//----------------------------------------------------------------------------
 // Description:
 static void vtkBEBuildAndLinkPolyData(
   double COG[3], double R, int Nsubs,
@@ -325,34 +392,34 @@ static void vtkBEBuildAndLinkPolyData(
   // Icosahedron - a 20-sided polygon
   vtkSphereSource *icosahedron = vtkSphereSource::New();
   icosahedron->SetCenter(COG[0], COG[1], COG[2]);
-  icosahedron->SetRadius( R );
+  icosahedron->SetRadius(R);
   icosahedron->SetPhiResolution(4);
   icosahedron->SetThetaResolution(5);
-  icosahedron->GetOutput()->Update();
+  icosahedron->Update();
 
   // Subdivide each triangle into 4.
   vtkLinearSubdivisionFilter *subdivideSphere =
     vtkLinearSubdivisionFilter::New();
   subdivideSphere->SetInput(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
-  subdivideSphere->GetOutput()->Update();
+  subdivideSphere->Update();
 
   // Contraint sphere for smoothing
   vtkSphereSource *constraintSphere = vtkSphereSource::New();
   constraintSphere->SetCenter(COG[0], COG[1], COG[2]);
-  constraintSphere->SetRadius( R );
+  constraintSphere->SetRadius(R);
   constraintSphere->SetPhiResolution(100);
   constraintSphere->SetThetaResolution(100);
-  constraintSphere->GetOutput()->Update();
+  constraintSphere->Update();
 
   // Smooth the subdivided sphere
   vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
-  smoothSphere->SetInput( subdivideSphere->GetOutput() );
-  smoothSphere->SetSource( constraintSphere->GetOutput() );
-  smoothSphere->GetOutput()->Update();
+  smoothSphere->SetInput(subdivideSphere->GetOutput());
+  smoothSphere->SetSource(constraintSphere->GetOutput());
+  smoothSphere->Update();
 
   // The brain sphere
-  brainPolyData->DeepCopy( smoothSphere->GetOutput() );
+  brainPolyData->DeepCopy(smoothSphere->GetOutput());
   brainPolyData->BuildLinks();
 
   nPoints = brainPolyData->GetNumberOfPoints();
@@ -395,80 +462,11 @@ static void vtkBEBuildAndLinkPolyData(
 }
 
 //----------------------------------------------------------------------------
-void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
-  vtkPolyData *data, double cen[3])
-{
-  vtkPoints *points = data->GetPoints();
-  vtkCellArray *polys = data->GetPolys();
-  double vol = 0.0;
-  cen[0] = 0.0;
-  cen[1] = 0.0;
-  cen[2] = 0.0;
-
-  /* only use polys, ignore strips */
-  if (polys)
-    {
-    vtkIdType n = polys->GetNumberOfCells();
-    vtkIdType l = 0;
-    vtkIdType *ptIds;
-    vtkIdType nPts;
-    for (vtkIdType i = 0; i < n; i++)
-      {
-      polys->GetCell(l, nPts, ptIds);
-      l += nPts + 1;
-      double v1[3];
-      double v2[3];
-      double p0[3];
-      double p1[3];
-      vtkIdType m = nPts - 1;
-      points->GetPoint(ptIds[m], p1);
-      points->GetPoint(ptIds[0], p0);
-      v2[0] = p1[0] - p0[0];
-      v2[1] = p1[1] - p0[1];
-      v2[2] = p1[2] - p0[2];
-
-      for (vtkIdType j = 1; j < m; j++)
-        {
-        v1[0] = v2[0];
-        v1[1] = v2[1];
-        v1[2] = v2[2];
-
-        points->GetPoint(ptIds[j], p1);
-        v2[0] = p1[0] - p0[0];
-        v2[1] = p1[1] - p0[1];
-        v2[2] = p1[2] - p0[2];
-
-        /* scalar triple product gives volume times six*/
-        double pvol = 0.0;
-        pvol += p0[0]*(v1[1] * v2[2] - v1[2] * v2[1]);
-        pvol += p0[1]*(v1[2] * v2[0] - v1[0] * v2[2]);
-        pvol += p0[2]*(v1[0] * v2[1] - v1[1] * v2[0]);
-        vol += pvol;
-
-        /* this gives tetrahedron centroid times 4*6 */
-        cen[0] += pvol*(2*p0[0] + v1[0] + p1[0]);
-        cen[1] += pvol*(2*p0[1] + v1[1] + p1[1]);
-        cen[2] += pvol*(2*p0[2] + v1[2] + p1[2]);
-        }
-      }
-    }
-
-  if (vol != 0)
-    {
-    cen[0] /= 4*vol;
-    cen[1] /= 4*vol;
-    cen[2] /= 4*vol;
-    }
-}
-
-//----------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
-template <class IT, class OT>
+template <class IT>
 void vtkImageMRIBrainExtractorExecute(
   vtkImageMRIBrainExtractor *self,
-  vtkImageData *inData, vtkImageData *outData,
-  int outExt[6], int vtkNotUsed(id),
-  IT *inPtr, OT *vtkNotUsed(outPtr))
+  vtkImageData *inData, IT *inPtr)
 {
   // The parameters for the algorithm
   double T2, T98, TH, Tm;
@@ -560,7 +558,7 @@ void vtkImageMRIBrainExtractorExecute(
   std::vector< std::vector<int> > pointNeighbourIds(nPoints);
   std::vector<int>::iterator neighbourIdIter;
 
-  // Neighbourig Cells (their vertex point ids)
+  // Neighbouring Cells (their vertex point ids)
   myVertIds vIds;
   std::vector<myVertIds> thisPointNeighbourVertIds; // 5 or 6
   std::vector< std::vector<myVertIds> > pointNeighbourVertIds(nPoints);
@@ -635,7 +633,6 @@ void vtkImageMRIBrainExtractorExecute(
   vtkIdType idx;
   vtkIdType incs[3];
   inData->GetIncrements(incs);
-  inPtr = (IT *)inData->GetScalarPointerForExtent(outExt);
   iteration = 0;
   nIterations = self->GetNumberOfIterations();
 
@@ -654,7 +651,7 @@ void vtkImageMRIBrainExtractorExecute(
     originalPoints->InsertNextPoint(target.xyz);
     }
 
-  while (iteration<nIterations)
+  while (iteration < nIterations)
     {
     // Update l every 50 iterations
     if (iteration%50 == 0)
@@ -844,7 +841,7 @@ void vtkImageMRIBrainExtractorExecute(
 
         d = 1.0;
         // this loop causes alot of stalling on G4 PPCs.
-        while (d<d1)
+        while (d < d1)
           {
           location[0] += incX;
           location[1] += incY;
@@ -918,35 +915,36 @@ void vtkImageMRIBrainExtractorExecute(
   // Aviod ugly poly data - unnecessary?
   vtkCleanPolyData *cleanPoly = vtkCleanPolyData::New();
   cleanPoly->SetInput( brainPolyData );
-  cleanPoly->GetOutput()->Update();
+  cleanPoly->Update();
 
-  brainPolyData->ShallowCopy( cleanPoly->GetOutput() );
-  self->SetBrainMesh( brainPolyData );
+  self->GetBrainMesh()->ShallowCopy(cleanPoly->GetOutput());
 
   //Use the brain mesh to stencil out the non-brain
   vtkPolyDataToImageStencil *theStencil = vtkPolyDataToImageStencil::New();
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
-  theStencil->SetInput( brainPolyData );
-  theStencil->SetOutputSpacing(spacing);
-  theStencil->SetOutputOrigin(origin);
-  theStencil->SetOutputWholeExtent(extent);
+  theStencil->SetInput(self->GetBrainMesh());
+  theStencil->SetOutputSpacing(inData->GetSpacing());
+  theStencil->SetOutputOrigin(inData->GetOrigin());
+  theStencil->SetOutputWholeExtent(inData->GetWholeExtent());
 
-  imageStencil->SetStencil( theStencil->GetOutput() );
+  imageStencil->SetStencil(theStencil->GetOutput());
   imageStencil->SetInput(inData);
   imageStencil->SetBackgroundValue(T2);
-  imageStencil->GetOutput()->Update();
+  imageStencil->Update();
 
-  outData->ShallowCopy(imageStencil->GetOutput());
+  self->GetOutput()->ShallowCopy(imageStencil->GetOutput());
 
   //Clean up
+  originalPoints->Delete();
   theStencil->Delete();
   imageStencil->Delete();
   brainPolyData->Delete();
-  cleanPoly->Delete();
   pointNeighbourList->Delete();
-  originalPoints->Delete();
+  cleanPoly->Delete();
 }
+
+} // end anonymous namespace
 
 //----------------------------------------------------------------------------
 // This is the superclasses style of Execute method.  Convert it into
@@ -958,8 +956,6 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
   int outExt[6];
   outData->GetUpdateExtent(outExt);
   void *inPtr = inData->GetScalarPointerForExtent(outExt);
-  void *outPtr = outData->GetScalarPointerForExtent(outExt);
-  int id = 0; // not multi-threaded
 
   if (inData->GetScalarType() != outData->GetScalarType())
     {
@@ -972,13 +968,21 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
 
   switch (inData->GetScalarType())
     {
-    vtkTemplateMacro(
-      vtkImageMRIBrainExtractorExecute(this, inData,
-                                       outData, outExt, id,
-                                       static_cast<VTK_TT *>(inPtr),
-                                       static_cast<VTK_TT *>(outPtr)));
+    case VTK_UNSIGNED_CHAR:
+      vtkImageMRIBrainExtractorExecute(
+        this, inData, static_cast<unsigned char *>(inPtr));
+      break;
+    case VTK_SHORT:
+      vtkImageMRIBrainExtractorExecute(
+        this, inData, static_cast<short *>(inPtr));
+      break;
+    case VTK_UNSIGNED_SHORT:
+      vtkImageMRIBrainExtractorExecute(
+        this, inData, static_cast<unsigned short *>(inPtr));
+      break;
     default:
-      vtkErrorMacro(<< "Execute: Unknown input ScalarType");
+      vtkErrorMacro(<< "Execute: "
+        "Requires short, unsigned short, or unsigned char");
       return;
     }
 }
@@ -987,4 +991,18 @@ void vtkImageMRIBrainExtractor::ExecuteData(vtkDataObject *out)
 void vtkImageMRIBrainExtractor::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
+
+  os << indent << "BrainExtent: "
+     << this->BrainExtent[0] << " " << this->BrainExtent[1] << " "
+     << this->BrainExtent[2] << " " << this->BrainExtent[3] << " "
+     << this->BrainExtent[4] << " " << this->BrainExtent[5] << "\n";
+  os << indent << "BT: " << this->BT << "\n";
+  os << indent << "D1: " << this->D1 << "\n";
+  os << indent << "D2: " << this->D2 << "\n";
+  os << indent << "RMin: " << this->RMin << "\n";
+  os << indent << "RMax: " << this->RMax << "\n";
+  os << indent << "NumberOfIterations: "
+     << this->NumberOfIterations << "\n";
+  os << indent << "NumberOfTessellations: "
+     << this->NumberOfTessellations << "\n";
 }

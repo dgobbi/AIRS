@@ -67,7 +67,6 @@ public:
   // Description:
   // Get the vtkPolyData representing the brain surface
   vtkPolyData *GetBrainMesh();
-  void SetBrainMesh(vtkPolyData *mesh);
 
   // Description:
   // BT (0.0, 1.0) is a fractional constant that controls the fit of the
