@@ -8,7 +8,14 @@ SET(KIT_LIBS vtkHybrid)
 # Kit_SRCS variable.
 SET(Kit_SRCS
   vtkImageFloodFill.cxx
+  vtkImageIslandRemoval.cxx
   vtkImageMRIBrainExtractor.cxx
+  vtkImageRegionIterator.cxx
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  vtkImageRegionIterator
+  WRAP_EXCLUDE
 )
 
 SET(Kit_EXTRA_SRCS)
