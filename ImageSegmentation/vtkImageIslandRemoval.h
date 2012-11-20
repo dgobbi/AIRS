@@ -12,16 +12,16 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageIslandRemoval - Flood fill an image region.
+// .NAME vtkImageIslandRemoval - Select image regions by size
 // .SECTION Description
-// vtkImageIslandRemoval will perform a flood fill on an image,
-// given upper and lower pixel intensity thresholds. It works similarly
-// to vtkImageThreshold, but also allows the user to set seed points
-// to limit the threshold operation to contiguous regions of the image.
-// The filled region, or the "inside", will be passed through to the
-// output by default, while the "outside" will be replaced with zeros.
-// This behavior can be changed by using the ReplaceIn() and ReplaceOut()
-// methods.  The scalar type of the output is the same as the input.
+// vtkImageIslandRemoval will identify connected regions in an image
+// and will either keep or remove each region based on the size of that
+// region.  A connected region is a group of voxels that are all within
+// the supplied lower and upper intenstity thresholds and that furthermore
+// are all connected to each other through their faces (or edges, in the
+// case of 2D images).  The intensity thresholds are set similarly to
+// vtkImageThreshold.  The scalar type of the output is the same as the
+// input.
 // .SECTION see also
 // vtkImageThreshold
 // .SECTION Thanks
@@ -58,6 +58,25 @@ public:
   void ThresholdBetween(double lower, double upper);
 
   // Description:
+  // Set the minimum island size to keep.  Size is in voxels.
+  vtkSetMacro(SmallestIsland, vtkIdType);
+  vtkGetMacro(SmallestIsland, vtkIdType);
+
+  // Description:
+  // Set the maximum island size to keep.  Size is in voxels.
+  vtkSetMacro(LargestIsland, vtkIdType);
+  vtkGetMacro(LargestIsland, vtkIdType);
+
+  // Description:
+  // Interpret LargestIsland and SmallestIsland as indices into a
+  // list of all island sorted by size from largest to smallest.
+  // So if LargestIsland is 0 and SmallestIsland is 1, then the
+  // two largest islands will be kept.
+  vtkSetMacro(IslandsSortedBySize, int);
+  vtkBooleanMacro(IslandsSortedBySize, int);
+  vtkGetMacro(IslandsSortedBySize, int);
+
+  // Description:
   // Replace the filled region by the value set by SetInValue().
   vtkSetMacro(ReplaceIn, int);
   vtkGetMacro(ReplaceIn, int);
@@ -69,7 +88,7 @@ public:
   vtkGetMacro(InValue, double);
 
   // Description:
-  // Replace the filled region by the value set by SetInValue().
+  // Replace outside the filled region by the value set by SetOutValue().
   vtkSetMacro(ReplaceOut, int);
   vtkGetMacro(ReplaceOut, int);
   vtkBooleanMacro(ReplaceOut, int);
@@ -78,6 +97,17 @@ public:
   // If ReplaceOut is set, outside the fill will be replaced by this value.
   void SetOutValue(double val);
   vtkGetMacro(OutValue, double);
+
+  // Description:
+  // Replace the removed islands by the value set by SetIslandValue().
+  vtkSetMacro(ReplaceIsland, int);
+  vtkGetMacro(ReplaceIsland, int);
+  vtkBooleanMacro(ReplaceIsland, int);
+
+  // Description:
+  // If ReplaceIsland is set, removed islands will be replaced by this value.
+  void SetIslandValue(double val);
+  vtkGetMacro(IslandValue, double);
 
   // Description:
   // Get the Upper and Lower thresholds.
@@ -106,27 +136,8 @@ public:
   vtkGetMacro(ActiveComponent,int);
 
   // Description:
-  // The radius of the neighborhood that must be within the threshold
-  // values in order for the voxel to be included in the mask.  The
-  // default radius is zero (one single voxel).  The radius is measured
-  // in voxels.
-  vtkSetVector3Macro(NeighborhoodRadius, double);
-  vtkGetVector3Macro(NeighborhoodRadius, double);
-
-  // Description:
-  // The fraction of the neighborhood that must be within the thresholds.
-  // The default value is 0.5.
-  vtkSetClampMacro(NeighborhoodFraction, double, 0.0, 1.0);
-  vtkGetMacro(NeighborhoodFraction, double);
-
-  // Description:
   // Override the MTime to account for the seed points.
   unsigned long GetMTime();
-
-  // Description:
-  // After the filter has executed, use GetNumberOfVoxels() to find
-  // out how many voxels were filled.
-  vtkGetMacro(NumberOfInVoxels, int);
 
 protected:
   vtkImageIslandRemoval();
@@ -136,17 +147,18 @@ protected:
   double LowerThreshold;
   double InValue;
   double OutValue;
+  double IslandValue;
   int ReplaceIn;
   int ReplaceOut;
+  int ReplaceIsland;
 
-  double NeighborhoodRadius[3];
-  double NeighborhoodFraction;
+  vtkIdType LargestIsland;
+  vtkIdType SmallestIsland;
+  int IslandsSortedBySize;
 
   int SliceRangeX[2];
   int SliceRangeY[2];
   int SliceRangeZ[2];
-
-  int NumberOfInVoxels;
 
   int ActiveComponent;
 

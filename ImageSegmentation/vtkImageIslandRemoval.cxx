@@ -43,11 +43,11 @@ vtkImageIslandRemoval::vtkImageIslandRemoval()
   this->InValue = 0.0;
   this->ReplaceOut = 0;
   this->OutValue = 0.0;
-
-  this->NeighborhoodRadius[0] = 0.0;
-  this->NeighborhoodRadius[1] = 0.0;
-  this->NeighborhoodRadius[2] = 0.0;
-  this->NeighborhoodFraction = 0.5;
+  this->ReplaceIsland = 1;
+  this->IslandValue = 0.0;
+  this->LargestIsland = VTK_LARGE_ID;
+  this->SmallestIsland = 0;
+  this->IslandsSortedBySize = 0;
 
   this->SliceRangeX[0] = -VTK_INT_MAX;
   this->SliceRangeX[1] = VTK_INT_MAX;
@@ -59,8 +59,6 @@ vtkImageIslandRemoval::vtkImageIslandRemoval()
   this->ActiveComponent = -1;
 
   this->ImageMask = vtkImageData::New();
-
-  this->NumberOfInVoxels = 0;
 
   this->SetNumberOfInputPorts(2);
 }
@@ -89,6 +87,16 @@ void vtkImageIslandRemoval::SetOutValue(double val)
     {
     this->OutValue = val;
     this->ReplaceOut = 1;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageIslandRemoval::SetIslandValue(double val)
+{
+  if (val != this->IslandValue)
+    {
+    this->IslandValue = val;
     this->Modified();
     }
 }
@@ -175,10 +183,10 @@ unsigned long vtkImageIslandRemoval::GetMTime()
   return mTime;
 }
 
-//----------------------------------------------------------------------------
-// seed struct: just a set of indices
 namespace {
 
+//----------------------------------------------------------------------------
+// seed struct: just a set of indices
 class vtkFloodFillSeed
 {
 public:
@@ -196,8 +204,6 @@ public:
 private:
   int store[3];
 };
-
-}
 
 //----------------------------------------------------------------------------
 // Make sure the thresholds are valid for the input scalar range
@@ -347,15 +353,16 @@ void vtkImageIslandRemovalPrune(
 
   while (!iter.IsAtEnd())
     {
-    unsigned char *beginptr = iter.BeginSpan();
-    unsigned char *endptr = iter.EndSpan();
-
     if (iter.IsInStencil())
       {
-      for (unsigned char *ptr = beginptr; ptr != endptr; ptr++)
+      unsigned char *ptr = iter.BeginSpan();
+      unsigned char *endptr = iter.EndSpan();
+
+      while (ptr != endptr)
         {
         unsigned char v = indexed[*ptr];
         *ptr = (v < u ? v : u);
+        ptr++;
         }
       }
 
@@ -467,13 +474,79 @@ void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
 }
 
 //----------------------------------------------------------------------------
+template<class IT>
+void vtkImageIslandRemovalFill(
+  IT *inPtr, vtkIdType inInc[3],
+  unsigned char *maskPtr, vtkIdType maskInc[3],
+  int maxIdx[3], unsigned char maskVal,
+  IT lowerThreshold, IT upperThreshold,
+  std::stack<vtkFloodFillSeed> &seedStack,
+  vtkIdType &counter)
+{
+  while (!seedStack.empty())
+    {
+    vtkFloodFillSeed seed = seedStack.top();
+    seedStack.pop();
+
+    unsigned char *maskPtr1 = maskPtr + (seed[0]*maskInc[0] +
+                                         seed[1]*maskInc[1] +
+                                         seed[2]*maskInc[2]);
+
+    if (*maskPtr1 != 0)
+      {
+      continue;
+      }
+
+    *maskPtr1 = maskVal;
+
+    IT *inPtr1 = inPtr + (seed[0]*inInc[0] +
+                          seed[1]*inInc[1] +
+                          seed[2]*inInc[2]);
+    IT temp = *inPtr1;
+
+    bool inside = ((lowerThreshold <= temp) & (temp <= upperThreshold));
+
+    if (inside)
+      {
+      // count the seed
+      counter += 1;
+
+      // push the new seeds
+      if (seed[2] > 0 && *(maskPtr1 - maskInc[2]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] - 1));
+        }
+      if (seed[2] < maxIdx[2] && *(maskPtr1 + maskInc[2]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] + 1));
+        }
+      if (seed[1] > 0 && *(maskPtr1 - maskInc[1]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] - 1, seed[2]));
+        }
+      if (seed[1] < maxIdx[1] && *(maskPtr1 + maskInc[1]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] + 1, seed[2]));
+        }
+      if (seed[0] > 0 && *(maskPtr1 - maskInc[0]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0] - 1, seed[1], seed[2]));
+        }
+      if (seed[0] < maxIdx[0] && *(maskPtr1 + maskInc[0]) == 0)
+        {
+        seedStack.push(vtkFloodFillSeed(seed[0] + 1, seed[1], seed[2]));
+        }
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
 // This templated function executes the filter for any type of data.
 template <class IT, class OT>
 void vtkImageIslandRemovalExecute(
   vtkImageIslandRemoval *self,
   vtkImageData *inData, vtkImageData *outData, vtkImageStencilData *stencil,
-  vtkImageData *maskData, int outExt[6], int id, IT *inPtr, OT *outPtr,
-  int &voxelCount)
+  vtkImageData *maskData, int outExt[6], int id, IT *inPtr, OT *outPtr)
 {
   // Get active component (only one component is thresholded)
   int nComponents = outData->GetNumberOfScalarComponents();
@@ -515,21 +588,6 @@ void vtkImageIslandRemovalExecute(
       }
     }
 
-  // Indexing goes from 0 to maxIdX
-  int maxIdX = extent[1] - extent[0];
-  int maxIdY = extent[3] - extent[2];
-  int maxIdZ = extent[5] - extent[4];
-
-  // Total number of voxels
-  vtkIdType fullsize = (static_cast<vtkIdType>(extent[1] - extent[0] + 1)*
-                        static_cast<vtkIdType>(extent[3] - extent[2] + 1)*
-                        static_cast<vtkIdType>(extent[5] - extent[4] + 1));
-
-  // for the progress meter
-  double progress = 0.0;
-  vtkIdType target = static_cast<vtkIdType>(fullsize/50.0);
-  target++;
-
   // Setup the mask
   maskData->SetOrigin(inData->GetOrigin());
   maskData->SetSpacing(inData->GetSpacing());
@@ -547,31 +605,8 @@ void vtkImageIslandRemovalExecute(
   inPtr += activeComponent;
   outPtr += activeComponent;
 
-  if (stencil == 0)
-    {
-    memset(maskPtr, 0, fullsize);
-    }
-  else
-    {
-    // pre-set all mask voxels that are outside the stencil
-    vtkImageIslandRemovalApplyStencil(maskData, stencil, extent);
-    }
-
-  // Check whether neighborhood will be used
-  double f = self->GetNeighborhoodFraction();
-  double radius[3];
-  self->GetNeighborhoodRadius(radius);
-  int xradius = static_cast<int>(radius[0] + 0.5);
-  int yradius = static_cast<int>(radius[1] + 0.5);
-  int zradius = static_cast<int>(radius[2] + 0.5);
-  double fx = 0.0, fy = 0.0, fz = 0.0;
-  bool useNeighborhood = ((xradius > 0) & (yradius > 0) & (zradius > 0));
-  if (useNeighborhood)
-    {
-    fx = 1.0/radius[0];
-    fy = 1.0/radius[1];
-    fz = 1.0/radius[2];
-    }
+  // pre-set all mask voxels that are outside the stencil
+  vtkImageIslandRemovalApplyStencil(maskData, stencil, extent);
 
   // Perform the flood fill within the extent
   vtkIdType inInc[3];
@@ -583,19 +618,18 @@ void vtkImageIslandRemovalExecute(
   maskInc[1] = (extent[1] - extent[0] + 1);
   maskInc[2] = maskInc[1]*(extent[3] - extent[2] + 1);
 
-  double spacing[3];
-  double origin[3];
-  outData->GetSpacing(spacing);
-  outData->GetOrigin(origin);
+  // Indexing goes from 0 to maxIdX
+  int maxIdx[3];
+  maxIdx[0] = extent[1] - extent[0];
+  maxIdx[1] = extent[3] - extent[2];
+  maxIdx[2] = extent[5] - extent[4];
 
   // create the seed stack:
   // stack has methods empty(), top(), push(), and pop()
   std::stack<vtkFloodFillSeed> seedStack;
 
-  vtkIdType counter = 0;
-  vtkIdType fullcount = 0;
-
-  vtkImageRegionIterator<unsigned char> iter(maskData, stencil, extent);
+  vtkImageRegionIterator<unsigned char>
+    iter(maskData, stencil, extent, self, id);
 
   unsigned char maskVal = 0;
   vtkIdType islandSize[256];
@@ -607,9 +641,9 @@ void vtkImageIslandRemovalExecute(
 
     if (iter.IsInStencil())
       {
-      int xIdx = iter.GetIndexX();
-      int yIdx = iter.GetIndexY();
-      int zIdx = iter.GetIndexZ();
+      int xIdx = iter.GetIndexX() - extent[0];
+      int yIdx = iter.GetIndexY() - extent[2];
+      int zIdx = iter.GetIndexZ() - extent[4];
 
       IT *inPtr0 = inPtr + (xIdx*inInc[0] + yIdx*inInc[1] + zIdx*inInc[2]);
 
@@ -618,154 +652,24 @@ void vtkImageIslandRemovalExecute(
         IT tval = *inPtr0;
         if (*ptr == 0 && lowerThreshold <= tval && tval <= upperThreshold)
           {
-          seedStack.push(
-            vtkFloodFillSeed(xIdx + extent[0],
-                             yIdx + extent[2],
-                             zIdx + extent[4]));
+          seedStack.push(vtkFloodFillSeed(xIdx, yIdx, zIdx));
 
-          maskVal++;
-          if (maskVal == 0)
+          if (++maskVal == 0)
             {
             // need to prune all but N islands
             vtkImageIslandRemovalPrune(
               maskData, stencil, extent, islandSize, 3);
             maskVal = 5;
             }
-          islandSize[maskVal] = 0;
 
-  //====
-  while (!seedStack.empty())
-    {
-    vtkFloodFillSeed seed = seedStack.top();
-    seedStack.pop();
+          vtkIdType counter = 0;
 
-    unsigned char *maskPtr1 = maskPtr + (seed[0]*maskInc[0] +
-                                         seed[1]*maskInc[1] +
-                                         seed[2]*maskInc[2]);
+          vtkImageIslandRemovalFill(
+            inPtr, inInc, maskPtr, maskInc, maxIdx,
+            maskVal, lowerThreshold, upperThreshold,
+            seedStack, counter);
 
-    if (*maskPtr1)
-      {
-      continue;
-      }
-    *maskPtr1 = maskVal;
-
-    fullcount++;
-    if (id == 0 && (fullcount % target) == 0)
-      {
-      double v = counter/(10.0*fullcount);
-      double p = fullcount/(v*fullsize + (1.0 - v)*fullcount);
-      if (p > progress)
-        {
-        progress = p;
-        self->UpdateProgress(progress);
-        }
-      }
-
-    IT *inPtr1 = inPtr + (seed[0]*inInc[0] +
-                          seed[1]*inInc[1] +
-                          seed[2]*inInc[2]);
-    IT temp = *inPtr1;
-
-    bool inside = ((lowerThreshold <= temp) & (temp <= upperThreshold));
-
-    // use a spherical neighborhood
-    if (useNeighborhood)
-      {
-      int xmin = seed[0] - xradius;
-      xmin = (xmin >= 0 ? xmin : 0);
-      int xmax = seed[0] + xradius;
-      xmax = (xmax <= maxIdX ? xmax : maxIdX);
-
-      int ymin = seed[1] - yradius;
-      ymin = (ymin >= 0 ? ymin : 0);
-      int ymax = seed[1] + yradius;
-      ymax = (ymax <= maxIdY ? ymax : maxIdY);
-
-      int zmin = seed[2] - zradius;
-      zmin = (zmin >= 0 ? zmin : 0);
-      int zmax = seed[2] + zradius;
-      zmax = (zmax <= maxIdZ ? zmax : maxIdZ);
-
-      inPtr1 = inPtr + (xmin*inInc[0] +
-                        ymin*inInc[1] +
-                        zmin*inInc[2]);
-
-      int totalcount = 0;
-      int threshcount = 0;
-      int iz = zmin;
-      do
-        {
-        IT *inPtr2 = inPtr1;
-        double rz = (iz - seed[2])*fz;
-        rz *= rz;
-        int iy = ymin;
-        do
-          {
-          IT *inPtr3 = inPtr2;
-          double ry = (iy - seed[1])*fy;
-          ry *= ry;
-          double rzy = rz + ry;
-          int ix = xmin;
-          do
-            {
-            double rx = (ix - seed[0])*fx;
-            rx *= rx;
-            double rzyx = rzy + rx;
-            // include a tolerance in radius check
-            bool isgood = (rzyx < (1.0 + 7.62939453125e-06));
-            totalcount += isgood;
-            isgood &= ((lowerThreshold <= *inPtr3) &
-                       (*inPtr3 <= upperThreshold));
-            threshcount += isgood;
-            inPtr3 += inInc[0];
-            }
-          while (++ix <= xmax);
-          inPtr2 += inInc[1];
-          }
-        while (++iy <= ymax);
-        inPtr1 += inInc[2];
-        }
-      while (++iz <= zmax);
-
-      // what fraction of the sphere is within threshold?
-      inside &= !(static_cast<double>(threshcount) < totalcount*f);
-      }
-
-    if (inside)
-      {
-      // count the seed
-      counter += 1;
-      islandSize[maskVal] += 1;
-
-      // push the new seeds
-      if (seed[2] > 0 && *(maskPtr1 - maskInc[2]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] - 1));
-        }
-      if (seed[2] < maxIdZ && *(maskPtr1 + maskInc[2]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] + 1));
-        }
-      if (seed[1] > 0 && *(maskPtr1 - maskInc[1]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] - 1, seed[2]));
-        }
-      if (seed[1] < maxIdY && *(maskPtr1 + maskInc[1]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] + 1, seed[2]));
-        }
-      if (seed[0] > 0 && *(maskPtr1 - maskInc[0]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0] - 1, seed[1], seed[2]));
-        }
-      if (seed[0] < maxIdX && *(maskPtr1 + maskInc[0]) == 0)
-        {
-        seedStack.push(vtkFloodFillSeed(seed[0] + 1, seed[1], seed[2]));
-        }
-      }
-    }
-  //====
-
+          islandSize[maskVal] = counter;
           }
 
         inPtr0 += inInc[0];
@@ -777,15 +681,10 @@ void vtkImageIslandRemovalExecute(
 
   vtkImageIslandRemovalFinish(
     self, maskData, stencil, extent,
-    inData, inPtr, outData, outPtr, islandSize, 1);
-
-  if (id == 0)
-    {
-    self->UpdateProgress(1.0);
-    }
-
-  voxelCount = counter;
+    inData, inPtr, outData, outPtr, islandSize, 2);
 }
+
+} // end anonymous namespace
 
 //----------------------------------------------------------------------------
 int vtkImageIslandRemoval::RequestUpdateExtent(
@@ -875,8 +774,7 @@ int vtkImageIslandRemoval::RequestData(
     vtkTemplateAliasMacro(
       vtkImageIslandRemovalExecute(
         this, inData, outData, stencil, maskData, outExt, id,
-        static_cast<VTK_TT *>(inPtr), static_cast<VTK_TT *>(outPtr),
-        this->NumberOfInVoxels));
+        static_cast<VTK_TT *>(inPtr), static_cast<VTK_TT *>(outPtr)));
 
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
@@ -897,12 +795,6 @@ void vtkImageIslandRemoval::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UpperThreshold: " << this->UpperThreshold << "\n";
   os << indent << "ReplaceIn: " << this->ReplaceIn << "\n";
   os << indent << "ReplaceOut: " << this->ReplaceOut << "\n";
-  os << indent << "NeighborhoodRadius: " << this->NeighborhoodRadius[0] << " "
-     << this->NeighborhoodRadius[1] << " "
-     << this->NeighborhoodRadius[2] << "\n";
-  os << indent << "NeighborhoodFraction: "
-     << this->NeighborhoodFraction << "\n";
-  os << indent << "NumberOfInVoxels: " << this->NumberOfInVoxels << "\n";
   os << indent << "SliceRangeX: "
      << this->SliceRangeX[0] << " " << this->SliceRangeX[1] << "\n";
   os << indent << "SliceRangeY: "
