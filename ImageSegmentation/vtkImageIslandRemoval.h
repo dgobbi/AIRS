@@ -59,11 +59,13 @@ public:
 
   // Description:
   // Set the minimum island size to keep.  Size is in voxels.
+  // Default value is zero.
   vtkSetMacro(SmallestIsland, vtkIdType);
   vtkGetMacro(SmallestIsland, vtkIdType);
 
   // Description:
   // Set the maximum island size to keep.  Size is in voxels.
+  // Default value is VTK_LARGE_ID.
   vtkSetMacro(LargestIsland, vtkIdType);
   vtkGetMacro(LargestIsland, vtkIdType);
 
@@ -97,17 +99,6 @@ public:
   // If ReplaceOut is set, outside the fill will be replaced by this value.
   void SetOutValue(double val);
   vtkGetMacro(OutValue, double);
-
-  // Description:
-  // Replace the removed islands by the value set by SetIslandValue().
-  vtkSetMacro(ReplaceIsland, int);
-  vtkGetMacro(ReplaceIsland, int);
-  vtkBooleanMacro(ReplaceIsland, int);
-
-  // Description:
-  // If ReplaceIsland is set, removed islands will be replaced by this value.
-  void SetIslandValue(double val);
-  vtkGetMacro(IslandValue, double);
 
   // Description:
   // Get the Upper and Lower thresholds.
