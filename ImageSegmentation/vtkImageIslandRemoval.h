@@ -23,9 +23,10 @@
 // vtkImageThreshold.  The scalar type of the output is the same as the
 // input.
 // .SECTION see also
-// vtkImageThreshold
+// vtkImageThreshold vtkImageThresholdConnectivity
 // .SECTION Thanks
-// Thanks to David Gobbi for contributing this class to VTK.
+// Thanks to David Gobbi at the Dept. of Radiology and and Dept. of Clinical
+// Neurosciences, University of Calgary, for providing this class.
 
 #ifndef __vtkImageIslandRemoval_h
 #define __vtkImageIslandRemoval_h

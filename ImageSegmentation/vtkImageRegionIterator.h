@@ -86,16 +86,22 @@ public:
     return this->SpanEndPointer;
     }
 
+  // Description:
+  // The X index at the beginning of the current span.
   int GetIndexX()
     {
     return this->IndexX;
     }
 
+  // Description:
+  // The Y index at the beginning of the current span.
   int GetIndexY()
     {
     return this->IndexY;
     }
 
+  // Description:
+  // The Z index at the beginning of the current span.
   int GetIndexZ()
     {
     return this->IndexZ;

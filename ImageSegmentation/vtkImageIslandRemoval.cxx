@@ -390,6 +390,7 @@ void vtkImageIslandRemovalPrune(
 }
 
 //----------------------------------------------------------------------------
+// generate the output image
 template<class IT, class OT>
 void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
   vtkImageData *maskData, vtkImageStencilData *stencil, int extent[6],
@@ -500,7 +501,7 @@ void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
           }
         }
       }
-    else
+    else // outside of stenciled region
       {
       if (replaceOut)
         {
@@ -532,6 +533,7 @@ void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
 }
 
 //----------------------------------------------------------------------------
+// perform a flood fill, given one or more seeds
 template<class IT>
 void vtkImageIslandRemovalFill(
   IT *inPtr, vtkIdType inInc[3],
@@ -562,9 +564,7 @@ void vtkImageIslandRemovalFill(
                           seed[2]*inInc[2]);
     IT temp = *inPtr1;
 
-    bool inside = ((lowerThreshold <= temp) & (temp <= upperThreshold));
-
-    if (inside)
+    if ((lowerThreshold <= temp) && (temp <= upperThreshold))
       {
       // count the seed
       counter += 1;
