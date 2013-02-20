@@ -40,13 +40,13 @@ public:
   vtkImageStencilData *GetStencil();
 
   // Description:
-  // Get the mutual information that was computed for the joint histogram.
+  // Get the cross correlation of the two images, with no normalization.
   // The result is only valid after the filter has executed.
   vtkGetMacro(CrossCorrelation, double);
 
   // Description:
-  // Get the normalized mutual information that was computed for the joint
-  // histogram.  The result is only valid after the filter has executed.
+  // Get the normalized cross correlation of the two images.
+  // The result is only valid after the filter has executed.
   vtkGetMacro(NormalizedCrossCorrelation, double);
 
   // Description:
