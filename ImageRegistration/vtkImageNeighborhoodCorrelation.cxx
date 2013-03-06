@@ -399,6 +399,39 @@ void vtkImageNeighborhoodCorrelation2D(
   int radiusX, int radiusZ, int idY,
   U *workPtr, U *rowPtr)
 {
+/*  Sliding window
+
+  Each buffer element is one row of partial sums.
+
+  Legend:
+      - uninitialized data
+      I input data (headPtr)
+      B buffered data from previous iterations
+      O output data (workPtr)
+      P output data from previous iteration
+
+  Input Output Buffer          Stage       Equation
+  Index Index  Contents
+
+  0            O----I------- - Initialize  O = I
+  1            O----BI------ - Prime       O = O + I
+  2            O----BBI----- - Prime       O = O + I
+  3            O----BBBI---- - Prime       O = O + I
+  4     0      O----BBBBI--- - Prime       O = O + I
+  5     1      PO---BBBBBI-- - Lead-in     O = P + I
+  6     2      PPO--BBBBBBI- - Lead-in     O = P + I
+  7     3      PPPO-BBBBBBBI - Lead-in     O = P + I
+  8     4      PPPPOBBBBBBBB I Lead-in     O = P + I
+  9     5      PPPPPOBBBBBBB I Slide       O = P - O + I
+               PPPPPPOBBBBBB I Slide       O = P - O + I
+               PPPPPPPOBBBBB I Slide       O = P - O + I
+  n-1   n-5    PPPPPPPPOBBBB I Slide       O = P - O + I
+        n-4    PPPPPPPPPOBBB I Finish      O = P - O
+        n-3    PPPPPPPPPPOBB I Finish      O = P - O
+        n-2    PPPPPPPPPPPOB I Finish      O = P - O
+        n-1    PPPPPPPPPPPPO I Finish      O = P - O
+  */
+
   int idZMin = extent[4];
   int idZMax = extent[5];
   int rowSize = extent[1] - extent[0] + 1;
@@ -523,21 +556,42 @@ void vtkImageNeighborhoodCorrelation2D(
     }
 
   // finish up the final bit
-  while (workPtr != endPtr)
+  for (int i = 0; i < radiusZ; i++) 
     {
-    int k = rowSize;
-    do
+    if (idZMax - idZMin + i < 2*radiusZ)
       {
-      workPtr[0] = lastWorkPtr[0] - workPtr[0];
-      workPtr[1] = lastWorkPtr[1] - workPtr[1];
-      workPtr[2] = lastWorkPtr[2] - workPtr[2];
-      workPtr[3] = lastWorkPtr[3] - workPtr[3];
-      workPtr[4] = lastWorkPtr[4] - workPtr[4];
-      workPtr[5] = lastWorkPtr[5] - workPtr[5];
-      workPtr += 6;
-      lastWorkPtr += 6;
+      // finishing the "lead-in"
+      int k = rowSize;
+      do
+        {
+        workPtr[0] = lastWorkPtr[0];
+        workPtr[1] = lastWorkPtr[1];
+        workPtr[2] = lastWorkPtr[2];
+        workPtr[3] = lastWorkPtr[3];
+        workPtr[4] = lastWorkPtr[4];
+        workPtr[5] = lastWorkPtr[5];
+        workPtr += 6;
+        lastWorkPtr += 6;
+        }
+      while (--k);
       }
-    while (--k);
+    else
+      {
+      // finishing the "slide"
+      int k = rowSize;
+      do
+        {
+        workPtr[0] = lastWorkPtr[0] - workPtr[0];
+        workPtr[1] = lastWorkPtr[1] - workPtr[1];
+        workPtr[2] = lastWorkPtr[2] - workPtr[2];
+        workPtr[3] = lastWorkPtr[3] - workPtr[3];
+        workPtr[4] = lastWorkPtr[4] - workPtr[4];
+        workPtr[5] = lastWorkPtr[5] - workPtr[5];
+        workPtr += 6;
+        lastWorkPtr += 6;
+        }
+      while (--k);
+      }
     }
 }
 
