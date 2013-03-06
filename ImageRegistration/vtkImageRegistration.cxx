@@ -60,6 +60,7 @@ POSSIBILITY OF SUCH DAMAGES.
 // Image metric header files
 #include "vtkImageMutualInformation.h"
 #include "vtkImageCrossCorrelation.h"
+#include "vtkImageNeighborhoodCorrelation.h"
 
 // C header files
 #include <math.h>
@@ -392,6 +393,8 @@ void vtkEvaluateFunction(void * arg)
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
     vtkImageCrossCorrelation::SafeDownCast(registrationInfo->Metric);
+  vtkImageNeighborhoodCorrelation *ncMetric =
+    vtkImageNeighborhoodCorrelation::SafeDownCast(registrationInfo->Metric);
 
   vtkSetTransformParameters(registrationInfo);
 
@@ -404,6 +407,9 @@ void vtkEvaluateFunction(void * arg)
       break;
     case vtkImageRegistration::NormalizedCrossCorrelation:
       val = - ccMetric->GetNormalizedCrossCorrelation();
+      break;
+    case vtkImageRegistration::NeighborhoodCorrelation:
+      val = ncMetric->GetValueToMinimize();
       break;
     case vtkImageRegistration::MutualInformation:
       val = - miMetric->GetMutualInformation();
@@ -595,6 +601,18 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     case vtkImageRegistration::NormalizedCrossCorrelation:
       {
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
+      this->Metric = metric;
+
+      metric->SetInput(sourceImage);
+      metric->SetInputConnection(1, reslice->GetOutputPort());
+      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+      }
+      break;
+
+    case vtkImageRegistration::NeighborhoodCorrelation:
+      {
+      vtkImageNeighborhoodCorrelation *metric =
+        vtkImageNeighborhoodCorrelation::New();
       this->Metric = metric;
 
       metric->SetInput(sourceImage);

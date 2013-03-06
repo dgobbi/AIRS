@@ -103,6 +103,7 @@ public:
   {
     CrossCorrelation,
     NormalizedCrossCorrelation,
+    NeighborhoodCorrelation,
     MutualInformation,
     NormalizedMutualInformation,
   };
@@ -141,6 +142,8 @@ public:
     this->SetMetricType(CrossCorrelation); }
   void SetMetricTypeToNormalizedCrossCorrelation() {
     this->SetMetricType(NormalizedCrossCorrelation); }
+  void SetMetricTypeToNeighborhoodCorrelation() {
+    this->SetMetricType(NeighborhoodCorrelation); }
   void SetMetricTypeToMutualInformation() {
     this->SetMetricType(MutualInformation); }
   void SetMetricTypeToNormalizedMutualInformation() {

@@ -19,6 +19,7 @@ vtkImageAmoebaGrid.cxx
 vtkImageGridStatistics.cxx
 vtkFunctionMinimizer.cxx
 vtkImageCrossCorrelation.cxx
+vtkImageNeighborhoodCorrelation.cxx
 vtkImageMean3D.cxx
 vtkMNIXFMReader.cxx
 vtkMNIXFMWriter.cxx
