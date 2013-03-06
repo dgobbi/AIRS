@@ -30,7 +30,6 @@
 # define VTK_USE_UINT64 0
 
 #include <math.h>
-#include <assert.h>
 
 vtkStandardNewMacro(vtkImageNeighborhoodCorrelation);
 
@@ -502,7 +501,6 @@ void vtkImageNeighborhoodCorrelation2D(
         headPtr += 6;
         }
       while (--k);
-      assert(lastWorkPtr + elementSize*rowSize == workPtr);
       }
     else
       {
@@ -521,7 +519,6 @@ void vtkImageNeighborhoodCorrelation2D(
         headPtr += 6;
         }
       while (--k);
-      assert(lastWorkPtr + elementSize*rowSize == workPtr);
       }
     }
 
@@ -541,7 +538,6 @@ void vtkImageNeighborhoodCorrelation2D(
       lastWorkPtr += 6;
       }
     while (--k);
-    assert(lastWorkPtr + elementSize*rowSize == workPtr);
     }
 }
 
