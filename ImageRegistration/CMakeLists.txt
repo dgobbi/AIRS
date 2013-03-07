@@ -14,6 +14,7 @@ vtkImageDataStatistics.cxx
 vtkImageFastBlur.cxx
 vtkImageMutualInformation.cxx
 vtkImageSingleMutualInformation.cxx
+vtkImageSquaredDifference.cxx
 vtkCalcCrossCorrelation.cxx
 vtkImageAmoebaGrid.cxx
 vtkImageGridStatistics.cxx
