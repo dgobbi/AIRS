@@ -824,7 +824,7 @@ void vtkImageNeighborhoodCorrelation3D(
               {
               nccSquared = numer/denom;
               }
-            total += nccSquared;
+            total += count*nccSquared;
             }
           while (--kk);
 
