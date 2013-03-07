@@ -819,7 +819,7 @@ void vtkImageNeighborhoodCorrelation3D(
               static_cast<double>(yySum*count - ySum*ySum);
             double numer = static_cast<double>(xySum*count - xSum*ySum);
             numer *= numer;
-            double nccSquared = 1.0;
+            double nccSquared = 0;
             if (denom > 0)
               {
               nccSquared = numer/denom;
