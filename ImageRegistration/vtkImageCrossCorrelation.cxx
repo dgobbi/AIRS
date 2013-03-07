@@ -146,7 +146,7 @@ template<class T1, class T2>
 void vtkImageCrossCorrelationExecute(
   vtkImageCrossCorrelation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, T2 *inPtr1, int extent[6], double output[4],
+  T1 *inPtr, T2 *inPtr1, int extent[6], double output[6],
   int threadId)
 {
   vtkImageStencilIterator<T1>
@@ -201,7 +201,7 @@ template<class T1>
 void vtkImageCrossCorrelationExecute1(
   vtkImageCrossCorrelation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, void *inPtr1, int extent[6], double output[4], int threadId)
+  T1 *inPtr, void *inPtr1, int extent[6], double output[6], int threadId)
 {
   switch (inData1->GetScalarType())
     {
