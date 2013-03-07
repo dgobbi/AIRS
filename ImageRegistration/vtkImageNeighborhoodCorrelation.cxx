@@ -556,7 +556,7 @@ void vtkImageNeighborhoodCorrelation2D(
     }
 
   // finish up the final bit
-  for (int i = 0; i < radiusZ; i++) 
+  for (int i = 0; i < radiusZ; i++)
     {
     if (idZMax - idZMin + i < 2*radiusZ)
       {
@@ -842,9 +842,6 @@ void vtkImageNeighborhoodCorrelation3D(
         break;
         }
 
-      // counter for tail loop
-      i++;
-
       // rotate the buffers
       headPtr = bufferPtr[0];
       for (int j = 1; j < bufferSize; j++)
@@ -856,19 +853,43 @@ void vtkImageNeighborhoodCorrelation3D(
       // tail off if there is any tail left
       U *lastWorkPtr = bufferPtr[0];
       workPtr = bufferPtr[1];
-      vtkIdType k = sliceSize;
-      do
+      if (idYMax - idYMin + i < 2*radiusY)
         {
-        workPtr[0] = lastWorkPtr[0] - workPtr[0];
-        workPtr[1] = lastWorkPtr[1] - workPtr[1];
-        workPtr[2] = lastWorkPtr[2] - workPtr[2];
-        workPtr[3] = lastWorkPtr[3] - workPtr[3];
-        workPtr[4] = lastWorkPtr[4] - workPtr[4];
-        workPtr[5] = lastWorkPtr[5] - workPtr[5];
-        workPtr += 6;
-        lastWorkPtr += 6;
+        // finish lead-in
+        vtkIdType k = sliceSize;
+        do
+          {
+          workPtr[0] = lastWorkPtr[0];
+          workPtr[1] = lastWorkPtr[1];
+          workPtr[2] = lastWorkPtr[2];
+          workPtr[3] = lastWorkPtr[3];
+          workPtr[4] = lastWorkPtr[4];
+          workPtr[5] = lastWorkPtr[5];
+          workPtr += 6;
+          lastWorkPtr += 6;
+          }
+        while (--k);
         }
-      while (--k);
+      else
+        {
+        // finish slide
+        vtkIdType k = sliceSize;
+        do
+          {
+          workPtr[0] = lastWorkPtr[0] - workPtr[0];
+          workPtr[1] = lastWorkPtr[1] - workPtr[1];
+          workPtr[2] = lastWorkPtr[2] - workPtr[2];
+          workPtr[3] = lastWorkPtr[3] - workPtr[3];
+          workPtr[4] = lastWorkPtr[4] - workPtr[4];
+          workPtr[5] = lastWorkPtr[5] - workPtr[5];
+          workPtr += 6;
+          lastWorkPtr += 6;
+          }
+        while (--k);
+        }
+
+      // counter for tail loop
+      i++;
       }
     }
 
