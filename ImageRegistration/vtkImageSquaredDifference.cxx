@@ -173,9 +173,9 @@ void vtkImageSquaredDifferenceExecute(
         double y = *inPtr1++;
         double d = y - x;
         s += d*d;
-        count++;
         }
 
+      count += static_cast<vtkIdType>(inPtrEnd - inPtr);
       sqsum += s;
       }
     inIter.NextSpan();
@@ -212,8 +212,8 @@ int vtkImageSquaredDifference::RequestData(
   double count = 0;
   for (int j = 0; j < n; j++)
     {
-    sqsum += this->ThreadOutput[j][0] = 0;
-    count += this->ThreadOutput[j][1] = 0;
+    sqsum += this->ThreadOutput[j][0];
+    count += this->ThreadOutput[j][1];
     }
 
   if (count == 0)

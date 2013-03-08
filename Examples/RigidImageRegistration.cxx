@@ -426,8 +426,10 @@ int main (int argc, char *argv[])
   registration->SetTransformTypeToRigid();
   //registration->SetTransformTypeToScaleTargetAxes();
   //registration->SetTransformTypeToAffine();
+  //registration->SetMetricTypeToSquaredDifference();
   registration->SetMetricTypeToNormalizedMutualInformation();
   //registration->SetMetricTypeToNormalizedCrossCorrelation();
+  //registration->SetMetricTypeToNeighborhoodCorrelation();
   registration->SetInterpolatorType(interpolatorType);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);

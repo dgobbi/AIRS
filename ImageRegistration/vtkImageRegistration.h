@@ -101,6 +101,7 @@ public:
   // Metric types
   enum
   {
+    SquaredDifference,
     CrossCorrelation,
     NormalizedCrossCorrelation,
     NeighborhoodCorrelation,
@@ -138,6 +139,8 @@ public:
   // Set the image registration metric.  The default is normalized
   // cross correlation.
   vtkSetMacro(MetricType, int);
+  void SetMetricTypeToSquaredDifference() {
+    this->SetMetricType(SquaredDifference); }
   void SetMetricTypeToCrossCorrelation() {
     this->SetMetricType(CrossCorrelation); }
   void SetMetricTypeToNormalizedCrossCorrelation() {

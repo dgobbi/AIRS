@@ -58,6 +58,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkAmoebaMinimizer.h"
 
 // Image metric header files
+#include "vtkImageSquaredDifference.h"
 #include "vtkImageMutualInformation.h"
 #include "vtkImageCrossCorrelation.h"
 #include "vtkImageNeighborhoodCorrelation.h"
@@ -393,6 +394,8 @@ void vtkEvaluateFunction(void * arg)
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
     vtkImageCrossCorrelation::SafeDownCast(registrationInfo->Metric);
+  vtkImageSquaredDifference *sdMetric =
+    vtkImageSquaredDifference::SafeDownCast(registrationInfo->Metric);
   vtkImageNeighborhoodCorrelation *ncMetric =
     vtkImageNeighborhoodCorrelation::SafeDownCast(registrationInfo->Metric);
 
@@ -402,6 +405,9 @@ void vtkEvaluateFunction(void * arg)
 
   switch (registrationInfo->MetricType)
     {
+    case vtkImageRegistration::SquaredDifference:
+      val = sdMetric->GetSquaredDifference();
+      break;
     case vtkImageRegistration::CrossCorrelation:
       val = - ccMetric->GetCrossCorrelation();
       break;
@@ -597,6 +603,17 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   switch (this->MetricType)
     {
+    case vtkImageRegistration::SquaredDifference:
+      {
+      vtkImageSquaredDifference *metric = vtkImageSquaredDifference::New();
+      this->Metric = metric;
+
+      metric->SetInput(sourceImage);
+      metric->SetInputConnection(1, reslice->GetOutputPort());
+      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+      }
+      break;
+
     case vtkImageRegistration::CrossCorrelation:
     case vtkImageRegistration::NormalizedCrossCorrelation:
       {
