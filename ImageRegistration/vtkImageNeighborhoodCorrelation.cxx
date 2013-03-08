@@ -79,7 +79,8 @@ vtkImageStencilData *vtkImageNeighborhoodCorrelation::GetStencil()
 }
 
 //----------------------------------------------------------------------------
-int vtkImageNeighborhoodCorrelation::FillInputPortInformation(int port, vtkInformation *info)
+int vtkImageNeighborhoodCorrelation::FillInputPortInformation(
+  int port, vtkInformation *info)
 {
   if (port == 0 || port == 1)
     {
@@ -976,6 +977,15 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
     inInfo0->Get(vtkDataObject::DATA_OBJECT()));
   vtkImageData *inData1 = vtkImageData::SafeDownCast(
     inInfo1->Get(vtkDataObject::DATA_OBJECT()));
+
+  if (inData0->GetScalarType() != inData1->GetScalarType())
+    {
+    if (threadId == 0)
+      {
+      vtkErrorMacro("input and output type must be the same.");
+      }
+    return;
+    }
 
   // copy this, in case the user changes it during execution
   int neighborhoodRadius[3];

@@ -77,7 +77,8 @@ vtkImageStencilData *vtkImageSquaredDifference::GetStencil()
 }
 
 //----------------------------------------------------------------------------
-int vtkImageSquaredDifference::FillInputPortInformation(int port, vtkInformation *info)
+int vtkImageSquaredDifference::FillInputPortInformation(
+  int port, vtkInformation *info)
 {
   if (port == 0 || port == 1)
     {
@@ -246,6 +247,15 @@ void vtkImageSquaredDifference::ThreadedRequestData(
     inInfo0->Get(vtkDataObject::DATA_OBJECT()));
   vtkImageData *inData1 = vtkImageData::SafeDownCast(
     inInfo1->Get(vtkDataObject::DATA_OBJECT()));
+
+  if (inData0->GetScalarType() != inData1->GetScalarType())
+    {
+    if (threadId == 0)
+      {
+      vtkErrorMacro("input and output type must be the same.");
+      }
+    return;
+    }
 
   // make sure execute extent is not beyond the extent of any input
   int inExt0[6], inExt1[6];
