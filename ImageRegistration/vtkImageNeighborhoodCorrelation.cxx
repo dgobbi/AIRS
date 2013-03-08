@@ -38,9 +38,9 @@ vtkStandardNewMacro(vtkImageNeighborhoodCorrelation);
 vtkImageNeighborhoodCorrelation::vtkImageNeighborhoodCorrelation()
 {
   this->ValueToMinimize = 0.0;
-  this->NeighborhoodRadius[0] = 4;
-  this->NeighborhoodRadius[1] = 4;
-  this->NeighborhoodRadius[2] = 4;
+  this->NeighborhoodRadius[0] = 10;
+  this->NeighborhoodRadius[1] = 10;
+  this->NeighborhoodRadius[2] = 10;
   this->SetNumberOfInputPorts(3);
   this->SetNumberOfOutputPorts(0);
 }
@@ -801,36 +801,63 @@ void vtkImageNeighborhoodCorrelation3D(
         double total = 0;
         workPtr = bufferPtr[1];
         workPtr += elementSize*rowSize*(threadExtent[4] - extent[4]);
-        int jj = threadExtent[5] - threadExtent[4] + 1;
-        do
+        for (int idZ = threadExtent[4]; idZ <= threadExtent[5]; idZ++)
           {
           workPtr += elementSize*(threadExtent[0] - extent[0]);
-          int kk = threadExtent[1] - threadExtent[0] + 1;
+
+          // only compute the metric within the stencil
+          int iter = 0;
+          int rval = 1;
+          int r1 = threadExtent[0];
+          int r2 = threadExtent[1];
+
+          // loop over stencil extents (break at end if no stencil)
           do
             {
-            U xSum = workPtr[0];
-            U ySum = workPtr[1];
-            U xxSum = workPtr[2];
-            U yySum = workPtr[3];
-            U xySum = workPtr[4];
-            U count = workPtr[5];
-            workPtr += 6;
-            double denom = static_cast<double>(xxSum*count - xSum*xSum)*
-              static_cast<double>(yySum*count - ySum*ySum);
-            double numer = static_cast<double>(xySum*count - xSum*ySum);
-            numer *= numer;
-            double nccSquared = 0;
-            if (denom > 0)
+            int s1 = ((iter == 0) ? threadExtent[0] : r2 + 1);
+            if (stencil)
               {
-              nccSquared = numer/denom;
+              rval = stencil->GetNextExtent(
+                r1, r2, threadExtent[0], threadExtent[1], outIdY, idZ, iter);
               }
-            total += count*nccSquared;
+            int s2 = ((rval == 0) ? threadExtent[1] : r1 - 1);
+            workPtr += elementSize*(s2 - s1 + 1);
+
+            if (rval == 0)
+              {
+              break;
+              }
+
+            if (r1 != r2 + 1)
+              {
+              int kk = r2 - r1 + 1;
+              do
+                {
+                U xSum = workPtr[0];
+                U ySum = workPtr[1];
+                U xxSum = workPtr[2];
+                U yySum = workPtr[3];
+                U xySum = workPtr[4];
+                U count = workPtr[5];
+                workPtr += 6;
+                double denom = static_cast<double>(xxSum*count - xSum*xSum)*
+                  static_cast<double>(yySum*count - ySum*ySum);
+                double numer = static_cast<double>(xySum*count - xSum*ySum);
+                numer *= numer;
+                double nccSquared = 1.0;
+                if (denom > 0)
+                  {
+                  nccSquared = numer/denom;
+                  }
+                total += nccSquared;
+                }
+              while (--kk);
+              }
             }
-          while (--kk);
+          while (stencil);
 
           workPtr += elementSize*(extent[1] - threadExtent[1]);
           }
-        while (--jj);
 
         workPtr += elementSize*rowSize*(extent[5] - threadExtent[5]);
 
