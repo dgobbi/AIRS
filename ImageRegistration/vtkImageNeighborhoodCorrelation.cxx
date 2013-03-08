@@ -38,9 +38,9 @@ vtkStandardNewMacro(vtkImageNeighborhoodCorrelation);
 vtkImageNeighborhoodCorrelation::vtkImageNeighborhoodCorrelation()
 {
   this->ValueToMinimize = 0.0;
-  this->NeighborhoodRadius[0] = 4;
-  this->NeighborhoodRadius[1] = 4;
-  this->NeighborhoodRadius[2] = 4;
+  this->NeighborhoodRadius[0] = 7;
+  this->NeighborhoodRadius[1] = 7;
+  this->NeighborhoodRadius[2] = 7;
   this->SetNumberOfInputPorts(3);
   this->SetNumberOfOutputPorts(0);
 }

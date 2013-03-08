@@ -43,7 +43,7 @@ public:
 
   // Description:
   // Set the neighborhood radius.  The neighborhood is a box function.
-  // The default radius is 4, which gives a box of size 9*9*9.
+  // The default radius is 7, which gives a box of size 15*15*15.
   vtkSetVector3Macro(NeighborhoodRadius, int);
   vtkGetVector3Macro(NeighborhoodRadius, int);
 
