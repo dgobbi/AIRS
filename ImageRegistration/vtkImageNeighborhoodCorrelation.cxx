@@ -474,8 +474,7 @@ void vtkImageNeighborhoodCorrelation2D(
     if (idZMin == idZMax)
       {
       // only one row needed
-      workPtr = endPtr;
-      break;
+      return;
       }
     else if (idZ == idZMin)
       {
