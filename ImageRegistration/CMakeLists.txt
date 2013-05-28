@@ -24,6 +24,7 @@ vtkImageNeighborhoodCorrelation.cxx
 vtkImageMean3D.cxx
 vtkMNIXFMReader.cxx
 vtkMNIXFMWriter.cxx
+vtkPowellMinimizer.cxx
 )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
