@@ -37,3 +37,6 @@ ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
 TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO)
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration vtkRendering vtkIO)
+
+ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
+TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration vtkRendering vtkIO)
