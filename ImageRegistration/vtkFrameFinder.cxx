@@ -284,35 +284,31 @@ int vtkFrameFinder::ProcessRequest(
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-//----------------------------------------------------------------------------
 namespace {
+//----------------------------------------------------------------------------
+// Frame-finding code
+//----------------------------------------------------------------------------
 
-class lekPointData
+// Store a single pixel and its value
+struct Pixel
 {
-public:
-  lekPointData(int x1, int y1, int z1, int val1) :
-    x(x1), y(y1), z(z1), val(val1) {}
-  lekPointData() :
-    x(0), y(0), z(0), val(0) {}
-
-  int GetX() { return x; }
-  int GetY() { return y; }
-  int GetZ() { return z; }
-  int GetVal() { return val; }
-
-private:
-  int x,y,z,val;
+  int x;
+  int y;
+  int z;
+  int val;
 };
 
+// Store a centroid computed from one or more pixels
 struct Blob
 {
-  int numPoints;
-  int zSlice;
+  int count;
+  int slice;
   double x;
   double y;
-  double mass;
+  double val;
 };
 
+// Store a point
 struct Point
 {
   double x;
@@ -320,18 +316,25 @@ struct Point
   double z;
 };
 
+//----------------------------------------------------------------------------
+// Functions for finding blobs of neighboring bright pixels
+
+// Get a pixel, then zero it to remove it from future consideration
 template <class T>
 void GetAndZeroPixel(
-  T* array, int x, int y, int z, int dataSizeX, int planeSize, T *value)
+  T* array, int x, int y, int z,
+  int pixelsPerRow, int pixelsPerSlice, T *value)
 {
-  *value = array[z*planeSize + y*dataSizeX + x];
-  array[z*planeSize + y*dataSizeX + x] = 0;
+  *value = array[z*pixelsPerSlice + y*pixelsPerRow + x];
+  array[z*pixelsPerSlice + y*pixelsPerRow + x] = 0;
 }
 
+// Add pixel to basket if in bounds and above threshold
 template <class T>
-void TestAdd(
-  T* array, int x, int y, int z, int dataSizeX, int dataSizeY, int dataSizeZ,
-  int threshold, struct Blob *theBlob, std::stack<lekPointData> *basket)
+void AddPixelIfAboveThreshold(
+  T* array, int x, int y, int z,
+  int dataSizeX, int dataSizeY, int dataSizeZ,
+  int threshold, struct Blob *theBlob, std::stack<Pixel> *basket)
 {
   T value;
 
@@ -341,93 +344,98 @@ void TestAdd(
     GetAndZeroPixel(array, x, y, z, dataSizeX, dataSizeY*dataSizeX, &value);
     if (static_cast<int>(value) > threshold)
       {
-      lekPointData pD(x, y, z, static_cast<int>(value));
+      Pixel pD = { x, y, z, static_cast<int>(value) };
       (*basket).push(pD);
-      theBlob->numPoints += 1;
+      theBlob->count += 1;
       theBlob->x += value*x;
       theBlob->y += value*y;
-      theBlob->mass += value;
+      theBlob->val += value;
       }
     }
 }
 
+// Perform a flood-fill to search for a blob of bright pixels
 template <class T>
-Blob GetBlob(
-  T* array, int x, int y, int z, int dataSizeX, int dataSizeY, int dataSizeZ,
-  int threshold)
+Blob MakeBlob(
+  T* array, int x, int y, int z,
+  int dataSizeX, int dataSizeY, int dataSizeZ,
+  int blobMaxSize, int threshold)
 {
   struct Blob theBlob;
 
-  theBlob.numPoints = 0;
-  theBlob.zSlice = z;
+  theBlob.count = 0;
+  theBlob.slice = z;
   theBlob.x = 0.0;
   theBlob.y = 0.0;
-  theBlob.mass = 0.0;
-  lekPointData curPt;
-  std::stack<lekPointData> basket;
+  theBlob.val = 0.0;
+  Pixel curPt;
+  std::stack<Pixel> basket;
 
-  TestAdd(array, x, y, z, dataSizeX, dataSizeY, dataSizeZ, threshold,
-          &theBlob, &basket);
+  AddPixelIfAboveThreshold(array, x, y, z, dataSizeX, dataSizeY, dataSizeZ,
+                           threshold, &theBlob, &basket);
 
-  while (basket.size() > 0 && theBlob.numPoints < 25)
+  while (basket.size() > 0 && theBlob.count <= blobMaxSize)
     {
     curPt = basket.top();
     basket.pop();
-    TestAdd(array, curPt.GetX() + 1, curPt.GetY(), z,
-            dataSizeX, dataSizeY, dataSizeZ,
-            threshold, &theBlob, &basket);
-    TestAdd(array, curPt.GetX() + 1, curPt.GetY() + 1, z,
-            dataSizeX, dataSizeY, dataSizeZ,
-            threshold, &theBlob, &basket);
-    TestAdd(array, curPt.GetX(), curPt.GetY() + 1, z,
-            dataSizeX, dataSizeY, dataSizeZ,
-            threshold, &theBlob, &basket);
-    TestAdd(array, curPt.GetX() - 1, curPt.GetY() + 1, z,
-            dataSizeX, dataSizeY, dataSizeZ,
-            threshold, &theBlob, &basket);
+    AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y, z,
+                             dataSizeX, dataSizeY, dataSizeZ,
+                             threshold, &theBlob, &basket);
+    AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y + 1, z,
+                             dataSizeX, dataSizeY, dataSizeZ,
+                             threshold, &theBlob, &basket);
+    AddPixelIfAboveThreshold(array, curPt.x, curPt.y + 1, z,
+                             dataSizeX, dataSizeY, dataSizeZ,
+                             threshold, &theBlob, &basket);
+    AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y + 1, z,
+                             dataSizeX, dataSizeY, dataSizeZ,
+                             threshold, &theBlob, &basket);
     }
 
-  if (theBlob.numPoints > 1 && theBlob.numPoints < 25)
+  if (theBlob.count > 1 && theBlob.count <= blobMaxSize)
     {
-    theBlob.x /= theBlob.mass;
-    theBlob.y /= theBlob.mass;
-    theBlob.mass /= theBlob.numPoints;
+    theBlob.x /= theBlob.val;
+    theBlob.y /= theBlob.val;
+    theBlob.val /= theBlob.count;
     }
   else
     {
-    theBlob.numPoints = 0;
+    theBlob.count = 0;
     }
 
   return theBlob;
 }
 
+// Scan an image volume for blobs
 template <class T>
-void ScanVolume(
+void ScanVolumeForBlobs(
   std::vector<Blob> *returnList,
-  T* inPtr, int dataSizeX, int dataSizeY, int dataSizeZ, int threshold)
+  T* inPtr, int dataSizeX, int dataSizeY, int dataSizeZ,
+  int blobMaxSize)
 {
-  int planeSize = dataSizeX*dataSizeY;
-  double sum = 0.0;
+  int rowSize = dataSizeX;
+  int sliceSize = rowSize*dataSizeY;
+  int volumeSize = sliceSize*dataSizeZ;
+
+  T *array = new T [sliceSize*dataSizeZ];
+  memcpy(array, inPtr, sliceSize*dataSizeZ*sizeof(T));
+
   double average = 0.0;
+  for (int x = 0; x < volumeSize; x++)
+    {
+    average += array[x];
+    }
+  average = average/volumeSize;
+
   double variance = 0.0;
-
-  T *array = new T [planeSize*dataSizeZ];
-  memcpy(array, inPtr, planeSize*dataSizeZ*sizeof(T));
-
-  for (int x = 0; x < dataSizeZ*planeSize; x++)
+  for (int x = 0; x < volumeSize; x++)
     {
-    sum += array[x];
+    double d = array[x] - average;
+    variance += d*d;
     }
+  variance = variance/volumeSize;
 
-  average = sum/(planeSize*dataSizeZ);
-
-  for (int x = 0; x < dataSizeZ*planeSize; x++)
-    {
-    variance += fabs(array[x] - average);
-    }
-  variance = variance/(planeSize * dataSizeZ);
-
-  threshold = static_cast<int>(average + 2*variance);
+  int threshold = static_cast<int>(average + 2.0*sqrt(variance));
 
   for (int z = 0; z < dataSizeZ; z++)
     {
@@ -435,11 +443,11 @@ void ScanVolume(
       {
       for (int x = 0; x < dataSizeX; x++)
         {
-        if (static_cast<int>(array[planeSize*z+dataSizeX*y + x]) > threshold)
+        if (static_cast<int>(array[sliceSize*z + rowSize*y + x]) > threshold)
           {
-          Blob blob = GetBlob(array, x, y, z, dataSizeX, dataSizeY, dataSizeZ,
-                              threshold);
-          if (blob.numPoints != 0)
+          Blob blob = MakeBlob(array, x, y, z, dataSizeX, dataSizeY,
+                               dataSizeZ, blobMaxSize, threshold);
+          if (blob.count != 0)
             {
             returnList->push_back(blob);
             }
@@ -451,294 +459,290 @@ void ScanVolume(
   delete [] array;
 }
 
-void FindFrame(
-  std::vector<Blob> *returnList, void *address, const int extent[6],
-  int scalarType, int threshold)
+// Call ScanVolumeForBlobs with the right pixel data type
+void ScanVolumeForBlobsSwitch(
+  std::vector<Blob> *returnList, void *address,
+  int dataSizeX, int dataSizeY, int dataSizeZ,
+  int scalarType, int maxBlobSize)
 {
+  switch (scalarType)
+    {
+    case VTK_DOUBLE:
+      ScanVolumeForBlobs(returnList, static_cast<double *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_FLOAT:
+      ScanVolumeForBlobs(returnList, static_cast<float *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_LONG:
+      ScanVolumeForBlobs(returnList, static_cast<long *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_UNSIGNED_LONG:
+      ScanVolumeForBlobs(returnList, static_cast<unsigned long *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_INT:
+      ScanVolumeForBlobs(returnList, static_cast<int *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_UNSIGNED_INT:
+      ScanVolumeForBlobs(returnList, static_cast<unsigned int *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_SHORT:
+      ScanVolumeForBlobs(returnList, static_cast<short *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_UNSIGNED_SHORT:
+      ScanVolumeForBlobs(returnList, static_cast<unsigned short *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_CHAR:
+      ScanVolumeForBlobs(returnList, static_cast<char *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_UNSIGNED_CHAR:
+      ScanVolumeForBlobs(returnList, static_cast<unsigned char *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    case VTK_SIGNED_CHAR:
+      ScanVolumeForBlobs(returnList, static_cast<signed char *>(address),
+                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+      break;
+    }
+}
+
+// An adapter to call ScanVolumeForBlobs on vtkImageData
+void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
+{
+  void *address = input->GetScalarPointer();
+  int scalarType = input->GetScalarType();
+
+  double spacing[3];
+  input->GetSpacing(spacing);
+  int maxBlobSize = static_cast<int>(24.0/(spacing[0]*spacing[1]));
+
+  int extent[6];
+  input->GetExtent(extent);
+
   int dataSizeX = extent[1] - extent[0] + 1;
   int dataSizeY = extent[3] - extent[2] + 1;
   int dataSizeZ = extent[5] - extent[4] + 1;
 
-  switch (scalarType)
-    {
-    case VTK_DOUBLE:
-      ScanVolume(returnList, static_cast<double *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_FLOAT:
-      ScanVolume(returnList, static_cast<float *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_LONG:
-      ScanVolume(returnList, static_cast<long *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_UNSIGNED_LONG:
-      ScanVolume(returnList, static_cast<unsigned long *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_INT:
-      ScanVolume(returnList, static_cast<int *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_UNSIGNED_INT:
-      ScanVolume(returnList, static_cast<unsigned int *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_SHORT:
-      ScanVolume(returnList, static_cast<short *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_UNSIGNED_SHORT:
-      ScanVolume(returnList, static_cast<unsigned short *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_CHAR:
-      ScanVolume(returnList, static_cast<char *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_UNSIGNED_CHAR:
-      ScanVolume(returnList, static_cast<unsigned char *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    case VTK_SIGNED_CHAR:
-      ScanVolume(returnList, static_cast<signed char *>(address),
-                 dataSizeX, dataSizeY, dataSizeZ, threshold);
-      break;
-    }
+  ScanVolumeForBlobsSwitch(
+    blobs, address, dataSizeX, dataSizeY, dataSizeZ,
+    scalarType, maxBlobSize);
 }
 
-void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
-{
-  FindFrame(blobs, input->GetScalarPointer(), input->GetExtent(),
-            input->GetScalarType(), 15);
-}
+//----------------------------------------------------------------------------
 
+//
 class Histogram
 {
 public:
-  Histogram(std::map<int, double> *dict);
-  double ReturnCluster(int *leftBinP, int *rightBinP);
-  bool Collapse(double distance);
+  Histogram(std::vector<Blob> *blobs, int direction);
+  bool Collapse(double distance, double threshold, int maxWidth);
 
-  class Bin
+  struct Cluster
   {
-  public:
-    Bin(int l, int r, double s) :
-      leftBin(l), rightBin(r), sum(s) {}
-
-    int leftBin;
-    int rightBin;
+    int lowest;
+    int highest;
     double sum;
   };
 
-  std::vector<Bin> *GetBins() { return &this->Bins; }
-  std::map<int, double> *GetRawBins() { return this->HistoBins; }
+  std::vector<Cluster> *GetClusters() { return &this->Clusters; }
 
 private:
-  std::vector<Bin> Bins;
-  std::map<int, double> *HistoBins;
-  int MaxPeakWidth;
-  double average;
-  double biggest;
-  double smallest;
-  double KeepThreshold;
+  double ReturnCluster(double keepThrehsold, int *lowestP, int *highestP);
+
+  std::map<int, double> Bins;
+  std::vector<Cluster> Clusters;
+  double Average;
 };
 
-Histogram::Histogram(std::map<int, double> *dict)
-{
-  double sum = 0.0;
-  double maxval = 0.0;
-  double minval = 1e30;
-
-  for (std::map<int, double>::iterator it = dict->begin();
-       it != dict->end();
-       ++it)
-    {
-    double v = it->second;
-    sum += v;
-    maxval = (v < maxval ? maxval : v);
-    minval = (v > minval ? minval : v);
-    }
-
-  this->MaxPeakWidth = 20; // 10; must be divided by spacing
-  this->HistoBins = dict;
-  this->average = sum/dict->size();
-  this->biggest = maxval;
-  this->smallest = minval;
-  this->KeepThreshold = 0.5*this->average/4; // multiply by x*y spacing
-}
-
-double Histogram::ReturnCluster(int *leftBinP, int *rightBinP)
-{
-  // Picks biggest peak in histogram, returns tuple consisting
-  // of range of peak and area of peak.
-  // Removes bins from HistoBins
-  // Multiple calls return the multiple biggest peaks in the
-  // histogram
-
-  // first find the peak bin
-  std::map<int, double> *dict = this->HistoBins;
-  int maxBin = 0;
-  double maxBinValue = 0;
-  for (std::map<int, double>::iterator it = dict->begin();
-       it != dict->end();
-       ++it)
-    {
-    int i = it->first;
-    double v = it->second;
-    if (v > maxBinValue)
-      {
-      maxBin = i;
-      maxBinValue= v;
-      }
-    }
-  double sum = maxBinValue;
-  dict->erase(maxBin);
-
-  // then count down from the middle
-  int leftBin = maxBin;
-  for (;;)
-    {
-    std::map<int, double>::iterator it = dict->find(leftBin - 1);
-    if (it == dict->end()) { break; }
-    double v = it->second;
-    if (v <= this->KeepThreshold) { break; }
-    sum += v;
-    dict->erase(it);
-    leftBin--;
-    }
-
-  // then count up from the middle
-  int rightBin = maxBin;
-  for (;;)
-    {
-    std::map<int, double>::iterator it = dict->find(rightBin + 1);
-    if (it == dict->end()) { break; }
-    double v = it->second;
-    if (v <= this->KeepThreshold) { break; }
-    sum += v;
-    dict->erase(it);
-    rightBin++;
-    }
-
-  *leftBinP = leftBin;
-  *rightBinP = rightBin;
-  return sum;
-}
-
-bool Histogram::Collapse(double distance)
-{
-  // distance = ideal distance between histogram peaks in
-  // data coordinates
-  std::vector<Bin> *bins = &this->Bins;
-  std::map<int, double> *dict = this->HistoBins;
-
-  bins->clear();
-  while (!dict->empty())
-    {
-    int leftBin, rightBin;
-    double sum = this->ReturnCluster(&leftBin, &rightBin);
-    if (rightBin - leftBin <= this->MaxPeakWidth &&
-        sum > this->average)
-      {
-      cerr << rightBin << " - " << leftBin << " = " << this->MaxPeakWidth << " : " << sum << " > " << this->average << "\n";
-      bins->push_back(Bin(leftBin, rightBin, sum));
-      }
-    }
-
-  int bestDist = 100;
-  std::vector<Bin>::iterator bestBin1 = bins->end();
-  std::vector<Bin>::iterator bestBin2 = bins->end();
-
-  for (std::vector<Bin>::iterator it = bins->begin();
-       it != bins->end();
-       ++it)
-    {
-    int binPos = (it->leftBin + it->rightBin)/2;
-    for (std::vector<Bin>::iterator jt = bins->begin();
-         jt != bins->end();
-         ++jt)
-      {
-      int binPos2 = (jt->leftBin + jt->rightBin)/2;
-      int curDist = binPos - binPos2;
-      curDist = (curDist >= 0 ? curDist : -curDist);
-      curDist -= distance;
-      curDist = (curDist >= 0 ? curDist : -curDist);
-      if (curDist < bestDist)
-        {
-        bestDist = curDist;
-        bestBin1 = it;
-        bestBin2 = jt;
-        }
-      }
-    }
-
-  if (bestBin1 == bins->end() || bestBin2 == bins->end())
-    {
-    return false;
-    }
-
-  if (bestBin1->leftBin > bestBin2->leftBin)
-    {
-    std::vector<Bin>::iterator tmp = bestBin2;
-    bestBin2 = bestBin1;
-    bestBin1 = tmp;
-    }
-
-  cerr << "bestDist " << bestDist << "\n";
-  cerr << "pos " << (bestBin1->leftBin + bestBin1->rightBin)/2
-       << " " << (bestBin2->leftBin + bestBin2->rightBin)/2
-       << " sum " << bestBin1->sum << " " << bestBin2->sum << "\n";
-
-  Bin bin1 = *bestBin1;
-  Bin bin2 = *bestBin2;
-
-  bins->clear();
-  bins->push_back(bin1);
-  bins->push_back(bin2);
-
-  return true;
-}
-
 // collapse the blob points into bins by x or y value
-void MakeHistogram(
-  std::map<int, double> *dict, std::vector<Blob> *blobs, int i)
+Histogram::Histogram(std::vector<Blob> *blobs, int direction)
 {
+  std::map<int, double> *bins = &this->Bins;
+
+  double sum = 0.0;
+
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
     {
-    int j = static_cast<int>(i == 0 ? it->x : it->y);
-    std::map<int, double>::iterator jt = dict->find(j);
-    if (jt == dict->end())
+    int j = static_cast<int>(direction == 0 ? it->x : it->y);
+    std::map<int, double>::iterator jt = bins->find(j);
+    if (jt == bins->end())
       {
-      dict->insert(std::make_pair(j, it->mass));
+      bins->insert(std::make_pair(j, it->val));
+      sum += it->val;
       }
     else
       {
-      jt->second += it->mass;
+      jt->second += it->val;
+      sum += it->val;
       }
     }
+
+  this->Average = sum/bins->size();
+}
+
+double Histogram::ReturnCluster(
+  double threshold, int *lowestP, int *highestP)
+{
+  // Picks largest peak in histogram, returns tuple consisting
+  // of range of peak and area of peak.
+  // Removes bins from Bins
+  // Multiple calls return the multiple largest peaks in the
+  // histogram
+
+  // first find the peak bin
+  std::map<int, double> *bins = &this->Bins;
+  int maxCluster = 0;
+  double maxClusterValue = 0;
+  for (std::map<int, double>::iterator it = bins->begin();
+       it != bins->end();
+       ++it)
+    {
+    int i = it->first;
+    double v = it->second;
+    if (v > maxClusterValue)
+      {
+      maxCluster = i;
+      maxClusterValue= v;
+      }
+    }
+  double sum = maxClusterValue;
+  bins->erase(maxCluster);
+
+  double vthresh = threshold*this->Average;
+
+  // then count down from the middle
+  int lowest = maxCluster;
+  for (;;)
+    {
+    std::map<int, double>::iterator it = bins->find(lowest - 1);
+    if (it == bins->end()) { break; }
+    double v = it->second;
+    if (v <= vthresh) { break; }
+    sum += v;
+    bins->erase(it);
+    lowest--;
+    }
+
+  // then count up from the middle
+  int highest = maxCluster;
+  for (;;)
+    {
+    std::map<int, double>::iterator it = bins->find(highest + 1);
+    if (it == bins->end()) { break; }
+    double v = it->second;
+    if (v <= vthresh) { break; }
+    sum += v;
+    bins->erase(it);
+    highest++;
+    }
+
+  *lowestP = lowest;
+  *highestP = highest;
+  return sum;
+}
+
+bool Histogram::Collapse(
+  double distance, double threshold, int maxWidth)
+{
+  // distance = ideal distance between histogram peaks in
+  // data coordinates
+  std::vector<Cluster> *clusters = &this->Clusters;
+  std::map<int, double> *bins = &this->Bins;
+
+  clusters->clear();
+  while (!bins->empty())
+    {
+    int lowest, highest;
+    double sum = this->ReturnCluster(threshold, &lowest, &highest);
+    if (highest - lowest <= maxWidth &&
+        sum > this->Average)
+      {
+      cerr << highest << " - " << lowest << " <= " << maxWidth << " : " << sum << " > " << this->Average << "\n";
+      Cluster cluster = { lowest, highest, sum };
+      clusters->push_back(cluster);
+      }
+    }
+
+  double smallestDiff = 1e30;
+  std::vector<Cluster>::iterator bestCluster1 = clusters->end();
+  std::vector<Cluster>::iterator bestCluster2 = clusters->end();
+
+  for (std::vector<Cluster>::iterator it = clusters->begin();
+       it != clusters->end();
+       ++it)
+    {
+    double binPos = 0.5*(it->lowest + it->highest);
+    for (std::vector<Cluster>::iterator jt = clusters->begin();
+         jt != clusters->end();
+         ++jt)
+      {
+      double binPos2 = 0.5*(jt->lowest + jt->highest);
+      double curDist = fabs(binPos - binPos2);
+      double curDiff = fabs(curDist - distance);
+      if (curDiff < smallestDiff)
+        {
+        smallestDiff = curDiff;
+        bestCluster1 = it;
+        bestCluster2 = jt;
+        }
+      }
+    }
+
+  if (bestCluster1 == clusters->end() ||
+      bestCluster2 == clusters->end())
+    {
+    return false;
+    }
+
+  if (bestCluster1->lowest > bestCluster2->lowest)
+    {
+    std::vector<Cluster>::iterator tmp = bestCluster2;
+    bestCluster2 = bestCluster1;
+    bestCluster1 = tmp;
+    }
+
+  cerr << "smallestDiff " << smallestDiff << "\n";
+  cerr << "pos " << (bestCluster1->lowest + bestCluster1->highest)/2
+       << " " << (bestCluster2->lowest + bestCluster2->highest)/2
+       << " sum " << bestCluster1->sum << " " << bestCluster2->sum << "\n";
+
+  Cluster cluster1 = *bestCluster1;
+  Cluster cluster2 = *bestCluster2;
+
+  clusters->clear();
+  clusters->push_back(cluster1);
+  clusters->push_back(cluster2);
+
+  return true;
 }
 
 class FiducialBar
 {
 public:
   FiducialBar() {
-    this->points = 0;
-    this->eigenvector[0] = this->eigenvector[1] = this->eigenvector[2] = 0;
-    this->centreOfMass[0] = this->centreOfMass[1] = this->centreOfMass[2] = 0;
-    this->eigenvalue = 0; }
+    this->Points = 0;
+    this->Eigenvector[0] = this->Eigenvector[1] = this->Eigenvector[2] = 0;
+    this->CentreOfMass[0] = this->CentreOfMass[1] = this->CentreOfMass[2] = 0;
+    this->Eigenvalue = 0; }
 
   void SetPoints(std::vector<Point> *p) {
-    this->points = p;
-    this->centreOfMass[0] = 0;
-    this->centreOfMass[1] = 0;
-    this->centreOfMass[2] = 0; }
+    this->Points = p;
+    this->CentreOfMass[0] = 0;
+    this->CentreOfMass[1] = 0;
+    this->CentreOfMass[2] = 0; }
 
   std::vector<Point> *GetPoints() {
-    return this->points; }
+    return this->Points; }
 
   void ClipFiducialEnds(double zMin, double zMax);
 
@@ -751,21 +755,21 @@ public:
 private:
   void ComputeCentreOfMass(double com[3]);
 
-  std::vector<Point> *points;
-  double eigenvalue;
-  double eigenvector[3];
-  double centreOfMass[3];
+  std::vector<Point> *Points;
+  double Eigenvalue;
+  double Eigenvector[3];
+  double CentreOfMass[3];
 };
 
 void FiducialBar::GetLine(double p[3], double v[3])
 {
-  p[0] = this->centreOfMass[0];
-  p[1] = this->centreOfMass[1];
-  p[2] = this->centreOfMass[2];
+  p[0] = this->CentreOfMass[0];
+  p[1] = this->CentreOfMass[1];
+  p[2] = this->CentreOfMass[2];
 
-  v[0] = this->eigenvector[0];
-  v[1] = this->eigenvector[1];
-  v[2] = this->eigenvector[2];
+  v[0] = this->Eigenvector[0];
+  v[1] = this->Eigenvector[1];
+  v[2] = this->Eigenvector[2];
 
   if (v[2] < 0)
     {
@@ -778,15 +782,15 @@ void FiducialBar::GetLine(double p[3], double v[3])
 void FiducialBar::ClipFiducialEnds(double minZ, double maxZ)
 {
   size_t j = 0;
-  for (size_t i = 0; i < this->points->size(); i++)
+  for (size_t i = 0; i < this->Points->size(); i++)
     {
-    Point &pi = (*this->points)[i];
+    Point &pi = (*this->Points)[i];
     if (pi.z > minZ && pi.z < maxZ)
       {
-      (*this->points)[j++] = pi;
+      (*this->Points)[j++] = pi;
       }
     }
-  this->points->resize(j);
+  this->Points->resize(j);
 }
 
 void FiducialBar::ComputeCentreOfMass(double com[3])
@@ -796,8 +800,8 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
   com[1] = 0.0;
   com[2] = 0.0;
 
-  for (std::vector<Point>::iterator it = this->points->begin();
-       it < this->points->end();
+  for (std::vector<Point>::iterator it = this->Points->begin();
+       it < this->Points->end();
        ++it)
     {
     com[0] += it->x;
@@ -817,10 +821,10 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
 void FiducialBar::ExtractLinesFromPoints()
 {
   double C[3][3] = { {0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0} };
-  this->ComputeCentreOfMass(this->centreOfMass);
-  double *Q = this->centreOfMass;
-  for (std::vector<Point>::iterator it = this->points->begin();
-       it < this->points->end();
+  this->ComputeCentreOfMass(this->CentreOfMass);
+  double *Q = this->CentreOfMass;
+  for (std::vector<Point>::iterator it = this->Points->begin();
+       it < this->Points->end();
        ++it)
     {
     C[0][0] += (it->x - Q[0])*(it->x - Q[0]);
@@ -847,12 +851,12 @@ void FiducialBar::ExtractLinesFromPoints()
   EA[2] = eigenvectors[2];
   vtkMath::Jacobi(CA, eigenvalues, EA);
 
-  this->eigenvalue = eigenvalues[0];
-  this->eigenvector[0] = eigenvectors[0][0];
-  this->eigenvector[1] = eigenvectors[1][0];
-  this->eigenvector[2] = eigenvectors[2][0];
+  this->Eigenvalue = eigenvalues[0];
+  this->Eigenvector[0] = eigenvectors[0][0];
+  this->Eigenvector[1] = eigenvectors[1][0];
+  this->Eigenvector[2] = eigenvectors[2][0];
 
-  double *v = this->eigenvector;
+  double *v = this->Eigenvector;
   cerr << "(" << Q[0] << ", " << Q[1] << ", " << Q[2] << ") ";
   cerr << "(" << v[0] << ", " << v[1] << ", " << v[2] << ")\n";
 }
@@ -864,16 +868,16 @@ double FiducialBar::CullOutliersAndReturnRMS(double maxDist)
 
   double maxDistSquared = maxDist*maxDist;
   double sum = 0.0;
-  double *com = this->centreOfMass;
+  double *com = this->CentreOfMass;
 
   size_t j = 0;
-  for (size_t i = 0; i < this->points->size(); i++)
+  for (size_t i = 0; i < this->Points->size(); i++)
     {
-    Point &pi = (*this->points)[i];
+    Point &pi = (*this->Points)[i];
 
     // compute distance from point to line with pythagoras
     double p[3];
-    double *v = this->eigenvector;
+    double *v = this->Eigenvector;
     p[0] = pi.x - com[0];
     p[1] = pi.y - com[1];
     p[2] = pi.z - com[2];
@@ -884,12 +888,12 @@ double FiducialBar::CullOutliersAndReturnRMS(double maxDist)
     if (distSquared < maxDistSquared)
       {
       sum += distSquared;
-      (*this->points)[j++] = pi;
+      (*this->Points)[j++] = pi;
       }
     }
 
   // points too far from line have been discarded
-  this->points->resize(j);
+  this->Points->resize(j);
 
   // compute the RMS
   if (j != 0)
@@ -934,18 +938,25 @@ bool PositionFrame(
   const double origin[3], const double spacing[3],
   const double direction[3], double matrix[16])
 {
-  std::map<int, double> xDict;
-
   cerr << "spacing " << spacing[0] << " " << spacing[1] << " " << spacing[2] << "\n";
 
-  MakeHistogram(&xDict, blobs, 0);
-  Histogram xHistogram(&xDict);
-  if (!xHistogram.Collapse(190.0/spacing[0]))
+  double plateSeparationX = 190.0;
+  double barSeparation = 120.0;
+  double plateClusterThreshold = 0.1;
+  double barClusterThreshold = 0.5;
+
+  double pixelArea = spacing[0]*spacing[1];
+  double avgSpacing = sqrt(pixelArea);
+  int maxClusterWidth = static_cast<int>(11.0/avgSpacing);
+
+  Histogram xHistogram(blobs, 0);
+  if (!xHistogram.Collapse(plateSeparationX/spacing[0],
+                           plateClusterThreshold, maxClusterWidth))
     {
     cerr << "could not find sides\n";
     return false;
     }
-  std::vector<Histogram::Bin> *xBins = xHistogram.GetBins();
+  std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
 
   int zMin = 10000;
   int zMax = -1;
@@ -957,16 +968,18 @@ bool PositionFrame(
        it != blobs->end();
        ++it)
     {
-    zMin = (zMin < it->zSlice ? zMin : it->zSlice);
-    zMax = (zMax > it->zSlice ? zMax : it->zSlice);
-    if (static_cast<int>(it->x) >= (*xBins)[0].leftBin &&
-        static_cast<int>(it->x) <= (*xBins)[0].rightBin)
+    if (static_cast<int>(it->x) >= (*xClusters)[0].lowest &&
+        static_cast<int>(it->x) <= (*xClusters)[0].highest)
       {
+      zMin = (zMin < it->slice ? zMin : it->slice);
+      zMax = (zMax > it->slice ? zMax : it->slice);
       lowX.push_back(*it);
       }
-    else if (static_cast<int>(it->x) >= (*xBins)[1].leftBin &&
-             static_cast<int>(it->x) <= (*xBins)[1].rightBin)
+    else if (static_cast<int>(it->x) >= (*xClusters)[1].lowest &&
+             static_cast<int>(it->x) <= (*xClusters)[1].highest)
       {
+      zMin = (zMin < it->slice ? zMin : it->slice);
+      zMax = (zMax > it->slice ? zMax : it->slice);
       highX.push_back(*it);
       }
     }
@@ -975,34 +988,31 @@ bool PositionFrame(
   int zLow = zMin + (zMax - zMin)/4;
   int zHigh = zMax - (zMax - zMin)/4;
 
-  std::map<int, double> lowBlobs;
-  std::map<int, double> highBlobs;
-
-  MakeHistogram(&lowBlobs, &lowX, 1);
-  Histogram lowXHisto(&lowBlobs);
-  if (!lowXHisto.Collapse(120.0/spacing[1]))
+  Histogram lowXHisto(&lowX, 1);
+  if (!lowXHisto.Collapse(barSeparation/spacing[1],
+                          barClusterThreshold, maxClusterWidth))
     {
     cerr << "could not find left\n";
     return false;
     }
-  std::vector<Histogram::Bin> *lowXBins = lowXHisto.GetBins();
+  std::vector<Histogram::Cluster> *lowXClusters = lowXHisto.GetClusters();
 
-  MakeHistogram(&highBlobs, &highX, 1);
-  Histogram highXHisto(&highBlobs);
-  if (!highXHisto.Collapse(120.0/spacing[1]))
+  Histogram highXHisto(&highX, 1);
+  if (!highXHisto.Collapse(barSeparation/spacing[1],
+                           barClusterThreshold, maxClusterWidth))
     {
     cerr << "could not find right\n";
     return false;
     }
-  std::vector<Histogram::Bin> *highXBins = highXHisto.GetBins();
+  std::vector<Histogram::Cluster> *highXClusters = highXHisto.GetClusters();
 
   double corners[4][3];
 
   for (int j = 0; j < 2; j++)
   {
 
-  std::vector<Histogram::Bin> *barBins =
-    (j == 0 ? lowXBins : highXBins);
+  std::vector<Histogram::Cluster> *barClusters =
+    (j == 0 ? lowXClusters : highXClusters);
   std::vector<Blob> *barBlobs =
     (j == 0 ? &lowX : &highX);
 
@@ -1014,7 +1024,7 @@ bool PositionFrame(
        it != barBlobs->end();
        ++it)
     {
-    if (it->zSlice < zLow || it->zSlice > zHigh)
+    if (it->slice < zLow || it->slice > zHigh)
       {
       continue;
       }
@@ -1024,19 +1034,22 @@ bool PositionFrame(
     Point p;
     p.x = origin[0] + spacing[0]*it->x;
     p.y = origin[1] + spacing[1]*it->y;
-    p.z = origin[2] + spacing[2]*it->zSlice;
+    p.z = origin[2] + spacing[2]*it->slice;
 
-    if (idx >= (*barBins)[0].leftBin && idx <= (*barBins)[0].rightBin)
+    if (idx >= (*barClusters)[0].lowest &&
+        idx <= (*barClusters)[0].highest)
       {
       firstBarPoints.push_back(p);
       points->push_back(p);
       }
-    else if (idx >= (*barBins)[1].leftBin && idx <= (*barBins)[1].rightBin)
+    else if (idx >= (*barClusters)[1].lowest &&
+             idx <= (*barClusters)[1].highest)
       {
       lastBarPoints.push_back(p);
       points->push_back(p);
       }
-    else if (idx > (*barBins)[0].rightBin && idx < (*barBins)[1].leftBin)
+    else if (idx > (*barClusters)[0].highest &&
+             idx < (*barClusters)[1].lowest)
       {
       diagonalBarPoints.push_back(p);
       points->push_back(p);
@@ -1199,7 +1212,7 @@ int vtkFrameFinder::FindFrame(
     cells->InsertNextCell(0);
     vtkIdType numVerts = 0;
 
-    /*
+#if 0
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)
@@ -1207,7 +1220,7 @@ int vtkFrameFinder::FindFrame(
       double point[3];
       point[0] = origin[0] + it->x*spacing[0];
       point[1] = origin[1] + it->y*spacing[1];
-      point[2] = origin[2] + it->zSlice*spacing[2];
+      point[2] = origin[2] + it->slice*spacing[2];
       vtkIdType ptId = points->InsertNextPoint(point);
       cells->InsertCellPoint(ptId);
       //cout << "blob " << numVerts << " " << point[0] << " " << point[1] << " " << point[2] << "\n";
@@ -1218,7 +1231,7 @@ int vtkFrameFinder::FindFrame(
     poly->SetPoints(points);
     poly->SetVerts(cells);
     }
-    */
+#else
 
     for (std::vector<Point>::iterator it = framePoints.begin();
          it != framePoints.end();
@@ -1233,6 +1246,7 @@ int vtkFrameFinder::FindFrame(
     poly->SetPoints(points);
     poly->SetVerts(cells);
     }
+#endif
 
   return 1;
 }
