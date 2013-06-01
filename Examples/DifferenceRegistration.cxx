@@ -26,6 +26,10 @@ Module:    DifferenceRegistration.cxx
 #include <vtkDICOMImageReader.h>
 #include <vtkMNITransformWriter.h>
 
+#include <vtkProperty.h>
+#include <vtkDataSetMapper.h>
+#include <vtkCellArray.h>
+#include <vtkPolyData.h>
 #include <vtkRenderer.h>
 #include <vtkCamera.h>
 #include <vtkRenderWindow.h>
@@ -38,10 +42,17 @@ Module:    DifferenceRegistration.cxx
 #include <vtkImageHistogramStatistics.h>
 #include <vtkImageMathematics.h>
 #include <vtkImageShiftScale.h>
+#include <vtkImageThreshold.h>
+#include <vtkImageThresholdConnectivity.h>
+#include <vtkImageContinuousDilate3D.h>
+#include <vtkImageContinuousErode3D.h>
 
 #include <vtkTimerLog.h>
 
 #include <vtkImageRegistration.h>
+#include <vtkImageMRIBrainExtractor.h>
+#include <vtkImageIslandRemoval.h>
+#include <vtkPolyDataToImageStencil.h>
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
@@ -181,7 +192,12 @@ int main (int argc, char *argv[])
   const char *xfmfile = NULL;
   const char *sourcefile;
   const char *targetfile;
+#if 0
+  const char *sourcefile2 = "";
+  const char *targetfile2 = "";
+#endif
   bool display = true;
+  bool longitudinal = false;
 
   if (strcmp(argv[argi], "--nodisplay") == 0)
     {
@@ -212,6 +228,14 @@ int main (int argc, char *argv[])
     }
   targetfile = argv[argi];
   sourcefile = argv[argi + 1];
+#if 0
+  if (argc > argi + 1)
+    {
+    targetfile2 = argv[argi + 2];
+    sourcefile2 = argv[argi + 3];
+    longitudinal = false;
+    }
+#endif
 
   // -------------------------------------------------------
   // parameters for registration
@@ -225,6 +249,8 @@ int main (int argc, char *argv[])
   // load the images
 
   int n = 0;
+
+  cerr << "source, target " << sourcefile << " " << targetfile << "\n";
 
   // Read the source image
   vtkSmartPointer<vtkImageData> sourceImage =
@@ -256,6 +282,39 @@ int main (int argc, char *argv[])
     ReadDICOMImage(targetImage, targetMatrix, targetfile);
     }
 
+#if 0
+  // -------------------------------------------------------
+  // Read the source image
+  vtkSmartPointer<vtkImageData> sourceImage2 =
+    vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkMatrix4x4> sourceMatrix2 =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  n = strlen(sourcefile2);
+  if (n > 4 && strcmp(&sourcefile2[n-4], ".mnc") == 0)
+    {
+    ReadMINCImage(sourceImage2, sourceMatrix2, sourcefile2);
+    }
+  else if (n > 4)
+    {
+    ReadDICOMImage(sourceImage2, sourceMatrix2, sourcefile2);
+    }
+
+  // Read the target image
+  vtkSmartPointer<vtkImageData> targetImage2 =
+    vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkMatrix4x4> targetMatrix2 =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  n = strlen(targetfile2);
+  if (n > 4 && strcmp(&targetfile[n-4], ".mnc") == 0)
+    {
+    ReadMINCImage(targetImage2, targetMatrix2, targetfile2);
+    }
+  else if (n > 4)
+    {
+    ReadDICOMImage(targetImage2, targetMatrix2, targetfile2);
+    }
+#endif
+
   // -------------------------------------------------------
   // display the images
 
@@ -269,6 +328,7 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkInteractorStyleImage>::New();
 
   istyle->SetInteractionModeToImageSlicing();
+  //istyle->SetInteractionModeToImage3D();
   interactor->SetInteractorStyle(istyle);
   renderWindow->SetInteractor(interactor);
   renderWindow->AddRenderer(renderer);
@@ -561,8 +621,8 @@ int main (int argc, char *argv[])
 
   // -------------------------------------------------------
   // do the subtraction
-  double iScale =
-    (targetRange[1] - targetRange[0])/(sourceRange[1] - sourceRange[0]);
+  double iScale = targetRange[1]/sourceRange[1]*1.2;
+  //  (targetRange[1] - targetRange[0])/(sourceRange[1] - sourceRange[0]);
   double iShift = 0.0; //targetRange[0]/iScale - sourceRange[0];
 
   vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
@@ -592,13 +652,147 @@ int main (int argc, char *argv[])
   difference->SetInput(1, targetImage);
   difference->Update();
 
-  sourceMapper->SetInput(difference->GetOutput());
+  vtkSmartPointer<vtkImageContinuousDilate3D> dilate =
+    vtkSmartPointer<vtkImageContinuousDilate3D>::New();
+  dilate->SetKernelSize(3,3,3);
+  dilate->SetInput(difference->GetOutput());
+  dilate->Update();
+
+/*
+  vtkSmartPointer<vtkPoints> pts =
+    vtkSmartPointer<vtkPoints>::New();
+  vtkDataSet *pd = difference->GetOutput();
+  vtkIdType np = pd->GetNumberOfPoints();
+  pts->SetNumberOfPoints(np);
+  for (vtkIdType ip = 0; ip < np; ip++)
+    {
+    double pt[3];
+    pd->GetPoint(ip, pt);
+    pts->SetPoint(ip, pt);
+    }
+*/
+
+  vtkSmartPointer<vtkImageThreshold> thresh =
+    vtkSmartPointer<vtkImageThreshold>::New();
+  thresh->SetInput(dilate->GetOutput());
+  thresh->ThresholdBetween(-5000, 2500.0);
+  //thresh->SetSeedPoints(pts);
+  thresh->ReplaceInOn();
+  thresh->ReplaceOutOn();
+  thresh->SetInValue(1);
+  thresh->SetOutValue(0);
+  thresh->Update();
+
+  vtkSmartPointer<vtkImageMathematics> multiply =
+    vtkSmartPointer<vtkImageMathematics>::New();
+  multiply->SetOperationToMultiply();
+  multiply->SetInput(0, difference->GetOutput());
+  multiply->SetInput(1, thresh->GetOutput());
+  multiply->Update();
+
+  vtkSmartPointer<vtkImageSincInterpolator> imageBlurKernel =
+    vtkSmartPointer<vtkImageSincInterpolator>::New();
+  imageBlurKernel->SetWindowFunctionToBlackman();
+  //imageBlurKernel->SetBlurFactors(5.0, 5.0, 5.0);
+
+  vtkSmartPointer<vtkImageResize> imageBlur =
+    vtkSmartPointer<vtkImageResize>::New();
+  imageBlur->SetInput(difference->GetOutput());
+  //imageBlur->SetInput(multiply->GetOutput());
+  imageBlur->SetInterpolator(imageBlurKernel);
+  imageBlur->InterpolateOn();
+  imageBlur->Update();
+
+  vtkSmartPointer<vtkImageContinuousDilate3D> dilate2 =
+    vtkSmartPointer<vtkImageContinuousDilate3D>::New();
+  dilate2->SetKernelSize(3,3,3);
+  dilate2->SetInput(multiply->GetOutput());
+  dilate2->Update();
+
+  vtkSmartPointer<vtkImageContinuousErode3D> erode2 =
+    vtkSmartPointer<vtkImageContinuousErode3D>::New();
+  erode2->SetKernelSize(5,5,5);
+  erode2->SetInput(dilate2->GetOutput());
+  erode2->Update();
+
+  vtkSmartPointer<vtkImageContinuousDilate3D> dilate3 =
+    vtkSmartPointer<vtkImageContinuousDilate3D>::New();
+  dilate3->SetKernelSize(3,3,3);
+  dilate3->SetInput(erode2->GetOutput());
+  dilate3->Update();
 
   double differenceRange[2];
   autoRange->SetInput(difference->GetOutput());
   autoRange->Update();
   autoRange->GetAutoRange(differenceRange);
+  cout << differenceRange[0] << ", " << differenceRange[1] << "\n";
   differenceRange[0] = 0.0;
+
+  vtkSmartPointer<vtkPoints> spoints =
+    vtkSmartPointer<vtkPoints>::New();
+  spoints->InsertNextPoint(88, 135, 80);
+
+  vtkSmartPointer<vtkCellArray> verts =
+    vtkSmartPointer<vtkCellArray>::New();
+  verts->InsertNextCell(1);
+  verts->InsertCellPoint(0);
+
+  vtkSmartPointer<vtkPolyData> pdata =
+    vtkSmartPointer<vtkPolyData>::New();
+  pdata->SetPoints(spoints);
+  pdata->SetVerts(verts);
+
+  vtkSmartPointer<vtkDataSetMapper> pmapper =
+    vtkSmartPointer<vtkDataSetMapper>::New();
+  pmapper->SetInput(pdata);
+
+  vtkSmartPointer<vtkActor> pactor =
+    vtkSmartPointer<vtkActor>::New();
+  pactor->SetMapper(pmapper);
+  pactor->SetUserMatrix(targetMatrix);
+  pactor->GetProperty()->SetRepresentationToPoints();
+
+  renderer->AddViewProp(pactor);
+
+  vtkSmartPointer<vtkImageIslandRemoval> seg =
+    vtkSmartPointer<vtkImageIslandRemoval>::New();
+  seg->SetInput(dilate3->GetOutput());
+  //seg->SetSeedPoints(spoints);
+  seg->ThresholdByUpper(0.10*differenceRange[1]);
+  seg->ReplaceOutOn();
+  seg->SetOutValue(0);
+  //seg->IslandsSortedBySizeOn();
+  //seg->SetSmallestIsland(1);
+  //seg->SetLargestIsland(1);
+  //seg->SetSmallestIsland(100000);
+  //seg->SetLargestIsland(1000000);
+  seg->Update();
+
+  // -------------------------------------------------------
+  // strip the skull
+  vtkSmartPointer<vtkImageMRIBrainExtractor> bet =
+    vtkSmartPointer<vtkImageMRIBrainExtractor>::New();
+  bet->SetInput(targetImage);
+  bet->Update();
+
+  vtkSmartPointer<vtkPolyDataToImageStencil> maskMaker =
+    vtkSmartPointer<vtkPolyDataToImageStencil>::New();
+  maskMaker->SetInput(bet->GetBrainMesh());
+  maskMaker->SetInformationInput(targetImage);
+  maskMaker->Update();
+
+  vtkSmartPointer<vtkImageReslice> imageMasker =
+    vtkSmartPointer<vtkImageReslice>::New();
+  //imageMasker->SetInput(difference->GetOutput());
+  imageMasker->SetInput(imageBlur->GetOutput());
+  //imageMasker->SetStencil(maskMaker->GetOutput());
+  imageMasker->Update();
+
+  // -------------------------------------------------------
+  // display the result
+  sourceMapper->SetInput(imageMasker->GetOutput());
+  //sourceMapper->SetSlabThickness(100);
+  //sourceMapper->SetSlabTypeToMax();
 
   sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((differenceRange[1]-differenceRange[0]));
