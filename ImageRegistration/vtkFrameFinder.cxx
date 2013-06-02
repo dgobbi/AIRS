@@ -59,6 +59,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <map>
 #include <vector>
 #include <utility>
+#include <limits>
 
 vtkStandardNewMacro(vtkFrameFinder);
 vtkCxxSetObjectMacro(vtkFrameFinder,DICOMPatientMatrix,vtkMatrix4x4);
@@ -243,7 +244,7 @@ int vtkFrameFinder::RequestData(
   double direction[3];
   direction[0] = xdir[0]; // DICOM +x and Leksell +x go to the right
   direction[1] = -ydir[1]; // DICOM +y is posterior, Leksell +y is anterior
-  direction[2] = -zdir[2]; // DICOM +z is superior, Leksell +z is inferior 
+  direction[2] = -zdir[2]; // DICOM +z is superior, Leksell +z is inferior
 
   // find the frame in the input
   this->FindFrame(input, output, direction,
@@ -410,43 +411,101 @@ Blob MakeBlob(
 template <class T>
 void ScanVolumeForBlobs(
   std::vector<Blob> *returnList,
-  T* inPtr, int dataSizeX, int dataSizeY, int dataSizeZ,
+  T* inPtr, const int dataSize[3], const int boxSize[3],
   int blobMaxSize)
 {
-  int rowSize = dataSizeX;
-  int sliceSize = rowSize*dataSizeY;
-  int volumeSize = sliceSize*dataSizeZ;
+  size_t rowSize = dataSize[0];
+  size_t sliceSize = rowSize*dataSize[1];
+  size_t volumeSize = sliceSize*dataSize[2];
 
-  T *array = new T [sliceSize*dataSizeZ];
-  memcpy(array, inPtr, sliceSize*dataSizeZ*sizeof(T));
+  // compute the min/max values in the box
+  size_t offset = ((dataSize[0] - boxSize[0])/2 +
+                   rowSize*(dataSize[1] - boxSize[1])/2 +
+                   sliceSize*(dataSize[2] - boxSize[2])/2);
 
-  double average = 0.0;
-  for (int x = 0; x < volumeSize; x++)
+  T *boxPixelPtr = inPtr + offset;
+  T minVal = std::numeric_limits<T>::max();
+  T maxVal = std::numeric_limits<T>::min();
+
+  for (int z = 0; z < boxSize[2]; z++)
     {
-    average += array[x];
-    }
-  average = average/volumeSize;
-
-  double variance = 0.0;
-  for (int x = 0; x < volumeSize; x++)
-    {
-    double d = array[x] - average;
-    variance += d*d;
-    }
-  variance = variance/volumeSize;
-
-  int threshold = static_cast<int>(average + 2.0*sqrt(variance));
-
-  for (int z = 0; z < dataSizeZ; z++)
-    {
-    for (int y = 0; y < dataSizeY; y++)
+    for (int y = 0; y < boxSize[1]; y++)
       {
-      for (int x = 0; x < dataSizeX; x++)
+      for (int x = 0; x < boxSize[0]; x++)
         {
-        if (static_cast<int>(array[sliceSize*z + rowSize*y + x]) > threshold)
+        T v = *boxPixelPtr;
+        minVal = (minVal < v ? minVal : v);
+        maxVal = (maxVal > v ? maxVal : v);
+        boxPixelPtr++;
+        }
+      boxPixelPtr += dataSize[0] - boxSize[0];
+      }
+    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+    }
+
+  if (minVal == maxVal)
+    {
+    return;
+    }
+
+  // compute the histogram in the box
+  const int histSize = 1024;
+  int *histo = new int [histSize];
+  double shift = -minVal;
+  double scale = static_cast<double>(histSize - 1)/(maxVal - minVal);
+  if (scale > 1.0) { scale = 1.0; }
+
+  for (int i = 0; i < histSize; i++)
+    {
+    histo[i] = 0;
+    }
+
+  size_t total = 0;
+  boxPixelPtr = inPtr + offset;
+  for (int z = 0; z < boxSize[2]; z++)
+    {
+    for (int y = 0; y < boxSize[1]; y++)
+      {
+      for (int x = 0; x < boxSize[0]; x++)
+        {
+        T v = *boxPixelPtr;
+        int bin = static_cast<int>((v + shift)*scale);
+        histo[bin]++;
+        total++;
+        boxPixelPtr++;
+        }
+      boxPixelPtr += dataSize[0] - boxSize[0];
+      }
+    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+    }
+
+  // exclude the brightest 2% of the pixels
+  size_t total98 = static_cast<size_t>(0.98*total);
+  size_t sum = 0;
+  int thresh98 = 0;
+  for (int i = 0; i < histSize; i++)
+    {
+    sum += histo[i];
+    thresh98 = (sum > total98 ? thresh98 : i);
+    histo[i] = 0;
+    }
+
+  // compute a threshold and find the blobs
+  T threshold = static_cast<T>(0.5*thresh98/scale - shift);
+  T *array = new T [volumeSize];
+  memcpy(array, inPtr, volumeSize*sizeof(T));
+
+  T *pixelPtr = array;
+  for (int z = 0; z < dataSize[2]; z++)
+    {
+    for (int y = 0; y < dataSize[1]; y++)
+      {
+      for (int x = 0; x < dataSize[0]; x++)
+        {
+        if (*pixelPtr++ > threshold)
           {
-          Blob blob = MakeBlob(array, x, y, z, dataSizeX, dataSizeY,
-                               dataSizeZ, blobMaxSize, threshold);
+          Blob blob = MakeBlob(array, x, y, z, dataSize[0], dataSize[1],
+                               dataSize[2], blobMaxSize, threshold);
           if (blob.count != 0)
             {
             returnList->push_back(blob);
@@ -462,54 +521,54 @@ void ScanVolumeForBlobs(
 // Call ScanVolumeForBlobs with the right pixel data type
 void ScanVolumeForBlobsSwitch(
   std::vector<Blob> *returnList, void *address,
-  int dataSizeX, int dataSizeY, int dataSizeZ,
+  const int dataSize[3], const int boxSize[3],
   int scalarType, int maxBlobSize)
 {
   switch (scalarType)
     {
     case VTK_DOUBLE:
       ScanVolumeForBlobs(returnList, static_cast<double *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_FLOAT:
       ScanVolumeForBlobs(returnList, static_cast<float *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_LONG:
       ScanVolumeForBlobs(returnList, static_cast<long *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_UNSIGNED_LONG:
       ScanVolumeForBlobs(returnList, static_cast<unsigned long *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_INT:
       ScanVolumeForBlobs(returnList, static_cast<int *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_UNSIGNED_INT:
       ScanVolumeForBlobs(returnList, static_cast<unsigned int *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_SHORT:
       ScanVolumeForBlobs(returnList, static_cast<short *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_UNSIGNED_SHORT:
       ScanVolumeForBlobs(returnList, static_cast<unsigned short *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_CHAR:
       ScanVolumeForBlobs(returnList, static_cast<char *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_UNSIGNED_CHAR:
       ScanVolumeForBlobs(returnList, static_cast<unsigned char *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     case VTK_SIGNED_CHAR:
       ScanVolumeForBlobs(returnList, static_cast<signed char *>(address),
-                         dataSizeX, dataSizeY, dataSizeZ, maxBlobSize);
+                         dataSize, boxSize, maxBlobSize);
       break;
     }
 }
@@ -517,23 +576,37 @@ void ScanVolumeForBlobsSwitch(
 // An adapter to call ScanVolumeForBlobs on vtkImageData
 void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
 {
+  // get basic image information
   void *address = input->GetScalarPointer();
   int scalarType = input->GetScalarType();
-
   double spacing[3];
   input->GetSpacing(spacing);
-  int maxBlobSize = static_cast<int>(24.0/(spacing[0]*spacing[1]));
-
   int extent[6];
   input->GetExtent(extent);
 
-  int dataSizeX = extent[1] - extent[0] + 1;
-  int dataSizeY = extent[3] - extent[2] + 1;
-  int dataSizeZ = extent[5] - extent[4] + 1;
+  // maximum blob size to find is 24 square millimetres
+  int maxBlobSize = static_cast<int>(24.0/(spacing[0]*spacing[1]));
 
+  // size of image volume
+  int dataSize[3];
+  dataSize[0] = extent[1] - extent[0] + 1;
+  dataSize[1] = extent[3] - extent[2] + 1;
+  dataSize[2] = extent[5] - extent[4] + 1;
+
+  // use a cemtred 20x20x10cm box to compute image thresholds
+  int boxSize[3];
+  boxSize[0] = static_cast<int>(200.0/spacing[0]);
+  boxSize[1] = static_cast<int>(200.0/spacing[1]);
+  boxSize[2] = static_cast<int>(100.0/spacing[2]);
+
+  // limit box size
+  if (boxSize[0] > dataSize[0]) { boxSize[0] = dataSize[0]; }
+  if (boxSize[1] > dataSize[1]) { boxSize[1] = dataSize[1]; }
+  if (boxSize[2] > dataSize[2]) { boxSize[2] = dataSize[2]; }
+
+  // call the blob-finding function
   ScanVolumeForBlobsSwitch(
-    blobs, address, dataSizeX, dataSizeY, dataSizeZ,
-    scalarType, maxBlobSize);
+    blobs, address, dataSize, boxSize, scalarType, maxBlobSize);
 }
 
 //----------------------------------------------------------------------------
@@ -1024,11 +1097,6 @@ bool PositionFrame(
        it != barBlobs->end();
        ++it)
     {
-    if (it->slice < zLow || it->slice > zHigh)
-      {
-      continue;
-      }
-
     int idx = static_cast<int>(it->y);
 
     Point p;
@@ -1040,45 +1108,51 @@ bool PositionFrame(
         idx <= (*barClusters)[0].highest)
       {
       firstBarPoints.push_back(p);
-      points->push_back(p);
       }
     else if (idx >= (*barClusters)[1].lowest &&
              idx <= (*barClusters)[1].highest)
       {
       lastBarPoints.push_back(p);
-      points->push_back(p);
       }
     else if (idx > (*barClusters)[0].highest &&
              idx < (*barClusters)[1].lowest)
       {
       diagonalBarPoints.push_back(p);
-      points->push_back(p);
       }
     }
 
   FiducialBar firstBar;
   firstBar.SetPoints(&firstBarPoints);
+  firstBar.ClipFiducialEnds(zLow, zHigh);
   firstBar.ExtractLinesFromPoints();
   firstBar.CullOutliersAndReturnRMS(15);
   firstBar.ExtractLinesFromPoints();
   double firstCentre[3], firstVector[3];
   firstBar.GetLine(firstCentre, firstVector);
+  std::vector<Point> *firstPoints = firstBar.GetPoints();
+  points->insert(points->end(), firstPoints->begin(), firstPoints->end());
 
   FiducialBar lastBar;
   lastBar.SetPoints(&lastBarPoints);
+  lastBar.ClipFiducialEnds(zLow, zHigh);
   lastBar.ExtractLinesFromPoints();
   lastBar.CullOutliersAndReturnRMS(15);
   lastBar.ExtractLinesFromPoints();
   double lastCentre[3], lastVector[3];
   lastBar.GetLine(lastCentre, lastVector);
+  std::vector<Point> *lastPoints = lastBar.GetPoints();
+  points->insert(points->end(), lastPoints->begin(), lastPoints->end());
 
   FiducialBar diagonalBar;
   diagonalBar.SetPoints(&diagonalBarPoints);
+  diagonalBar.ClipFiducialEnds(zLow, zHigh);
   diagonalBar.ExtractLinesFromPoints();
   diagonalBar.CullOutliersAndReturnRMS(15);
   diagonalBar.ExtractLinesFromPoints();
   double diagonalCentre[3], diagonalVector[3];
   diagonalBar.GetLine(diagonalCentre, diagonalVector);
+  std::vector<Point> *diagonalPoints = diagonalBar.GetPoints();
+  points->insert(points->end(), diagonalPoints->begin(), diagonalPoints->end());
 
   double *p1 = corners[2*j+0];
   double *p2 = corners[2*j+1];
