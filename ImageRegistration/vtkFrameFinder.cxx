@@ -52,6 +52,13 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkMath.h"
 #include "vtkSmartPointer.h"
 
+#include "vtkTemplateAliasMacro.h"
+// turn off 64-bit ints when templating over all types
+# undef VTK_USE_INT64
+# define VTK_USE_INT64 0
+# undef VTK_USE_UINT64
+# define VTK_USE_UINT64 0
+
 #include <math.h>
 #include <string.h>
 
@@ -335,7 +342,8 @@ template <class T>
 void AddPixelIfAboveThreshold(
   T* array, int x, int y, int z,
   int dataSizeX, int dataSizeY, int dataSizeZ,
-  int threshold, struct Blob *theBlob, std::stack<Pixel> *basket)
+  T lowerThresh, T upperThresh,
+  struct Blob *theBlob, std::stack<Pixel> *basket)
 {
   T value;
 
@@ -343,8 +351,9 @@ void AddPixelIfAboveThreshold(
       x < dataSizeX && y < dataSizeY && z < dataSizeZ)
     {
     GetAndZeroPixel(array, x, y, z, dataSizeX, dataSizeY*dataSizeX, &value);
-    if (static_cast<int>(value) > threshold)
+    if (value > lowerThresh)
       {
+      if (value > upperThresh) { value = upperThresh; }
       Pixel pD = { x, y, z, static_cast<int>(value) };
       (*basket).push(pD);
       theBlob->count += 1;
@@ -360,7 +369,7 @@ template <class T>
 Blob MakeBlob(
   T* array, int x, int y, int z,
   int dataSizeX, int dataSizeY, int dataSizeZ,
-  int blobMaxSize, int threshold)
+  int blobMaxSize, T lowerThresh, T upperThresh)
 {
   struct Blob theBlob;
 
@@ -373,7 +382,7 @@ Blob MakeBlob(
   std::stack<Pixel> basket;
 
   AddPixelIfAboveThreshold(array, x, y, z, dataSizeX, dataSizeY, dataSizeZ,
-                           threshold, &theBlob, &basket);
+                           lowerThresh, upperThresh, &theBlob, &basket);
 
   while (basket.size() > 0 && theBlob.count <= blobMaxSize)
     {
@@ -381,16 +390,16 @@ Blob MakeBlob(
     basket.pop();
     AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y, z,
                              dataSizeX, dataSizeY, dataSizeZ,
-                             threshold, &theBlob, &basket);
+                             lowerThresh, upperThresh, &theBlob, &basket);
     AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y + 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
-                             threshold, &theBlob, &basket);
+                             lowerThresh, upperThresh, &theBlob, &basket);
     AddPixelIfAboveThreshold(array, curPt.x, curPt.y + 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
-                             threshold, &theBlob, &basket);
+                             lowerThresh, upperThresh, &theBlob, &basket);
     AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y + 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
-                             threshold, &theBlob, &basket);
+                             lowerThresh, upperThresh, &theBlob, &basket);
     }
 
   if (theBlob.count > 1 && theBlob.count <= blobMaxSize)
@@ -410,13 +419,59 @@ Blob MakeBlob(
 // Scan an image volume for blobs
 template <class T>
 void ScanVolumeForBlobs(
-  std::vector<Blob> *returnList,
-  T* inPtr, const int dataSize[3], const int boxSize[3],
-  int blobMaxSize)
+  T* inPtr, const int dataSize[3],
+  double lower, double upper, int blobMaxSize,
+  std::vector<Blob> *returnList)
 {
   size_t rowSize = dataSize[0];
   size_t sliceSize = rowSize*dataSize[1];
   size_t volumeSize = sliceSize*dataSize[2];
+
+  // compute a threshold and find the blobs
+  double minVal = static_cast<double>(std::numeric_limits<T>::min());
+  double maxVal = static_cast<double>(std::numeric_limits<T>::max());
+  if (lower < minVal) { lower = minVal; }
+  if (lower > maxVal) { lower = maxVal; }
+  T lowerThresh = static_cast<T>(lower);
+  if (upper < minVal) { upper = minVal; }
+  if (upper > maxVal) { upper = maxVal; }
+  T upperThresh = static_cast<T>(upper);
+
+  T *array = new T [volumeSize];
+  memcpy(array, inPtr, volumeSize*sizeof(T));
+
+  T *pixelPtr = array;
+  for (int z = 0; z < dataSize[2]; z++)
+    {
+    for (int y = 0; y < dataSize[1]; y++)
+      {
+      for (int x = 0; x < dataSize[0]; x++)
+        {
+        if (*pixelPtr++ > lowerThresh)
+          {
+          Blob blob = MakeBlob(array, x, y, z, dataSize[0], dataSize[1],
+                               dataSize[2], blobMaxSize,
+                               lowerThresh, upperThresh);
+          if (blob.count != 0)
+            {
+            returnList->push_back(blob);
+            }
+          }
+        }
+      }
+    }
+
+  delete [] array;
+}
+
+// Find the threshold that includes the given fraction of pixel values
+template <class T>
+void ComputePercentile(
+  T* inPtr, const int dataSize[3], const int boxSize[3],
+  double fraction, double *threshold)
+{
+  size_t rowSize = dataSize[0];
+  size_t sliceSize = rowSize*dataSize[1];
 
   // compute the min/max values in the box
   size_t offset = ((dataSize[0] - boxSize[0])/2 +
@@ -445,6 +500,7 @@ void ScanVolumeForBlobs(
 
   if (minVal == maxVal)
     {
+    *threshold = static_cast<int>(maxVal);
     return;
     }
 
@@ -479,106 +535,28 @@ void ScanVolumeForBlobs(
     boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
     }
 
-  // exclude the brightest 2% of the pixels
-  size_t total98 = static_cast<size_t>(0.98*total);
+  // exclude pixels above the fraction
+  size_t fractionTotal = static_cast<size_t>(fraction*total);
   size_t sum = 0;
-  int thresh98 = 0;
+  T thresh = 0;
   for (int i = 0; i < histSize; i++)
     {
     sum += histo[i];
-    thresh98 = (sum > total98 ? thresh98 : i);
+    thresh = (sum > fractionTotal ? thresh : i);
     histo[i] = 0;
     }
 
-  // compute a threshold and find the blobs
-  T threshold = static_cast<T>(0.5*thresh98/scale - shift);
-  T *array = new T [volumeSize];
-  memcpy(array, inPtr, volumeSize*sizeof(T));
-
-  T *pixelPtr = array;
-  for (int z = 0; z < dataSize[2]; z++)
-    {
-    for (int y = 0; y < dataSize[1]; y++)
-      {
-      for (int x = 0; x < dataSize[0]; x++)
-        {
-        if (*pixelPtr++ > threshold)
-          {
-          Blob blob = MakeBlob(array, x, y, z, dataSize[0], dataSize[1],
-                               dataSize[2], blobMaxSize, threshold);
-          if (blob.count != 0)
-            {
-            returnList->push_back(blob);
-            }
-          }
-        }
-      }
-    }
-
-  delete [] array;
-}
-
-// Call ScanVolumeForBlobs with the right pixel data type
-void ScanVolumeForBlobsSwitch(
-  std::vector<Blob> *returnList, void *address,
-  const int dataSize[3], const int boxSize[3],
-  int scalarType, int maxBlobSize)
-{
-  switch (scalarType)
-    {
-    case VTK_DOUBLE:
-      ScanVolumeForBlobs(returnList, static_cast<double *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_FLOAT:
-      ScanVolumeForBlobs(returnList, static_cast<float *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_LONG:
-      ScanVolumeForBlobs(returnList, static_cast<long *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_UNSIGNED_LONG:
-      ScanVolumeForBlobs(returnList, static_cast<unsigned long *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_INT:
-      ScanVolumeForBlobs(returnList, static_cast<int *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_UNSIGNED_INT:
-      ScanVolumeForBlobs(returnList, static_cast<unsigned int *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_SHORT:
-      ScanVolumeForBlobs(returnList, static_cast<short *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_UNSIGNED_SHORT:
-      ScanVolumeForBlobs(returnList, static_cast<unsigned short *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_CHAR:
-      ScanVolumeForBlobs(returnList, static_cast<char *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_UNSIGNED_CHAR:
-      ScanVolumeForBlobs(returnList, static_cast<unsigned char *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    case VTK_SIGNED_CHAR:
-      ScanVolumeForBlobs(returnList, static_cast<signed char *>(address),
-                         dataSize, boxSize, maxBlobSize);
-      break;
-    }
+  *threshold = thresh/scale - shift;
+  delete [] histo;
 }
 
 // An adapter to call ScanVolumeForBlobs on vtkImageData
-void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
+void UpdateBlobs(
+  vtkImageData *input, std::vector<Blob> *blobs)
 {
   // get basic image information
   void *address = input->GetScalarPointer();
-  int scalarType = input->GetScalarType();
+  int dataType = input->GetScalarType();
   double spacing[3];
   input->GetSpacing(spacing);
   int extent[6];
@@ -593,7 +571,7 @@ void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
   dataSize[1] = extent[3] - extent[2] + 1;
   dataSize[2] = extent[5] - extent[4] + 1;
 
-  // use a cemtred 20x20x10cm box to compute image thresholds
+  // use a centred 20x20x10cm box to compute image thresholds
   int boxSize[3];
   boxSize[0] = static_cast<int>(200.0/spacing[0]);
   boxSize[1] = static_cast<int>(200.0/spacing[1]);
@@ -604,9 +582,27 @@ void UpdateBlobs(std::vector<Blob> *blobs, vtkImageData *input)
   if (boxSize[1] > dataSize[1]) { boxSize[1] = dataSize[1]; }
   if (boxSize[2] > dataSize[2]) { boxSize[2] = dataSize[2]; }
 
+  // threshold at half of the 98th percentile within the box
+  const double fthresh = 0.5;
+  const double fraction = 0.98;
+  double threshold; // to be computed by ComputePercentile
+
+  // find the 98th percentile threshold
+  switch (dataType)
+    {
+    vtkTemplateAliasMacro(
+      ComputePercentile(static_cast<VTK_TT *>(address),
+                        dataSize, boxSize, fraction, &threshold));
+    }
+
   // call the blob-finding function
-  ScanVolumeForBlobsSwitch(
-    blobs, address, dataSize, boxSize, scalarType, maxBlobSize);
+  switch (dataType)
+    {
+    vtkTemplateAliasMacro(
+      ScanVolumeForBlobs(static_cast<VTK_TT *>(address), dataSize,
+                         threshold*fthresh, threshold,
+                         maxBlobSize, blobs));
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -616,55 +612,79 @@ class Histogram
 {
 public:
   Histogram(std::vector<Blob> *blobs, int direction);
+  double GetMinimum() { return this->Minimum; }
+  double GetMaximum() { return this->Maximum; }
+  double GetAverage() { return this->Average; }
   bool Collapse(double distance, double threshold, int maxWidth);
+
+  struct Bin
+  {
+    int minSlice;
+    int maxSlice;
+    double sum;
+  };
 
   struct Cluster
   {
     int lowest;
     int highest;
+    int minSlice;
+    int maxSlice;
     double sum;
   };
 
   std::vector<Cluster> *GetClusters() { return &this->Clusters; }
 
 private:
-  double ReturnCluster(double keepThrehsold, int *lowestP, int *highestP);
+  void ReturnCluster(double keepThreshold, Cluster *cluster);
 
-  std::map<int, double> Bins;
+  std::map<int, Bin> Bins;
   std::vector<Cluster> Clusters;
+  double Minimum;
+  double Maximum;
   double Average;
 };
 
 // collapse the blob points into bins by x or y value
 Histogram::Histogram(std::vector<Blob> *blobs, int direction)
 {
-  std::map<int, double> *bins = &this->Bins;
+  std::map<int, Bin> *bins = &this->Bins;
 
   double sum = 0.0;
+  double minval = 1e30;
+  double maxval = -1e30;
 
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
     {
     int j = static_cast<int>(direction == 0 ? it->x : it->y);
-    std::map<int, double>::iterator jt = bins->find(j);
+    std::map<int, Bin>::iterator jt = bins->find(j);
     if (jt == bins->end())
       {
-      bins->insert(std::make_pair(j, it->val));
+      Bin bin = { it->slice, it->slice, it->val };
+      bins->insert(std::make_pair(j, bin));
       sum += it->val;
+      minval = (minval < it->val ? minval : it->val);
+      maxval = (maxval > it->val ? maxval : it->val);
       }
     else
       {
-      jt->second += it->val;
+      jt->second.minSlice = std::min(jt->second.minSlice, it->slice);
+      jt->second.maxSlice = std::max(jt->second.minSlice, it->slice);
+      jt->second.sum += it->val;
       sum += it->val;
+      minval = (minval < it->val ? minval : it->val);
+      maxval = (maxval > jt->second.sum ? maxval : jt->second.sum);
       }
     }
 
+  this->Minimum = minval;
+  this->Maximum = maxval;
   this->Average = sum/bins->size();
 }
 
-double Histogram::ReturnCluster(
-  double threshold, int *lowestP, int *highestP)
+void Histogram::ReturnCluster(double threshold, Cluster *cluster)
 {
   // Picks largest peak in histogram, returns tuple consisting
   // of range of peak and area of peak.
@@ -673,17 +693,21 @@ double Histogram::ReturnCluster(
   // histogram
 
   // first find the peak bin
-  std::map<int, double> *bins = &this->Bins;
+  std::map<int, Bin> *bins = &this->Bins;
+  int minSlice = 0;
+  int maxSlice = 0;
   int maxCluster = 0;
   double maxClusterValue = 0;
-  for (std::map<int, double>::iterator it = bins->begin();
+  for (std::map<int, Bin>::iterator it = bins->begin();
        it != bins->end();
        ++it)
     {
     int i = it->first;
-    double v = it->second;
+    double v = it->second.sum;
     if (v > maxClusterValue)
       {
+      minSlice = it->second.minSlice;
+      maxSlice = it->second.maxSlice;
       maxCluster = i;
       maxClusterValue= v;
       }
@@ -691,17 +715,17 @@ double Histogram::ReturnCluster(
   double sum = maxClusterValue;
   bins->erase(maxCluster);
 
-  double vthresh = threshold*this->Average;
-
   // then count down from the middle
   int lowest = maxCluster;
   for (;;)
     {
-    std::map<int, double>::iterator it = bins->find(lowest - 1);
+    std::map<int, Bin>::iterator it = bins->find(lowest - 1);
     if (it == bins->end()) { break; }
-    double v = it->second;
-    if (v <= vthresh) { break; }
+    double v = it->second.sum;
+    if (v <= threshold) { break; }
     sum += v;
+    minSlice = std::min(minSlice, it->second.minSlice);
+    maxSlice = std::max(maxSlice, it->second.maxSlice);
     bins->erase(it);
     lowest--;
     }
@@ -710,18 +734,22 @@ double Histogram::ReturnCluster(
   int highest = maxCluster;
   for (;;)
     {
-    std::map<int, double>::iterator it = bins->find(highest + 1);
+    std::map<int, Bin>::iterator it = bins->find(highest + 1);
     if (it == bins->end()) { break; }
-    double v = it->second;
-    if (v <= vthresh) { break; }
+    double v = it->second.sum;
+    if (v <= threshold) { break; }
     sum += v;
+    minSlice = std::min(minSlice, it->second.minSlice);
+    maxSlice = std::max(maxSlice, it->second.maxSlice);
     bins->erase(it);
     highest++;
     }
 
-  *lowestP = lowest;
-  *highestP = highest;
-  return sum;
+  cluster->lowest = lowest;
+  cluster->highest = highest;
+  cluster->minSlice = minSlice;
+  cluster->maxSlice = maxSlice;
+  cluster->sum = sum;
 }
 
 bool Histogram::Collapse(
@@ -730,67 +758,96 @@ bool Histogram::Collapse(
   // distance = ideal distance between histogram peaks in
   // data coordinates
   std::vector<Cluster> *clusters = &this->Clusters;
-  std::map<int, double> *bins = &this->Bins;
+  std::map<int, Bin> *bins = &this->Bins;
 
   clusters->clear();
   while (!bins->empty())
     {
-    int lowest, highest;
-    double sum = this->ReturnCluster(threshold, &lowest, &highest);
-    if (highest - lowest <= maxWidth &&
-        sum > this->Average)
+    Cluster cluster;
+    this->ReturnCluster(threshold, &cluster);
+    if (cluster.highest - cluster.lowest <= maxWidth &&
+        //cluster.maxSlice - cluster.minSlice >= 50 &&
+        cluster.sum > threshold)
       {
-      cerr << highest << " - " << lowest << " <= " << maxWidth << " : " << sum << " > " << this->Average << "\n";
-      Cluster cluster = { lowest, highest, sum };
+      cerr << cluster.highest << " - " << cluster.lowest << " <= " << maxWidth << " : " << cluster.sum << " > " << 0.5*this->Average << " : " << cluster.maxSlice << " - " << cluster.minSlice << "\n";
       clusters->push_back(cluster);
       }
     }
 
   double smallestDiff = 1e30;
-  std::vector<Cluster>::iterator bestCluster1 = clusters->end();
-  std::vector<Cluster>::iterator bestCluster2 = clusters->end();
 
-  for (std::vector<Cluster>::iterator it = clusters->begin();
-       it != clusters->end();
-       ++it)
+  typedef std::vector<Cluster>::iterator ClusterIterator;
+  std::vector<std::pair<ClusterIterator, ClusterIterator> > candidates;
+  size_t bestCandidate = 0;
+
+  for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
     {
     double binPos = 0.5*(it->lowest + it->highest);
-    for (std::vector<Cluster>::iterator jt = clusters->begin();
-         jt != clusters->end();
-         ++jt)
+    for (ClusterIterator jt = clusters->begin(); jt != it; ++jt)
       {
       double binPos2 = 0.5*(jt->lowest + jt->highest);
       double curDist = fabs(binPos - binPos2);
       double curDiff = fabs(curDist - distance);
-      if (curDiff < smallestDiff)
+      if (curDiff < static_cast<double>(maxWidth))
         {
-        smallestDiff = curDiff;
-        bestCluster1 = it;
-        bestCluster2 = jt;
+        if (curDiff < smallestDiff)
+          {
+          smallestDiff = curDiff;
+          bestCandidate = candidates.size();
+          }
+        if (it->lowest < jt->lowest)
+          {
+          candidates.push_back(std::make_pair(it, jt));
+          }
+        else
+          {
+          candidates.push_back(std::make_pair(jt, it));
+          }
         }
       }
     }
 
-  if (bestCluster1 == clusters->end() ||
-      bestCluster2 == clusters->end())
+  if (candidates.size() == 0)
     {
     return false;
     }
 
-  if (bestCluster1->lowest > bestCluster2->lowest)
+  // merge clusters that are within maxwidth of best clusters
+  for (size_t i = 0; i < candidates.size(); i++)
     {
-    std::vector<Cluster>::iterator tmp = bestCluster2;
-    bestCluster2 = bestCluster1;
-    bestCluster1 = tmp;
+    if (i != bestCandidate)
+      {
+      ClusterIterator a = candidates[bestCandidate].first;
+      ClusterIterator b = candidates[i].first;
+      for (int j = 0; j < 2; j++)
+        {
+        int dist = a->highest - b->lowest;
+        if (dist < 0) { dist = b->highest - a->lowest; }
+        if (a != b) { cerr << "joining clusters " << dist << "\n"; }
+        if (a != b && dist <= maxWidth)
+          {
+          a->lowest = std::min(a->lowest, b->lowest);
+          a->highest = std::max(a->highest, b->highest);
+          a->minSlice = std::min(a->minSlice, b->minSlice);
+          a->maxSlice = std::max(a->maxSlice, b->maxSlice);
+          a->sum += b->sum;
+          }
+        a = candidates[bestCandidate].second;
+        b = candidates[i].second;
+        }
+      }
     }
 
-  cerr << "smallestDiff " << smallestDiff << "\n";
-  cerr << "pos " << (bestCluster1->lowest + bestCluster1->highest)/2
-       << " " << (bestCluster2->lowest + bestCluster2->highest)/2
-       << " sum " << bestCluster1->sum << " " << bestCluster2->sum << "\n";
+  Cluster cluster1 = *(candidates[bestCandidate].first);
+  Cluster cluster2 = *(candidates[bestCandidate].second);
 
-  Cluster cluster1 = *bestCluster1;
-  Cluster cluster2 = *bestCluster2;
+  cerr << "smallestDiff " << smallestDiff << "\n";
+  cerr << "pos " << (cluster1.lowest + cluster1.highest)/2
+       << " " << (cluster2.lowest + cluster2.highest)/2
+       << " sum " << cluster1.sum << " " << cluster2.sum
+       << " range1 " << cluster1.minSlice << " " << cluster1.maxSlice
+       << " range2 " << cluster2.minSlice << " " << cluster2.maxSlice
+       << "\n";
 
   clusters->clear();
   clusters->push_back(cluster1);
@@ -1015,8 +1072,8 @@ bool PositionFrame(
 
   double plateSeparationX = 190.0;
   double barSeparation = 120.0;
-  double plateClusterThreshold = 0.1;
-  double barClusterThreshold = 0.5;
+  double plateClusterThreshold = 0.2;
+  double barClusterThreshold = 0.1;
 
   double pixelArea = spacing[0]*spacing[1];
   double avgSpacing = sqrt(pixelArea);
@@ -1024,7 +1081,8 @@ bool PositionFrame(
 
   Histogram xHistogram(blobs, 0);
   if (!xHistogram.Collapse(plateSeparationX/spacing[0],
-                           plateClusterThreshold, maxClusterWidth))
+                           plateClusterThreshold*xHistogram.GetAverage(),
+                           maxClusterWidth))
     {
     cerr << "could not find sides\n";
     return false;
@@ -1063,7 +1121,8 @@ bool PositionFrame(
 
   Histogram lowXHisto(&lowX, 1);
   if (!lowXHisto.Collapse(barSeparation/spacing[1],
-                          barClusterThreshold, maxClusterWidth))
+                          barClusterThreshold*lowXHisto.GetMaximum(),
+                          maxClusterWidth))
     {
     cerr << "could not find left\n";
     return false;
@@ -1072,7 +1131,8 @@ bool PositionFrame(
 
   Histogram highXHisto(&highX, 1);
   if (!highXHisto.Collapse(barSeparation/spacing[1],
-                           barClusterThreshold, maxClusterWidth))
+                           barClusterThreshold*highXHisto.GetMaximum(),
+                           maxClusterWidth))
     {
     cerr << "could not find right\n";
     return false;
@@ -1103,6 +1163,7 @@ bool PositionFrame(
     p.x = origin[0] + spacing[0]*it->x;
     p.y = origin[1] + spacing[1]*it->y;
     p.z = origin[2] + spacing[2]*it->slice;
+    //points->push_back(p);
 
     if (idx >= (*barClusters)[0].lowest &&
         idx <= (*barClusters)[0].highest)
@@ -1221,6 +1282,10 @@ bool PositionFrame(
   dsign[1] = (direction[1] < 0 ? -1.0 : +1.0);
   dsign[2] = (direction[2] < 0 ? -1.0 : +1.0);
 
+  //xvec[0] = 1.0; xvec[1] = 0.0; xvec[2] = 0.0;
+  //yvec[0] = 0.0; yvec[1] = 1.0; yvec[2] = 0.0;
+  //zvec[0] = 0.0; zvec[1] = 0.0; zvec[2] = 1.0;
+  //centre[0] = 100.0; centre[1] = 100.0; centre[2] = 100.0;
   // build the matrix
   for (int k = 0; k < 3; k++)
     {
@@ -1257,7 +1322,7 @@ int vtkFrameFinder::FindFrame(
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
 
-  UpdateBlobs(&blobs, image);
+  UpdateBlobs(image, &blobs);
 
   double matrix[16];
   if (!PositionFrame(&blobs, &framePoints,
