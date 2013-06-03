@@ -552,7 +552,8 @@ void ComputePercentile(
 
 // An adapter to call ScanVolumeForBlobs on vtkImageData
 void UpdateBlobs(
-  vtkImageData *input, std::vector<Blob> *blobs)
+  vtkImageData *input, std::vector<Blob> *blobs,
+  double *lowerThresh, double *upperThresh)
 {
   // get basic image information
   void *address = input->GetScalarPointer();
@@ -595,12 +596,15 @@ void UpdateBlobs(
                         dataSize, boxSize, fraction, &threshold));
     }
 
+  *lowerThresh = threshold*fthresh;
+  *upperThresh = threshold;
+
   // call the blob-finding function
   switch (dataType)
     {
     vtkTemplateAliasMacro(
       ScanVolumeForBlobs(static_cast<VTK_TT *>(address), dataSize,
-                         threshold*fthresh, threshold,
+                         *lowerThresh, *upperThresh,
                          maxBlobSize, blobs));
     }
 }
@@ -611,11 +615,13 @@ void UpdateBlobs(
 class Histogram
 {
 public:
-  Histogram(std::vector<Blob> *blobs, int direction);
+  Histogram(std::vector<Blob> *blobs, double direction[3]);
   double GetMinimum() { return this->Minimum; }
   double GetMaximum() { return this->Maximum; }
   double GetAverage() { return this->Average; }
-  bool Collapse(double distance, double threshold, int maxWidth);
+  bool CollapseTwo(double distance, double threshold, int maxWidth);
+  bool CollapseOne(double position, double threshold, int maxWidth);
+  bool CollapseOne(double threshold, int maxWidth);
 
   struct Bin
   {
@@ -637,6 +643,7 @@ public:
 
 private:
   void ReturnCluster(double keepThreshold, Cluster *cluster);
+  void BuildClusters(double threshold, int maxWidth);
 
   std::map<int, Bin> Bins;
   std::vector<Cluster> Clusters;
@@ -646,7 +653,7 @@ private:
 };
 
 // collapse the blob points into bins by x or y value
-Histogram::Histogram(std::vector<Blob> *blobs, int direction)
+Histogram::Histogram(std::vector<Blob> *blobs, double vec[3])
 {
   std::map<int, Bin> *bins = &this->Bins;
 
@@ -658,7 +665,9 @@ Histogram::Histogram(std::vector<Blob> *blobs, int direction)
        it != blobs->end();
        ++it)
     {
-    int j = static_cast<int>(direction == 0 ? it->x : it->y);
+    // dot product with the direction vector, then round to int
+    double x = vec[0]*it->x + vec[1]*it->y + vec[2]*it->slice;
+    int j = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
     std::map<int, Bin>::iterator jt = bins->find(j);
     if (jt == bins->end())
       {
@@ -752,11 +761,8 @@ void Histogram::ReturnCluster(double threshold, Cluster *cluster)
   cluster->sum = sum;
 }
 
-bool Histogram::Collapse(
-  double distance, double threshold, int maxWidth)
+void Histogram::BuildClusters(double threshold, int maxWidth)
 {
-  // distance = ideal distance between histogram peaks in
-  // data coordinates
   std::vector<Cluster> *clusters = &this->Clusters;
   std::map<int, Bin> *bins = &this->Bins;
 
@@ -773,6 +779,16 @@ bool Histogram::Collapse(
       clusters->push_back(cluster);
       }
     }
+}
+
+bool Histogram::CollapseTwo(
+  double distance, double threshold, int maxWidth)
+{
+  // distance = ideal distance between histogram peaks in
+  // data coordinates
+
+  this->BuildClusters(threshold, maxWidth);
+  std::vector<Cluster> *clusters = &this->Clusters;
 
   double smallestDiff = 1e30;
 
@@ -823,9 +839,9 @@ bool Histogram::Collapse(
         {
         int dist = a->highest - b->lowest;
         if (dist < 0) { dist = b->highest - a->lowest; }
-        if (a != b) { cerr << "joining clusters " << dist << "\n"; }
         if (a != b && dist <= maxWidth)
           {
+          cerr << "joining " << b->lowest << " " << b->highest << "\n";
           a->lowest = std::min(a->lowest, b->lowest);
           a->highest = std::max(a->highest, b->highest);
           a->minSlice = std::min(a->minSlice, b->minSlice);
@@ -856,6 +872,109 @@ bool Histogram::Collapse(
   return true;
 }
 
+bool Histogram::CollapseOne(
+  double position, double threshold, int maxWidth)
+{
+  this->BuildClusters(threshold, maxWidth);
+  std::vector<Cluster> *clusters = &this->Clusters;
+
+  double smallestDiff = 1e30;
+
+  typedef std::vector<Cluster>::iterator ClusterIterator;
+  std::vector<ClusterIterator> candidates;
+  size_t bestCandidate = 0;
+
+  for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
+    {
+    double binPos = 0.5*(it->lowest + it->highest);
+    double curDiff = fabs(binPos - position);
+    if (curDiff < static_cast<double>(maxWidth))
+      {
+      if (curDiff < smallestDiff)
+        {
+        smallestDiff = curDiff;
+        bestCandidate = candidates.size();
+        }
+      candidates.push_back(it);
+      }
+    }
+
+  if (candidates.size() == 0)
+    {
+    return false;
+    }
+
+  // merge clusters that are within maxwidth of best cluster
+  for (size_t i = 0; i < candidates.size(); i++)
+    {
+    if (i != bestCandidate)
+      {
+      ClusterIterator a = candidates[bestCandidate];
+      ClusterIterator b = candidates[i];
+      int dist = a->highest - b->lowest;
+      if (dist < 0) { dist = b->highest - a->lowest; }
+      if (a != b && dist <= maxWidth)
+        {
+        a->lowest = std::min(a->lowest, b->lowest);
+        a->highest = std::max(a->highest, b->highest);
+        a->minSlice = std::min(a->minSlice, b->minSlice);
+        a->maxSlice = std::max(a->maxSlice, b->maxSlice);
+        a->sum += b->sum;
+        }
+      }
+    }
+
+  Cluster cluster = *(candidates[bestCandidate]);
+
+  cerr << "smallestDiff " << smallestDiff << "\n";
+  cerr << "pos " << (cluster.lowest + cluster.highest)/2
+       << " sum " << cluster.sum
+       << " range " << cluster.minSlice << " " << cluster.maxSlice
+       << "\n";
+
+  clusters->clear();
+  clusters->push_back(cluster);
+
+  return true;
+}
+
+bool Histogram::CollapseOne(double threshold, int maxWidth)
+{
+  this->BuildClusters(threshold, maxWidth);
+  std::vector<Cluster> *clusters = &this->Clusters;
+
+  typedef std::vector<Cluster>::iterator ClusterIterator;
+  double maxSum = -1e30;
+  ClusterIterator bestCluster = clusters->end();
+
+  for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
+    {
+    if (it->sum > maxSum)
+      {
+      maxSum = it->sum;
+      bestCluster = it;
+      }
+    }
+
+  if (bestCluster == clusters->end())
+    {
+    return false;
+    }
+
+  Cluster cluster = *bestCluster;
+
+  cerr << "pos " << (cluster.lowest + cluster.highest)/2
+       << " sum " << cluster.sum
+       << " range " << cluster.minSlice << " " << cluster.maxSlice
+       << "\n";
+
+  clusters->clear();
+  clusters->push_back(cluster);
+
+  return true;
+}
+
+
 class FiducialBar
 {
 public:
@@ -880,7 +999,7 @@ public:
 
   double CullOutliersAndReturnRMS(double maxDist);
 
-  void GetLine(double p[3], double v[3]);
+  double GetLine(double p[3], double v[3]);
 
 private:
   void ComputeCentreOfMass(double com[3]);
@@ -891,7 +1010,7 @@ private:
   double CentreOfMass[3];
 };
 
-void FiducialBar::GetLine(double p[3], double v[3])
+double FiducialBar::GetLine(double p[3], double v[3])
 {
   p[0] = this->CentreOfMass[0];
   p[1] = this->CentreOfMass[1];
@@ -907,6 +1026,8 @@ void FiducialBar::GetLine(double p[3], double v[3])
     v[1] = -v[1];
     v[2] = -v[2];
     }
+
+  return fabs(this->Eigenvalue);
 }
 
 void FiducialBar::ClipFiducialEnds(double minZ, double maxZ)
@@ -1065,6 +1186,7 @@ void LineIntersection(
 
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
+  double lowerThresh, double upperThresh,
   const double origin[3], const double spacing[3],
   const double direction[3], double matrix[16])
 {
@@ -1072,20 +1194,28 @@ bool PositionFrame(
 
   double plateSeparationX = 190.0;
   double barSeparation = 120.0;
-  double plateClusterThreshold = 0.2;
-  double barClusterThreshold = 0.1;
+  double plateClusterThreshold = 0.1;
+  double barClusterThreshold = 0.05;
+  double clusterWidth = 10.0;
 
-  double pixelArea = spacing[0]*spacing[1];
-  double avgSpacing = sqrt(pixelArea);
-  int maxClusterWidth = static_cast<int>(11.0/avgSpacing);
+  int clusterWidthX = static_cast<int>(clusterWidth/spacing[0] + 0.5);
+  int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
+  int clusterWidthD = static_cast<int>(clusterWidth*1.4/spacing[1] + 0.5);
 
-  Histogram xHistogram(blobs, 0);
-  if (!xHistogram.Collapse(plateSeparationX/spacing[0],
-                           plateClusterThreshold*xHistogram.GetAverage(),
-                           maxClusterWidth))
+  double xvec[3] = { 1.0, 0.0, 0.0 };
+  double yvec[3] = { 0.0, 1.0, 0.0 };
+  double dvec[3];
+  dvec[0] = 0.0;
+  dvec[1] = sqrt(0.5);
+  dvec[2] = -sqrt(0.5)*spacing[2]/spacing[1]*direction[1]*direction[2];
+
+  Histogram xHistogram(blobs, xvec);
+  if (!xHistogram.CollapseTwo(plateSeparationX/spacing[0],
+                              plateClusterThreshold*xHistogram.GetAverage(),
+                              clusterWidthX))
     {
     cerr << "could not find sides\n";
-    return false;
+    //return false;
     }
   std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
 
@@ -1099,15 +1229,15 @@ bool PositionFrame(
        it != blobs->end();
        ++it)
     {
-    if (static_cast<int>(it->x) >= (*xClusters)[0].lowest &&
-        static_cast<int>(it->x) <= (*xClusters)[0].highest)
+    if (static_cast<int>(it->x) >= (*xClusters)[0].lowest - 1 &&
+        static_cast<int>(it->x) <= (*xClusters)[0].highest + 1)
       {
       zMin = (zMin < it->slice ? zMin : it->slice);
       zMax = (zMax > it->slice ? zMax : it->slice);
       lowX.push_back(*it);
       }
-    else if (static_cast<int>(it->x) >= (*xClusters)[1].lowest &&
-             static_cast<int>(it->x) <= (*xClusters)[1].highest)
+    else if (static_cast<int>(it->x) >= (*xClusters)[1].lowest - 1 &&
+             static_cast<int>(it->x) <= (*xClusters)[1].highest + 1)
       {
       zMin = (zMin < it->slice ? zMin : it->slice);
       zMax = (zMax > it->slice ? zMax : it->slice);
@@ -1116,36 +1246,58 @@ bool PositionFrame(
     }
 
   // the range of z values to actually use
-  int zLow = zMin + (zMax - zMin)/4;
-  int zHigh = zMax - (zMax - zMin)/4;
+  int zLow = zMin + (zMax - zMin)/10;
+  int zHigh = zMax - (zMax - zMin)/10;
 
-  Histogram lowXHisto(&lowX, 1);
-  if (!lowXHisto.Collapse(barSeparation/spacing[1],
-                          barClusterThreshold*lowXHisto.GetMaximum(),
-                          maxClusterWidth))
+  Histogram lowXHisto(&lowX, yvec);
+  if (!lowXHisto.CollapseTwo(barSeparation/spacing[1],
+                             barClusterThreshold*lowXHisto.GetMaximum(),
+                             clusterWidthY))
     {
     cerr << "could not find left\n";
-    return false;
+    //return false;
     }
   std::vector<Histogram::Cluster> *lowXClusters = lowXHisto.GetClusters();
 
-  Histogram highXHisto(&highX, 1);
-  if (!highXHisto.Collapse(barSeparation/spacing[1],
-                           barClusterThreshold*highXHisto.GetMaximum(),
-                           maxClusterWidth))
+  Histogram highXHisto(&highX, yvec);
+  if (!highXHisto.CollapseTwo(barSeparation/spacing[1],
+                              barClusterThreshold*highXHisto.GetMaximum(),
+                              clusterWidthY))
     {
     cerr << "could not find right\n";
-    return false;
+    //return false;
     }
   std::vector<Histogram::Cluster> *highXClusters = highXHisto.GetClusters();
 
+  Histogram lowDHisto(&lowX, dvec);
+  if (!lowDHisto.CollapseOne(barClusterThreshold*lowDHisto.GetMaximum(),
+                             clusterWidthD))
+    {
+    cerr << "could not find left diagonal\n";
+    //return false;
+    }
+  std::vector<Histogram::Cluster> *lowDClusters = lowDHisto.GetClusters();
+
+
+  Histogram highDHisto(&highX, dvec);
+  if (!highDHisto.CollapseOne(barClusterThreshold*highDHisto.GetMaximum(),
+                              clusterWidthD))
+    {
+    cerr << "could not find right diagonal\n";
+    //return false;
+    }
+  std::vector<Histogram::Cluster> *highDClusters = highDHisto.GetClusters();
+
   double corners[4][3];
+  double zvec[3] = { 0.0, 0.0, 0.0 };
 
   for (int j = 0; j < 2; j++)
   {
 
   std::vector<Histogram::Cluster> *barClusters =
     (j == 0 ? lowXClusters : highXClusters);
+  std::vector<Histogram::Cluster> *diagClusters =
+    (j == 0 ? lowDClusters : highDClusters);
   std::vector<Blob> *barBlobs =
     (j == 0 ? &lowX : &highX);
 
@@ -1165,20 +1317,24 @@ bool PositionFrame(
     p.z = origin[2] + spacing[2]*it->slice;
     //points->push_back(p);
 
-    if (idx >= (*barClusters)[0].lowest &&
-        idx <= (*barClusters)[0].highest)
+    // get diagonal index
+    double x = it->x*dvec[0] + it->y*dvec[1] + it->slice*dvec[2];
+    int jdx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
+
+    if (jdx >= (*diagClusters)[0].lowest - 1 &&
+        jdx <= (*diagClusters)[0].highest + 1)
+      {
+      diagonalBarPoints.push_back(p);
+      }
+    else if (idx >= (*barClusters)[0].lowest - 1 &&
+             idx <= (*barClusters)[0].highest + 1)
       {
       firstBarPoints.push_back(p);
       }
-    else if (idx >= (*barClusters)[1].lowest &&
-             idx <= (*barClusters)[1].highest)
+    else if (idx >= (*barClusters)[1].lowest - 1 &&
+             idx <= (*barClusters)[1].highest + 1)
       {
       lastBarPoints.push_back(p);
-      }
-    else if (idx > (*barClusters)[0].highest &&
-             idx < (*barClusters)[1].lowest)
-      {
-      diagonalBarPoints.push_back(p);
       }
     }
 
@@ -1189,7 +1345,7 @@ bool PositionFrame(
   firstBar.CullOutliersAndReturnRMS(15);
   firstBar.ExtractLinesFromPoints();
   double firstCentre[3], firstVector[3];
-  firstBar.GetLine(firstCentre, firstVector);
+  double firstWeight = firstBar.GetLine(firstCentre, firstVector);
   std::vector<Point> *firstPoints = firstBar.GetPoints();
   points->insert(points->end(), firstPoints->begin(), firstPoints->end());
 
@@ -1200,7 +1356,7 @@ bool PositionFrame(
   lastBar.CullOutliersAndReturnRMS(15);
   lastBar.ExtractLinesFromPoints();
   double lastCentre[3], lastVector[3];
-  lastBar.GetLine(lastCentre, lastVector);
+  double lastWeight = lastBar.GetLine(lastCentre, lastVector);
   std::vector<Point> *lastPoints = lastBar.GetPoints();
   points->insert(points->end(), lastPoints->begin(), lastPoints->end());
 
@@ -1222,45 +1378,24 @@ bool PositionFrame(
   LineIntersection(
     lastCentre, lastVector, diagonalCentre, diagonalVector, p2);
 
+  zvec[0] += firstVector[0]*firstWeight + lastVector[0]*lastWeight;
+  zvec[1] += firstVector[1]*firstWeight + lastVector[1]*lastWeight;
+  zvec[2] += firstVector[2]*firstWeight + lastVector[2]*lastWeight;
+
   cerr << "p1 = " << p1[0] << " " << p1[1] << " " << p1[2] << "\n";
   cerr << "p2 = " << p2[0] << " " << p2[1] << " " << p2[2] << "\n";
   }
 
   // compute the horizontal direction
-  double xvec[3];
   for (int j = 0; j < 3; j++)
     {
     xvec[j] = 0.5*(corners[2][j] + corners[3][j]);
     xvec[j] -= 0.5*(corners[0][j] + corners[1][j]);
     }
+  vtkMath::Cross(zvec, xvec, yvec);
+  vtkMath::Cross(yvec, zvec, xvec);
   vtkMath::Normalize(xvec);
-
-  // compute the diagonal direction
-  double dvec[3];
-  for (int j = 0; j < 3; j++)
-    {
-    dvec[j] = 0.5*(corners[1][j] + corners[3][j]);
-    dvec[j] -= 0.5*(corners[0][j] + corners[2][j]);
-    }
-  vtkMath::Normalize(dvec);
-
-  // orthogonalize wrt horizontal
-  double tvec[3];
-  vtkMath::Cross(dvec, xvec, tvec);
-  vtkMath::Cross(xvec, tvec, dvec);
-  vtkMath::Normalize(dvec);
-
-  // get the yvec and zvec from dvec
-  double yvec[3];
-  yvec[0] = dvec[0] + tvec[0];
-  yvec[1] = dvec[1] + tvec[1];
-  yvec[2] = dvec[2] + tvec[2];
   vtkMath::Normalize(yvec);
-
-  double zvec[3];
-  zvec[0] = dvec[0] - tvec[0];
-  zvec[1] = dvec[1] - tvec[1];
-  zvec[2] = dvec[2] - tvec[2];
   vtkMath::Normalize(zvec);
 
   // compute the center in data coordinates
@@ -1285,13 +1420,13 @@ bool PositionFrame(
   //xvec[0] = 1.0; xvec[1] = 0.0; xvec[2] = 0.0;
   //yvec[0] = 0.0; yvec[1] = 1.0; yvec[2] = 0.0;
   //zvec[0] = 0.0; zvec[1] = 0.0; zvec[2] = 1.0;
-  //centre[0] = 100.0; centre[1] = 100.0; centre[2] = 100.0;
+  //centre[0] = 120.0; centre[1] = 120.0; centre[2] = 80.0;
   // build the matrix
   for (int k = 0; k < 3; k++)
     {
-    matrix[4*k + 0] = xvec[k]*dsign[0];
-    matrix[4*k + 1] = yvec[k]*dsign[1];
-    matrix[4*k + 2] = zvec[k]*dsign[2];
+    matrix[0 + k] = xvec[k]*dsign[0];
+    matrix[4 + k] = yvec[k]*dsign[1];
+    matrix[8 + k] = zvec[k]*dsign[2];
     matrix[12 + k] = 0.0;
     }
 
@@ -1321,12 +1456,13 @@ int vtkFrameFinder::FindFrame(
 
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
+  double lowerThresh, upperThresh;
 
-  UpdateBlobs(image, &blobs);
+  UpdateBlobs(image, &blobs, &lowerThresh, &upperThresh);
 
   double matrix[16];
-  if (!PositionFrame(&blobs, &framePoints,
-      origin, spacing, direction, matrix))
+  if (!PositionFrame(&blobs, &framePoints, lowerThresh, upperThresh,
+                     origin, spacing, direction, matrix))
     {
     cerr << "No frame found!\n";
     }
