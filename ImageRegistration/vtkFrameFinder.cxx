@@ -1184,9 +1184,38 @@ void LineIntersection(
   p[2] = 0.5*((p1[2] + v1[2]*t1) + (p2[2] + v2[2]*t2));
 }
 
+void BuildMatrix(
+  const double xvec[3], const double yvec[3], const double zvec[3],
+  const double centre[3], const double frameCentre[3],
+  const double direction[3], double matrix[16])
+{
+  double dsign[3];
+  dsign[0] = (direction[0] < 0 ? -1.0 : +1.0);
+  dsign[1] = (direction[1] < 0 ? -1.0 : +1.0);
+  dsign[2] = (direction[2] < 0 ? -1.0 : +1.0);
+
+  for (int k = 0; k < 3; k++)
+    {
+    matrix[0 + k] = xvec[k]*dsign[0];
+    matrix[4 + k] = yvec[k]*dsign[1];
+    matrix[8 + k] = zvec[k]*dsign[2];
+    matrix[12 + k] = 0.0;
+    }
+
+  double tc[3];
+  tc[0] = matrix[0]*centre[0] + matrix[1]*centre[1] + matrix[2]*centre[2];
+  tc[1] = matrix[4]*centre[0] + matrix[5]*centre[1] + matrix[6]*centre[2];
+  tc[2] = matrix[8]*centre[0] + matrix[9]*centre[1] + matrix[10]*centre[2];
+
+  matrix[3] = frameCentre[0] - tc[0];
+  matrix[7] = frameCentre[1] - tc[1];
+  matrix[11] = frameCentre[2] - tc[2];
+  matrix[15] = 1.0;
+}
+
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
-  double lowerThresh, double upperThresh,
+  double lowerThresh, double upperThresh, const int extent[6],
   const double origin[3], const double spacing[3],
   const double direction[3], double matrix[16])
 {
@@ -1204,6 +1233,17 @@ bool PositionFrame(
 
   double xvec[3] = { 1.0, 0.0, 0.0 };
   double yvec[3] = { 0.0, 1.0, 0.0 };
+  double zvec[3] = { 0.0, 0.0, 1.0 };
+  double frameCentre[3] = { 100.0, 100.0, 100.0 };
+
+  double centre[3];
+  centre[0] = 0.5*(extent[0] + extent[1])*spacing[0] + origin[0];
+  centre[1] = 0.5*(extent[2] + extent[3])*spacing[1] + origin[1];
+  centre[2] = 0.5*(extent[4] + extent[5])*spacing[2] + origin[2];
+
+  // create an initial matrix
+  BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
+
   double dvec[3];
   dvec[0] = 0.0;
   dvec[1] = sqrt(0.5);
@@ -1215,7 +1255,7 @@ bool PositionFrame(
                               clusterWidthX))
     {
     cerr << "could not find sides\n";
-    //return false;
+    return false;
     }
   std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
 
@@ -1255,7 +1295,7 @@ bool PositionFrame(
                              clusterWidthY))
     {
     cerr << "could not find left\n";
-    //return false;
+    return false;
     }
   std::vector<Histogram::Cluster> *lowXClusters = lowXHisto.GetClusters();
 
@@ -1265,7 +1305,7 @@ bool PositionFrame(
                               clusterWidthY))
     {
     cerr << "could not find right\n";
-    //return false;
+    return false;
     }
   std::vector<Histogram::Cluster> *highXClusters = highXHisto.GetClusters();
 
@@ -1274,7 +1314,7 @@ bool PositionFrame(
                              clusterWidthD))
     {
     cerr << "could not find left diagonal\n";
-    //return false;
+    return false;
     }
   std::vector<Histogram::Cluster> *lowDClusters = lowDHisto.GetClusters();
 
@@ -1284,12 +1324,14 @@ bool PositionFrame(
                               clusterWidthD))
     {
     cerr << "could not find right diagonal\n";
-    //return false;
+    return false;
     }
   std::vector<Histogram::Cluster> *highDClusters = highDHisto.GetClusters();
 
   double corners[4][3];
-  double zvec[3] = { 0.0, 0.0, 0.0 };
+  zvec[0] = 0.0;
+  zvec[1] = 0.0;
+  zvec[2] = 0.0;
 
   for (int j = 0; j < 2; j++)
   {
@@ -1399,7 +1441,6 @@ bool PositionFrame(
   vtkMath::Normalize(zvec);
 
   // compute the center in data coordinates
-  double centre[3];
   centre[0] = 0.0;
   centre[1] = 0.0;
   centre[2] = 0.0;
@@ -1412,33 +1453,12 @@ bool PositionFrame(
 
   cerr << "centre = " << centre[0] << " " << centre[1] << " " << centre[2] << "\n";
 
-  double dsign[3];
-  dsign[0] = (direction[0] < 0 ? -1.0 : +1.0);
-  dsign[1] = (direction[1] < 0 ? -1.0 : +1.0);
-  dsign[2] = (direction[2] < 0 ? -1.0 : +1.0);
-
   //xvec[0] = 1.0; xvec[1] = 0.0; xvec[2] = 0.0;
   //yvec[0] = 0.0; yvec[1] = 1.0; yvec[2] = 0.0;
   //zvec[0] = 0.0; zvec[1] = 0.0; zvec[2] = 1.0;
   //centre[0] = 120.0; centre[1] = 120.0; centre[2] = 80.0;
-  // build the matrix
-  for (int k = 0; k < 3; k++)
-    {
-    matrix[0 + k] = xvec[k]*dsign[0];
-    matrix[4 + k] = yvec[k]*dsign[1];
-    matrix[8 + k] = zvec[k]*dsign[2];
-    matrix[12 + k] = 0.0;
-    }
 
-  double tc[3];
-  tc[0] = matrix[0]*centre[0] + matrix[1]*centre[1] + matrix[2]*centre[2];
-  tc[1] = matrix[4]*centre[0] + matrix[5]*centre[1] + matrix[6]*centre[2];
-  tc[2] = matrix[8]*centre[0] + matrix[9]*centre[1] + matrix[10]*centre[2];
-
-  matrix[3] = 100.0 - tc[0];
-  matrix[7] = 100.0 - tc[1];
-  matrix[11] = 100.0 - tc[2];
-  matrix[15] = 1.0;
+  BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
 
   return true;
 }
@@ -1451,8 +1471,10 @@ int vtkFrameFinder::FindFrame(
   const double direction[2], vtkMatrix4x4 *m4x4)
 {
   double spacing[3], origin[3];
+  int extent[6];
   image->GetSpacing(spacing);
   image->GetOrigin(origin);
+  image->GetExtent(extent);
 
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
@@ -1462,7 +1484,7 @@ int vtkFrameFinder::FindFrame(
 
   double matrix[16];
   if (!PositionFrame(&blobs, &framePoints, lowerThresh, upperThresh,
-                     origin, spacing, direction, matrix))
+                     extent, origin, spacing, direction, matrix))
     {
     cerr << "No frame found!\n";
     }
