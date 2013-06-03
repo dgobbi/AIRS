@@ -615,7 +615,7 @@ void UpdateBlobs(
 class Histogram
 {
 public:
-  Histogram(std::vector<Blob> *blobs, double direction[3]);
+  Histogram(std::vector<Blob> *blobs, const double direction[3]);
   double GetMinimum() { return this->Minimum; }
   double GetMaximum() { return this->Maximum; }
   double GetAverage() { return this->Average; }
@@ -653,7 +653,7 @@ private:
 };
 
 // collapse the blob points into bins by x or y value
-Histogram::Histogram(std::vector<Blob> *blobs, double vec[3])
+Histogram::Histogram(std::vector<Blob> *blobs, const double vec[3])
 {
   std::map<int, Bin> *bins = &this->Bins;
 
@@ -1184,6 +1184,111 @@ void LineIntersection(
   p[2] = 0.5*((p1[2] + v1[2]*t1) + (p2[2] + v2[2]*t2));
 }
 
+class FiducialPlate
+{
+public:
+  FiducialPlate() {};
+
+  bool LocateBars(
+    std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
+    const double origin[3], const double spacing[3],
+    double barSeparation, double clusterThreshold, int clusterWidth,
+    int zMin, int zMax);
+
+  FiducialBar *GetBars() { return this->Bars; }
+
+private:
+  // diagonal bar first, then vertical bars
+  FiducialBar Bars[3];
+  std::vector<Point> BarPoints[3];
+};
+
+bool FiducialPlate::LocateBars(
+  std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
+  const double origin[3], const double spacing[3],
+  double barSeparation, double clusterThreshold, int clusterWidth,
+  int zLow, int zHigh)
+{
+  // diagonal bar is longer, so use larger cluster width
+  int clusterWidthD = static_cast<int>(clusterWidth*1.4);
+
+  // generate histograms along the horiz and diagonal directions
+  Histogram hist1(blobs, dvec);
+  Histogram hist2(blobs, hvec);
+
+  // the cluster identification threshold
+  clusterThreshold *= hist2.GetMaximum();
+
+  // locate the diagonal bar
+  if (!hist1.CollapseOne(clusterThreshold, clusterWidthD))
+    {
+    cerr << "diagonal failed\n";
+    return false;
+    }
+  cerr << "diagonal success\n";
+
+  // locate the two vertical bars
+  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidth))
+    {
+    cerr << "vertical failed\n";
+    return false;
+    }
+  cerr << "vertical success\n";
+
+  // get the clusters for the three bars
+  std::vector<Histogram::Cluster>::iterator clusters[3];
+  clusters[0] = hist1.GetClusters()->begin();
+  clusters[1] = hist2.GetClusters()->begin();
+  clusters[2] = hist2.GetClusters()->begin() + 1;
+
+  // the histogram directions for the bars
+  const double *vecs[3];
+  vecs[0] = dvec;
+  vecs[1] = hvec;
+  vecs[2] = hvec;
+
+  // find out which bar each blob belongs to
+  for (std::vector<Blob>::iterator it = blobs->begin();
+       it != blobs->end();
+       ++it)
+    {
+    // convert blob position to 3D data coordinates
+    Point p;
+    p.x = origin[0] + spacing[0]*it->x;
+    p.y = origin[1] + spacing[1]*it->y;
+    p.z = origin[2] + spacing[2]*it->slice;
+
+    // loop through the three bars (diagonal first!)
+    for (int i = 0; i < 3; i++)
+      {
+      // compute the histogram index for the point
+      const double *vec = vecs[i];
+      double x = it->x*vec[0] + it->y*vec[1] + it->slice*vec[2];
+      int idx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
+
+      if (idx >= clusters[i]->lowest - 1 &&
+          idx <= clusters[i]->highest + 1)
+        {
+        this->BarPoints[i].push_back(p);
+        break;
+        }
+      }
+    }
+
+  // do the computations for each bar
+  for (int i = 0; i < 3; i++)
+    {
+    FiducialBar *bar = &this->Bars[i];
+    bar->SetPoints(&this->BarPoints[i]);
+    bar->ClipFiducialEnds(zLow, zHigh);
+    bar->ExtractLinesFromPoints();
+    bar->CullOutliersAndReturnRMS(15);
+    bar->ExtractLinesFromPoints();
+    }
+
+  return true;
+}
+
 void BuildMatrix(
   const double xvec[3], const double yvec[3], const double zvec[3],
   const double centre[3], const double frameCentre[3],
@@ -1229,7 +1334,6 @@ bool PositionFrame(
 
   int clusterWidthX = static_cast<int>(clusterWidth/spacing[0] + 0.5);
   int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
-  int clusterWidthD = static_cast<int>(clusterWidth*1.4/spacing[1] + 0.5);
 
   double xvec[3] = { 1.0, 0.0, 0.0 };
   double yvec[3] = { 0.0, 1.0, 0.0 };
@@ -1244,11 +1348,7 @@ bool PositionFrame(
   // create an initial matrix
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
 
-  double dvec[3];
-  dvec[0] = 0.0;
-  dvec[1] = sqrt(0.5);
-  dvec[2] = -sqrt(0.5)*spacing[2]/spacing[1]*direction[1]*direction[2];
-
+  // find the side plates of the leksell frame
   Histogram xHistogram(blobs, xvec);
   if (!xHistogram.CollapseTwo(plateSeparationX/spacing[0],
                               plateClusterThreshold*xHistogram.GetAverage(),
@@ -1259,174 +1359,97 @@ bool PositionFrame(
     }
   std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
 
+  // for computing min and max slice for side plates
   int zMin = 10000;
   int zMax = -1;
 
-  std::vector<Blob> lowX;
-  std::vector<Blob> highX;
+  // for storing the blobs that belong to each of the side plates
+  std::vector<Blob> plateBlobs[2];
 
+  // find the blobs that are within the side-plate clusters,
+  // or within plus or minus one pixel of these clusters
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
     {
-    if (static_cast<int>(it->x) >= (*xClusters)[0].lowest - 1 &&
-        static_cast<int>(it->x) <= (*xClusters)[0].highest + 1)
+    for (int j = 0; j < 2; j++)
       {
-      zMin = (zMin < it->slice ? zMin : it->slice);
-      zMax = (zMax > it->slice ? zMax : it->slice);
-      lowX.push_back(*it);
-      }
-    else if (static_cast<int>(it->x) >= (*xClusters)[1].lowest - 1 &&
-             static_cast<int>(it->x) <= (*xClusters)[1].highest + 1)
-      {
-      zMin = (zMin < it->slice ? zMin : it->slice);
-      zMax = (zMax > it->slice ? zMax : it->slice);
-      highX.push_back(*it);
+      if (static_cast<int>(it->x) >= (*xClusters)[j].lowest - 1 &&
+          static_cast<int>(it->x) <= (*xClusters)[j].highest + 1)
+        {
+        zMin = (zMin < it->slice ? zMin : it->slice);
+        zMax = (zMax > it->slice ? zMax : it->slice);
+        plateBlobs[j].push_back(*it);
+        break;
+        }
       }
     }
 
-  // the range of z values to actually use
+  // we will be chopping 10% from the top and bottom of the plates
+  // in order to better capture each fiducial bar in isolation from
+  // other bars
   int zLow = zMin + (zMax - zMin)/10;
   int zHigh = zMax - (zMax - zMin)/10;
 
-  Histogram lowXHisto(&lowX, yvec);
-  if (!lowXHisto.CollapseTwo(barSeparation/spacing[1],
-                             barClusterThreshold*lowXHisto.GetMaximum(),
-                             clusterWidthY))
+  // direction perpendicular to the diagonal bars
+  double dvec[3];
+  dvec[0] = 0.0;
+  dvec[1] = sqrt(0.5);
+  dvec[2] = -sqrt(0.5)*spacing[2]/spacing[1]*direction[1]*direction[2];
+
+  // find the bars for each of the side plates
+  FiducialPlate plates[2];
+  bool foundPlate[2];
+  for (int j = 0; j < 2; j++)
     {
-    cerr << "could not find left\n";
+    foundPlate[j] = plates[j].LocateBars(
+      &plateBlobs[j], yvec, dvec, origin, spacing, barSeparation/spacing[1],
+      barClusterThreshold, clusterWidthY, zLow, zHigh);
+    }
+
+  if (!foundPlate[0] || !foundPlate[1])
+    {
+    cerr << "could not find the side plates\n";
     return false;
     }
-  std::vector<Histogram::Cluster> *lowXClusters = lowXHisto.GetClusters();
 
-  Histogram highXHisto(&highX, yvec);
-  if (!highXHisto.CollapseTwo(barSeparation/spacing[1],
-                              barClusterThreshold*highXHisto.GetMaximum(),
-                              clusterWidthY))
-    {
-    cerr << "could not find right\n";
-    return false;
-    }
-  std::vector<Histogram::Cluster> *highXClusters = highXHisto.GetClusters();
-
-  Histogram lowDHisto(&lowX, dvec);
-  if (!lowDHisto.CollapseOne(barClusterThreshold*lowDHisto.GetMaximum(),
-                             clusterWidthD))
-    {
-    cerr << "could not find left diagonal\n";
-    return false;
-    }
-  std::vector<Histogram::Cluster> *lowDClusters = lowDHisto.GetClusters();
-
-
-  Histogram highDHisto(&highX, dvec);
-  if (!highDHisto.CollapseOne(barClusterThreshold*highDHisto.GetMaximum(),
-                              clusterWidthD))
-    {
-    cerr << "could not find right diagonal\n";
-    return false;
-    }
-  std::vector<Histogram::Cluster> *highDClusters = highDHisto.GetClusters();
-
+  // will be computing the intersection points at the corners of the
+  // plates and the average direction of the vertical bars
   double corners[4][3];
   zvec[0] = 0.0;
   zvec[1] = 0.0;
   zvec[2] = 0.0;
 
   for (int j = 0; j < 2; j++)
-  {
-
-  std::vector<Histogram::Cluster> *barClusters =
-    (j == 0 ? lowXClusters : highXClusters);
-  std::vector<Histogram::Cluster> *diagClusters =
-    (j == 0 ? lowDClusters : highDClusters);
-  std::vector<Blob> *barBlobs =
-    (j == 0 ? &lowX : &highX);
-
-  std::vector<Point> firstBarPoints;
-  std::vector<Point> lastBarPoints;
-  std::vector<Point> diagonalBarPoints;
-
-  for (std::vector<Blob>::iterator it = barBlobs->begin();
-       it != barBlobs->end();
-       ++it)
     {
-    int idx = static_cast<int>(it->y);
+    double barVectors[3][3];
+    double barCentroids[3][3];
+    double barWeights[3];
 
-    Point p;
-    p.x = origin[0] + spacing[0]*it->x;
-    p.y = origin[1] + spacing[1]*it->y;
-    p.z = origin[2] + spacing[2]*it->slice;
-    //points->push_back(p);
+    for (int k = 0; k < 3; k++)
+      {
+      FiducialBar *bar = &plates[j].GetBars()[k];
+      std::vector<Point> *barPoints = bar->GetPoints();
+      points->insert(points->end(), barPoints->begin(), barPoints->end());
+      barWeights[k] = bar->GetLine(barCentroids[k], barVectors[k]);
 
-    // get diagonal index
-    double x = it->x*dvec[0] + it->y*dvec[1] + it->slice*dvec[2];
-    int jdx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
+      // for the vertical bars only
+      if (k > 0)
+        {
+        zvec[0] += barVectors[k][0]*barWeights[k];
+        zvec[1] += barVectors[k][1]*barWeights[k];
+        zvec[2] += barVectors[k][2]*barWeights[k];
+        }
+      }
 
-    if (jdx >= (*diagClusters)[0].lowest - 1 &&
-        jdx <= (*diagClusters)[0].highest + 1)
-      {
-      diagonalBarPoints.push_back(p);
-      }
-    else if (idx >= (*barClusters)[0].lowest - 1 &&
-             idx <= (*barClusters)[0].highest + 1)
-      {
-      firstBarPoints.push_back(p);
-      }
-    else if (idx >= (*barClusters)[1].lowest - 1 &&
-             idx <= (*barClusters)[1].highest + 1)
-      {
-      lastBarPoints.push_back(p);
-      }
+    // compute points where diagonal bar intersects vertical bars
+    LineIntersection(
+      barCentroids[0], barVectors[0], barCentroids[1], barVectors[1],
+      corners[2*j + 0]);
+    LineIntersection(
+      barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
+      corners[2*j + 1]);
     }
-
-  FiducialBar firstBar;
-  firstBar.SetPoints(&firstBarPoints);
-  firstBar.ClipFiducialEnds(zLow, zHigh);
-  firstBar.ExtractLinesFromPoints();
-  firstBar.CullOutliersAndReturnRMS(15);
-  firstBar.ExtractLinesFromPoints();
-  double firstCentre[3], firstVector[3];
-  double firstWeight = firstBar.GetLine(firstCentre, firstVector);
-  std::vector<Point> *firstPoints = firstBar.GetPoints();
-  points->insert(points->end(), firstPoints->begin(), firstPoints->end());
-
-  FiducialBar lastBar;
-  lastBar.SetPoints(&lastBarPoints);
-  lastBar.ClipFiducialEnds(zLow, zHigh);
-  lastBar.ExtractLinesFromPoints();
-  lastBar.CullOutliersAndReturnRMS(15);
-  lastBar.ExtractLinesFromPoints();
-  double lastCentre[3], lastVector[3];
-  double lastWeight = lastBar.GetLine(lastCentre, lastVector);
-  std::vector<Point> *lastPoints = lastBar.GetPoints();
-  points->insert(points->end(), lastPoints->begin(), lastPoints->end());
-
-  FiducialBar diagonalBar;
-  diagonalBar.SetPoints(&diagonalBarPoints);
-  diagonalBar.ClipFiducialEnds(zLow, zHigh);
-  diagonalBar.ExtractLinesFromPoints();
-  diagonalBar.CullOutliersAndReturnRMS(15);
-  diagonalBar.ExtractLinesFromPoints();
-  double diagonalCentre[3], diagonalVector[3];
-  diagonalBar.GetLine(diagonalCentre, diagonalVector);
-  std::vector<Point> *diagonalPoints = diagonalBar.GetPoints();
-  points->insert(points->end(), diagonalPoints->begin(), diagonalPoints->end());
-
-  double *p1 = corners[2*j+0];
-  double *p2 = corners[2*j+1];
-  LineIntersection(
-    firstCentre, firstVector, diagonalCentre, diagonalVector, p1);
-  LineIntersection(
-    lastCentre, lastVector, diagonalCentre, diagonalVector, p2);
-
-  zvec[0] += firstVector[0]*firstWeight + lastVector[0]*lastWeight;
-  zvec[1] += firstVector[1]*firstWeight + lastVector[1]*lastWeight;
-  zvec[2] += firstVector[2]*firstWeight + lastVector[2]*lastWeight;
-
-  cerr << "p1 = " << p1[0] << " " << p1[1] << " " << p1[2] << "\n";
-  cerr << "p2 = " << p2[0] << " " << p2[1] << " " << p2[2] << "\n";
-  }
 
   // compute the horizontal direction
   for (int j = 0; j < 3; j++)
@@ -1451,13 +1474,7 @@ bool PositionFrame(
     centre[2] += 0.25*corners[k][2];
     }
 
-  cerr << "centre = " << centre[0] << " " << centre[1] << " " << centre[2] << "\n";
-
-  //xvec[0] = 1.0; xvec[1] = 0.0; xvec[2] = 0.0;
-  //yvec[0] = 0.0; yvec[1] = 1.0; yvec[2] = 0.0;
-  //zvec[0] = 0.0; zvec[1] = 0.0; zvec[2] = 1.0;
-  //centre[0] = 120.0; centre[1] = 120.0; centre[2] = 80.0;
-
+  // create the frame registration matrix
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
 
   return true;
