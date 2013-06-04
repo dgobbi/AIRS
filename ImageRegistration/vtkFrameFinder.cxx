@@ -828,7 +828,6 @@ bool Histogram::CollapseTwo(
     return false;
     }
 
-#if 0
   // merge clusters that are within maxwidth of best clusters
   for (size_t i = 0; i < candidates.size(); i++)
     {
@@ -854,7 +853,6 @@ bool Histogram::CollapseTwo(
         }
       }
     }
-#endif
 
   Cluster cluster1 = *(candidates[bestCandidate].first);
   Cluster cluster2 = *(candidates[bestCandidate].second);
@@ -908,7 +906,6 @@ bool Histogram::CollapseOne(
     return false;
     }
 
-#if 0
   // merge clusters that are within maxwidth of best cluster
   for (size_t i = 0; i < candidates.size(); i++)
     {
@@ -928,7 +925,6 @@ bool Histogram::CollapseOne(
         }
       }
     }
-#endif
 
   Cluster cluster = *(candidates[bestCandidate]);
 
