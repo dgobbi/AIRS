@@ -828,6 +828,7 @@ bool Histogram::CollapseTwo(
     return false;
     }
 
+#if 0
   // merge clusters that are within maxwidth of best clusters
   for (size_t i = 0; i < candidates.size(); i++)
     {
@@ -853,6 +854,7 @@ bool Histogram::CollapseTwo(
         }
       }
     }
+#endif
 
   Cluster cluster1 = *(candidates[bestCandidate].first);
   Cluster cluster2 = *(candidates[bestCandidate].second);
@@ -877,6 +879,7 @@ bool Histogram::CollapseOne(
 {
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
+  cerr << "CollapseOne clusters " << clusters->size() << "\n";
 
   double smallestDiff = 1e30;
 
@@ -888,6 +891,7 @@ bool Histogram::CollapseOne(
     {
     double binPos = 0.5*(it->lowest + it->highest);
     double curDiff = fabs(binPos - position);
+    cerr << "CollapseOne curDiff " << curDiff << " " << it->sum << "\n";
     if (curDiff < static_cast<double>(maxWidth))
       {
       if (curDiff < smallestDiff)
@@ -904,6 +908,7 @@ bool Histogram::CollapseOne(
     return false;
     }
 
+#if 0
   // merge clusters that are within maxwidth of best cluster
   for (size_t i = 0; i < candidates.size(); i++)
     {
@@ -923,6 +928,7 @@ bool Histogram::CollapseOne(
         }
       }
     }
+#endif
 
   Cluster cluster = *(candidates[bestCandidate]);
 
@@ -995,9 +1001,9 @@ public:
 
   void ClipFiducialEnds(double zMin, double zMax);
 
-  void ExtractLinesFromPoints();
+  bool ExtractLinesFromPoints();
 
-  double CullOutliersAndReturnRMS(double maxDist);
+  void CullOutliers(double maxDist);
 
   double GetLine(double p[3], double v[3]);
 
@@ -1069,8 +1075,20 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
     }
 }
 
-void FiducialBar::ExtractLinesFromPoints()
+bool FiducialBar::ExtractLinesFromPoints()
 {
+  if (this->Points->size() == 0)
+    {
+    this->CentreOfMass[0] = 0.0;
+    this->CentreOfMass[1] = 0.0;
+    this->CentreOfMass[2] = 0.0;
+    this->Eigenvalue = 0.0;
+    this->Eigenvector[0] = 0.0;
+    this->Eigenvector[1] = 0.0;
+    this->Eigenvector[2] = 0.0;
+    return false;
+    }
+
   double C[3][3] = { {0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0} };
   this->ComputeCentreOfMass(this->CentreOfMass);
   double *Q = this->CentreOfMass;
@@ -1110,9 +1128,11 @@ void FiducialBar::ExtractLinesFromPoints()
   double *v = this->Eigenvector;
   cerr << "(" << Q[0] << ", " << Q[1] << ", " << Q[2] << ") ";
   cerr << "(" << v[0] << ", " << v[1] << ", " << v[2] << ")\n";
+
+  return true;
 }
 
-double FiducialBar::CullOutliersAndReturnRMS(double maxDist)
+void FiducialBar::CullOutliers(double maxDist)
 {
   // Check each point in the bar for distance from the extracted line
   // If the distance exceeds maxDist, remove the point from the list.
@@ -1136,23 +1156,32 @@ double FiducialBar::CullOutliersAndReturnRMS(double maxDist)
     double dotpv = v[0]*p[0] + v[1]*p[1] + v[2]*p[2];
     double distSquared = dotpp - dotpv*dotpv;
 
+    sum += distSquared;
+
     if (distSquared < maxDistSquared)
       {
-      sum += distSquared;
       (*this->Points)[j++] = pi;
       }
     }
 
-  // points too far from line have been discarded
-  this->Points->resize(j);
-
-  // compute the RMS
-  if (j != 0)
+  // compute what the RMS was originally
+  if (this->Points->size())
     {
-    sum = sqrt(sum/static_cast<double>(j));
+    sum = sqrt(sum/static_cast<double>(this->Points->size()));
     }
 
-  return sum;
+  cerr << "RMS " << sum << " maxDist " << maxDist << "\n";
+
+  if (sum > maxDist)
+    {
+    // RMS was too high, throw away all the points
+    this->Points->clear();
+    }
+  else
+    {
+    // points too far from line have been discarded
+    this->Points->resize(j);
+    }
 }
 
 void LineIntersection(
@@ -1209,9 +1238,16 @@ bool FiducialPlate::LocateBars(
   double barSeparation, double clusterThreshold, double clusterWidth,
   double zLow, double zHigh)
 {
+  // which direction are we going in?
+  double hspacing = spacing[1];
+  if (fabs(hvec[0]) > fabs(hvec[1]))
+    {
+    hspacing = spacing[0];
+    }
+
   // diagonal bar is longer, so use larger cluster width
-  int clusterWidthD = static_cast<int>(clusterWidth/spacing[1]*1.4 + 0.5);
-  int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
+  int clusterWidthD = static_cast<int>(clusterWidth/hspacing*1.4 + 0.5);
+  int clusterWidthH = static_cast<int>(clusterWidth/hspacing + 0.5);
 
   // generate histograms along the horiz and diagonal directions
   Histogram hist1(blobs, dvec);
@@ -1229,7 +1265,7 @@ bool FiducialPlate::LocateBars(
   cerr << "diagonal success\n";
 
   // locate the two vertical bars
-  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidthY))
+  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidthH))
     {
     cerr << "vertical failed\n";
     return false;
@@ -1267,8 +1303,8 @@ bool FiducialPlate::LocateBars(
       double x = it->x*vec[0] + it->y*vec[1] + it->slice*vec[2];
       int idx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
 
-      if (idx >= clusters[i]->lowest - 1 &&
-          idx <= clusters[i]->highest + 1)
+      if (idx >= clusters[i]->lowest &&
+          idx <= clusters[i]->highest)
         {
         this->BarPoints[i].push_back(p);
         break;
@@ -1277,17 +1313,22 @@ bool FiducialPlate::LocateBars(
     }
 
   // do the computations for each bar
+  bool result = true;
   for (int i = 0; i < 3; i++)
     {
     FiducialBar *bar = &this->Bars[i];
     bar->SetPoints(&this->BarPoints[i]);
     bar->ClipFiducialEnds(zLow, zHigh);
     bar->ExtractLinesFromPoints();
-    bar->CullOutliersAndReturnRMS(15);
-    bar->ExtractLinesFromPoints();
+    bar->CullOutliers(2.0);
+    if (!bar->ExtractLinesFromPoints())
+      {
+      cerr << "failed on bar " << i << "\n";
+      result = false;
+      }
     }
 
-  return true;
+  return result;
 }
 
 void BuildMatrix(
@@ -1327,13 +1368,15 @@ bool PositionFrame(
 {
   cerr << "spacing " << spacing[0] << " " << spacing[1] << " " << spacing[2] << "\n";
 
-  double plateSeparationX = 190.0;
+  double plateSeparationX = 196.0;
+  double plateSeparationY = 235.0;
   double barSeparation = 120.0;
   double plateClusterThreshold = 0.1;
   double barClusterThreshold = 0.05;
   double clusterWidth = 10.0;
 
   int clusterWidthX = static_cast<int>(clusterWidth/spacing[0] + 0.5);
+  int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
 
   double xvec[3] = { 1.0, 0.0, 0.0 };
   double yvec[3] = { 0.0, 1.0, 0.0 };
@@ -1364,7 +1407,7 @@ bool PositionFrame(
   int zMax = -1;
 
   // for storing the blobs that belong to each of the side plates
-  std::vector<Blob> plateBlobs[2];
+  std::vector<Blob> plateBlobs[4];
 
   // find the blobs that are within the side-plate clusters,
   // or within plus or minus one pixel of these clusters
@@ -1374,8 +1417,10 @@ bool PositionFrame(
     {
     for (int j = 0; j < 2; j++)
       {
-      if (static_cast<int>(it->x) >= (*xClusters)[j].lowest - 1 &&
-          static_cast<int>(it->x) <= (*xClusters)[j].highest + 1)
+      double x = it->x;
+      int xIdx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
+      if (xIdx >= (*xClusters)[j].lowest &&
+          xIdx <= (*xClusters)[j].highest)
         {
         zMin = (zMin < it->slice ? zMin : it->slice);
         zMax = (zMax > it->slice ? zMax : it->slice);
@@ -1398,8 +1443,8 @@ bool PositionFrame(
   dvec[2] = -sqrt(0.5)*spacing[2]/spacing[1]*direction[1]*direction[2];
 
   // find the bars for each of the side plates
-  FiducialPlate plates[2];
-  bool foundPlate[2];
+  FiducialPlate plates[4];
+  bool foundPlate[4];
   for (int j = 0; j < 2; j++)
     {
     foundPlate[j] = plates[j].LocateBars(
@@ -1412,6 +1457,9 @@ bool PositionFrame(
     cerr << "could not find the side plates\n";
     return false;
     }
+
+  // these will be used to find the front/back plates
+  double ycentre = 0.0;
 
   // will be computing the intersection points at the corners of the
   // plates and the average direction of the vertical bars
@@ -1449,6 +1497,95 @@ bool PositionFrame(
     LineIntersection(
       barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
       corners[2*j + 1]);
+
+    ycentre += 0.25*(barCentroids[1][1] + 0.5*barSeparation);
+    ycentre += 0.25*(barCentroids[2][1] - 0.5*barSeparation);
+    cerr << "ycentre " << (barCentroids[1][1] + 0.5*barSeparation) << "\n";
+    cerr << "ycentre " << (barCentroids[2][1] - 0.5*barSeparation) << "\n";
+    }
+
+  // find the blobs within which to search for front/back plates
+  double yPlatePos[2];
+  yPlatePos[0] = ycentre - 0.5*plateSeparationY;
+  yPlatePos[1] = ycentre + 0.5*plateSeparationY;
+  double yPlateRange[2][2];
+  yPlateRange[0][0] = (yPlatePos[0]-0.5*clusterWidth - origin[1])/spacing[1];
+  yPlateRange[0][1] = (yPlatePos[0]+0.5*clusterWidth - origin[1])/spacing[1];
+  yPlateRange[1][0] = (yPlatePos[1]-0.5*clusterWidth - origin[1])/spacing[1];
+  yPlateRange[1][1] = (yPlatePos[1]+0.5*clusterWidth - origin[1])/spacing[1];
+
+  cerr << "y plate positions " << yPlatePos[0] << ", " << yPlatePos[1] << "\n";
+
+  std::vector<Blob> yBlobs[2];
+  for (std::vector<Blob>::iterator it = blobs->begin();
+       it != blobs->end();
+       ++it)
+    {
+    for (int j = 0; j < 2; j++)
+      {
+      if (it->y > yPlateRange[j][0] && it->y < yPlateRange[j][1])
+        {
+        yBlobs[j].push_back(*it);
+        break;
+        }
+      }
+    }
+
+  dvec[0] = sqrt(0.5);
+  dvec[1] = 0.0;
+  dvec[2] = -sqrt(0.5)*spacing[2]/spacing[0]*direction[0]*direction[2];
+
+  Histogram yHistogramLow(&yBlobs[0], yvec);
+  Histogram yHistogramHigh(&yBlobs[1], yvec);
+  Histogram *yHistogram[2];
+  yHistogram[0] = &yHistogramLow;
+  yHistogram[1] = &yHistogramHigh;
+
+  for (int j = 0; j < 2; j++)
+    {
+    if (!yHistogram[j]->CollapseOne(
+          (yPlatePos[j] - origin[1])/spacing[1],
+          plateClusterThreshold*xHistogram.GetAverage(), clusterWidthY))
+      {
+      cerr << "could not find front/back " << j << "\n";;
+      continue;
+      }
+    std::vector<Histogram::Cluster> *yClusters = yHistogram[j]->GetClusters();
+
+    cerr << "PLATE RANGE " << (yPlatePos[j]-origin[1])/spacing[1] << " " << (*yClusters)[0].lowest << " " << (*yClusters)[0].highest << " " << yBlobs[j].size() << "\n";
+
+    for (std::vector<Blob>::iterator it = yBlobs[j].begin();
+         it != yBlobs[j].end();
+         ++it)
+      {
+      double y = it->y;
+      int yIdx = static_cast<int>(y > 0 ? y + 0.5 : y - 0.5);
+      if (yIdx >= (*yClusters)[0].lowest &&
+          yIdx <= (*yClusters)[0].highest)
+        {
+        plateBlobs[2+j].push_back(*it);
+        }
+      }
+
+    foundPlate[2+j] = plates[2+j].LocateBars(
+      &plateBlobs[2+j], xvec, dvec, origin, spacing,
+      barSeparation/spacing[0],
+      barClusterThreshold, clusterWidth, zLow, zHigh);
+
+    if (!foundPlate[2+j])
+      {
+      cerr << "did not find end plate " << j << "\n";
+      }
+    else
+      {
+      cerr << "found end plate " << j << "\n";
+      for (int k = 0; k < 3; k++)
+        {
+        FiducialBar *bar = &plates[2+j].GetBars()[k];
+        std::vector<Point> *barPoints = bar->GetPoints();
+        points->insert(points->end(), barPoints->begin(), barPoints->end());
+        }
+      }
     }
 
   // compute the horizontal direction

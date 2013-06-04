@@ -355,6 +355,7 @@ int main (int argc, char *argv[])
   targetActor->SetUserMatrix(targetMatrix);
   targetActor->GetProperty()->SetAmbient(0.6);
   targetActor->GetProperty()->SetColor(1.0, 1.0, 0.0);
+  targetActor->GetProperty()->SetOpacity(0.5);
 
   renderer->AddViewProp(sourceActor);
   renderer->AddViewProp(targetActor);
