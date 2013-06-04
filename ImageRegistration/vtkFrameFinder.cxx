@@ -384,7 +384,7 @@ Blob MakeBlob(
   AddPixelIfAboveThreshold(array, x, y, z, dataSizeX, dataSizeY, dataSizeZ,
                            lowerThresh, upperThresh, &theBlob, &basket);
 
-  while (basket.size() > 0 && theBlob.count <= blobMaxSize)
+  while (basket.size() > 0)
     {
     curPt = basket.top();
     basket.pop();
