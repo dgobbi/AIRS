@@ -1192,8 +1192,8 @@ public:
   bool LocateBars(
     std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
     const double origin[3], const double spacing[3],
-    double barSeparation, double clusterThreshold, int clusterWidth,
-    int zMin, int zMax);
+    double barSeparation, double clusterThreshold, double clusterWidth,
+    double zMin, double zMax);
 
   FiducialBar *GetBars() { return this->Bars; }
 
@@ -1206,11 +1206,12 @@ private:
 bool FiducialPlate::LocateBars(
   std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
   const double origin[3], const double spacing[3],
-  double barSeparation, double clusterThreshold, int clusterWidth,
-  int zLow, int zHigh)
+  double barSeparation, double clusterThreshold, double clusterWidth,
+  double zLow, double zHigh)
 {
   // diagonal bar is longer, so use larger cluster width
-  int clusterWidthD = static_cast<int>(clusterWidth*1.4);
+  int clusterWidthD = static_cast<int>(clusterWidth/spacing[1]*1.4 + 0.5);
+  int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
 
   // generate histograms along the horiz and diagonal directions
   Histogram hist1(blobs, dvec);
@@ -1228,7 +1229,7 @@ bool FiducialPlate::LocateBars(
   cerr << "diagonal success\n";
 
   // locate the two vertical bars
-  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidth))
+  if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidthY))
     {
     cerr << "vertical failed\n";
     return false;
@@ -1333,7 +1334,6 @@ bool PositionFrame(
   double clusterWidth = 10.0;
 
   int clusterWidthX = static_cast<int>(clusterWidth/spacing[0] + 0.5);
-  int clusterWidthY = static_cast<int>(clusterWidth/spacing[1] + 0.5);
 
   double xvec[3] = { 1.0, 0.0, 0.0 };
   double yvec[3] = { 0.0, 1.0, 0.0 };
@@ -1388,8 +1388,8 @@ bool PositionFrame(
   // we will be chopping 10% from the top and bottom of the plates
   // in order to better capture each fiducial bar in isolation from
   // other bars
-  int zLow = zMin + (zMax - zMin)/10;
-  int zHigh = zMax - (zMax - zMin)/10;
+  double zLow = (zMin + (zMax - zMin)*0.1)*spacing[2] + origin[2];
+  double zHigh = (zMax - (zMax - zMin)*0.1)*spacing[2] + origin[2];
 
   // direction perpendicular to the diagonal bars
   double dvec[3];
@@ -1404,7 +1404,7 @@ bool PositionFrame(
     {
     foundPlate[j] = plates[j].LocateBars(
       &plateBlobs[j], yvec, dvec, origin, spacing, barSeparation/spacing[1],
-      barClusterThreshold, clusterWidthY, zLow, zHigh);
+      barClusterThreshold, clusterWidth, zLow, zHigh);
     }
 
   if (!foundPlate[0] || !foundPlate[1])
