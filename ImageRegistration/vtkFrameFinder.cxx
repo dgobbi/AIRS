@@ -147,9 +147,9 @@ vtkDataObject* vtkFrameFinder::GetInput()
 }
 
 //----------------------------------------------------------------------------
-vtkImageData *vtkFrameFinder::GetOutput()
+vtkPolyData *vtkFrameFinder::GetOutput()
 {
-  return vtkImageData::SafeDownCast(this->GetOutputDataObject(0));
+  return vtkPolyData::SafeDownCast(this->GetOutputDataObject(0));
 }
 
 //----------------------------------------------------------------------------
@@ -1332,6 +1332,20 @@ void BuildMatrix(
   const double centre[3], const double frameCentre[3],
   const double direction[3], double matrix[16])
 {
+  double M[3][3];
+  for (int j = 0; j < 3; j++)
+    {
+    M[0][j] = xvec[j];
+    M[1][j] = yvec[j];
+    M[2][j] = zvec[j];
+    }
+
+  vtkMath::Normalize(M[0]);
+  vtkMath::Normalize(M[1]);
+  vtkMath::Normalize(M[2]);
+
+  vtkMath::Orthogonalize3x3(M, M);
+
   double dsign[3];
   dsign[0] = (direction[0] < 0 ? -1.0 : +1.0);
   dsign[1] = (direction[1] < 0 ? -1.0 : +1.0);
@@ -1339,9 +1353,9 @@ void BuildMatrix(
 
   for (int k = 0; k < 3; k++)
     {
-    matrix[0 + k] = xvec[k]*dsign[0];
-    matrix[4 + k] = yvec[k]*dsign[1];
-    matrix[8 + k] = zvec[k]*dsign[2];
+    matrix[0 + k] = M[0][k]*dsign[0];
+    matrix[4 + k] = M[1][k]*dsign[1];
+    matrix[8 + k] = M[2][k]*dsign[2];
     matrix[12 + k] = 0.0;
     }
 
@@ -1459,7 +1473,7 @@ bool PositionFrame(
 
   // will be computing the intersection points at the corners of the
   // plates and the average direction of the vertical bars
-  double corners[4][3];
+  double corners[8][3];
   zvec[0] = 0.0;
   zvec[1] = 0.0;
   zvec[2] = 0.0;
@@ -1494,10 +1508,9 @@ bool PositionFrame(
       barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
       corners[2*j + 1]);
 
+    // compute approximate centre in the anterior-posterior direction
     ycentre += 0.25*(barCentroids[1][1] + 0.5*barSeparation);
     ycentre += 0.25*(barCentroids[2][1] - 0.5*barSeparation);
-    cerr << "ycentre " << (barCentroids[1][1] + 0.5*barSeparation) << "\n";
-    cerr << "ycentre " << (barCentroids[2][1] - 0.5*barSeparation) << "\n";
     }
 
   // find the blobs within which to search for front/back plates
@@ -1544,6 +1557,7 @@ bool PositionFrame(
           plateClusterThreshold*xHistogram.GetAverage(), clusterWidthY))
       {
       cerr << "could not find front/back " << j << "\n";;
+      foundPlate[2+j] = false;
       continue;
       }
     std::vector<Histogram::Cluster> *yClusters = yHistogram[j]->GetClusters();
@@ -1568,44 +1582,91 @@ bool PositionFrame(
       barSeparation/spacing[0],
       barClusterThreshold, clusterWidth, zLow, zHigh);
 
-    if (!foundPlate[2+j])
-      {
-      cerr << "did not find end plate " << j << "\n";
-      }
-    else
+    if (foundPlate[2+j])
       {
       cerr << "found end plate " << j << "\n";
+
+      double barVectors[3][3];
+      double barCentroids[3][3];
+      double barWeights[3];
+
       for (int k = 0; k < 3; k++)
         {
         FiducialBar *bar = &plates[2+j].GetBars()[k];
         std::vector<Point> *barPoints = bar->GetPoints();
         points->insert(points->end(), barPoints->begin(), barPoints->end());
+        barWeights[k] = bar->GetLine(barCentroids[k], barVectors[k]);
         }
+
+      // compute points where diagonal bar intersects vertical bars
+      LineIntersection(
+        barCentroids[0], barVectors[0], barCentroids[1], barVectors[1],
+        corners[4 + 2*j + 0]);
+      LineIntersection(
+        barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
+        corners[4 + 2*j + 1]);
       }
     }
-
-  // compute the horizontal direction
-  for (int j = 0; j < 3; j++)
-    {
-    xvec[j] = 0.5*(corners[2][j] + corners[3][j]);
-    xvec[j] -= 0.5*(corners[0][j] + corners[1][j]);
-    }
-  vtkMath::Cross(zvec, xvec, yvec);
-  vtkMath::Cross(yvec, zvec, xvec);
-  vtkMath::Normalize(xvec);
-  vtkMath::Normalize(yvec);
-  vtkMath::Normalize(zvec);
 
   // compute the center in data coordinates
   centre[0] = 0.0;
   centre[1] = 0.0;
   centre[2] = 0.0;
+
+  // use side plates
   for (int k = 0; k < 4; k++)
     {
     centre[0] += 0.25*corners[k][0];
     centre[1] += 0.25*corners[k][1];
     centre[2] += 0.25*corners[k][2];
     }
+
+  // improve result with front/back plates if present
+  if (foundPlate[2] && foundPlate[3])
+    {
+    centre[0] *= 0.5;
+    centre[1] *= 0.5;
+    centre[2] *= 0.5;
+
+    for (int k = 4; k < 8; k++)
+      {
+      centre[0] += 0.125*corners[k][0];
+      centre[1] += 0.125*corners[k][1];
+      centre[2] += 0.125*corners[k][2];
+      }
+    }
+
+  // compute the left-right direction from side plates
+  for (int j = 0; j < 3; j++)
+    {
+    xvec[j] = 0.5*(corners[2][j] + corners[3][j]);
+    xvec[j] -= 0.5*(corners[0][j] + corners[1][j]);
+    }
+
+  // compute the anterior-posterior direction from front/back plates
+  if (foundPlate[2] || foundPlate[3])
+    {
+    for (int j = 0; j < 3; j++)
+      {
+      yvec[j] = 0.0;
+      if (foundPlate[2])
+        {
+        yvec[j] += centre[j] - 0.5*(corners[4][j] + corners[5][j]);
+        }
+      if (foundPlate[3])
+        {
+        yvec[j] += 0.5*(corners[6][j] + corners[7][j]) - centre[j];
+        }
+      }
+    }
+  else
+    {
+    // if front/back plates are missing, use zvec to compute yvec
+    vtkMath::Cross(zvec, xvec, yvec);
+    }
+
+  // recompute the z vector from x and y vectors
+  vtkMath::Cross(xvec, yvec, zvec);
 
   // create the frame registration matrix
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);

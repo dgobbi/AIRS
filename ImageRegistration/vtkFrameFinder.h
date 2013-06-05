@@ -57,14 +57,14 @@ public:
 
   // Description:
   // The input to this filter should be an image of a head with a
-  // stereotactic frame.
+  // stereotactic frame.  Axial images are required.
   void SetInput(vtkDataObject *);
   vtkDataObject *GetInput();
 
   // Description:
   // The output of this filter is a polydata that contains all of the
   // line segments that make up the frame.
-  vtkImageData *GetOutput();
+  vtkPolyData *GetOutput();
 
   // Description:
   // Set the matrix that converts image data coordinates into DICOM
