@@ -1220,8 +1220,37 @@ void FiducialBar::CullOutliers(double maxDist)
 }
 
 //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+class FiducialPlate
+{
+public:
+  FiducialPlate() {};
+
+  bool LocateBars(
+    std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
+    const double origin[3], const double spacing[3],
+    double barSeparation, double clusterThreshold, double clusterWidth,
+    double zMin, double zMax);
+
+  FiducialBar *GetBars() { return this->Bars; }
+
+  void GetLocation(double centre[3], double vertical[3]);
+
+private:
+  static void LineIntersection(
+    const double p1[3], const double v1[3],
+    const double p2[3], const double v2[3],
+    double p[3]);
+
+  // diagonal bar first, then vertical bars
+  FiducialBar Bars[3];
+  std::vector<Point> BarPoints[3];
+};
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Compute the intersection between two lines, return result in p.
-void LineIntersection(
+void FiducialPlate::LineIntersection(
   const double p1[3], const double v1[3],
   const double p2[3], const double v2[3],
   double p[3])
@@ -1251,25 +1280,42 @@ void LineIntersection(
 }
 
 //----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-class FiducialPlate
+// Compute the location of a fiducial plate.  The fiducial bars must have
+// already been found.
+void FiducialPlate::GetLocation(double centre[3], double vertical[3])
 {
-public:
-  FiducialPlate() {};
+  double vectors[3][3];
+  double centroids[3][3];
+  double weights[3];
 
-  bool LocateBars(
-    std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
-    const double origin[3], const double spacing[3],
-    double barSeparation, double clusterThreshold, double clusterWidth,
-    double zMin, double zMax);
+  weights[0] = this->Bars[0].GetLine(centroids[0], vectors[0]);
+  weights[1] = this->Bars[1].GetLine(centroids[1], vectors[1]);
+  weights[2] = this->Bars[2].GetLine(centroids[2], vectors[2]);
 
-  FiducialBar *GetBars() { return this->Bars; }
+  // compute the weighted average of the vertical direction
+  double x = vectors[1][0]*weights[1] + vectors[2][0]*weights[2];
+  double y = vectors[1][1]*weights[1] + vectors[2][1]*weights[2];
+  double z = vectors[1][2]*weights[1] + vectors[2][2]*weights[2];
 
-private:
-  // diagonal bar first, then vertical bars
-  FiducialBar Bars[3];
-  std::vector<Point> BarPoints[3];
-};
+  // renormalize
+  double r = sqrt(x*x + y*y + z*z);
+  vertical[0] = x/r;
+  vertical[1] = y/r;
+  vertical[2] = z/r;
+
+  // compute points where diagonal bar intersects vertical bars
+  double corners[2][3];
+  for (int j = 0; j < 2; j++)
+    {
+    this->LineIntersection(
+      centroids[0], vectors[0], centroids[j+1], vertical, corners[j]);
+    }
+
+  // compute centre between the intersection points
+  centre[0] = 0.5*(corners[0][0] + corners[1][0]);
+  centre[1] = 0.5*(corners[0][1] + corners[1][1]);
+  centre[2] = 0.5*(corners[0][2] + corners[1][2]);
+}
 
 //----------------------------------------------------------------------------
 bool FiducialPlate::LocateBars(
@@ -1518,52 +1564,26 @@ bool PositionFrame(
     return false;
     }
 
-  // these will be used to find the front/back plates
-  double ycentre = 0.0;
-
   // will be computing the intersection points at the corners of the
   // plates and the average direction of the vertical bars
-  double corners[8][3];
-  zvec[0] = 0.0;
-  zvec[1] = 0.0;
-  zvec[2] = 0.0;
+  double centres[4][3];
+  double verticals[4][3];
 
   for (int j = 0; j < 2; j++)
     {
-    double barVectors[3][3];
-    double barCentroids[3][3];
-    double barWeights[3];
+    plates[j].GetLocation(centres[j], verticals[j]);
 
+    // get all of the points that make up the plate fiducials
     for (int k = 0; k < 3; k++)
       {
       FiducialBar *bar = &plates[j].GetBars()[k];
       std::vector<Point> *barPoints = bar->GetPoints();
       points->insert(points->end(), barPoints->begin(), barPoints->end());
-      barWeights[k] = bar->GetLine(barCentroids[k], barVectors[k]);
-
-      // for the vertical bars only
-      if (k > 0)
-        {
-        zvec[0] += barVectors[k][0]*barWeights[k];
-        zvec[1] += barVectors[k][1]*barWeights[k];
-        zvec[2] += barVectors[k][2]*barWeights[k];
-        }
       }
-
-    // compute points where diagonal bar intersects vertical bars
-    LineIntersection(
-      barCentroids[0], barVectors[0], barCentroids[1], barVectors[1],
-      corners[2*j + 0]);
-    LineIntersection(
-      barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
-      corners[2*j + 1]);
-
-    // compute approximate centre in the anterior-posterior direction
-    ycentre += 0.25*(barCentroids[1][1] + 0.5*barSeparation);
-    ycentre += 0.25*(barCentroids[2][1] - 0.5*barSeparation);
     }
 
   // find the blobs within which to search for front/back plates
+  double ycentre = 0.5*(centres[0][1] + centres[1][1]);
   double yPlatePos[2];
   yPlatePos[0] = ycentre - 0.5*plateSeparationY;
   yPlatePos[1] = ycentre + 0.5*plateSeparationY;
@@ -1636,78 +1656,60 @@ bool PositionFrame(
       {
       cerr << "found end plate " << j << "\n";
 
-      double barVectors[3][3];
-      double barCentroids[3][3];
-      double barWeights[3];
+      // compute the location of this plate
+      plates[2+j].GetLocation(centres[2+j], verticals[2+j]);
 
+      // get the points that belong to the plate fiducials
       for (int k = 0; k < 3; k++)
         {
         FiducialBar *bar = &plates[2+j].GetBars()[k];
         std::vector<Point> *barPoints = bar->GetPoints();
         points->insert(points->end(), barPoints->begin(), barPoints->end());
-        barWeights[k] = bar->GetLine(barCentroids[k], barVectors[k]);
         }
-
-      // compute points where diagonal bar intersects vertical bars
-      LineIntersection(
-        barCentroids[0], barVectors[0], barCentroids[1], barVectors[1],
-        corners[4 + 2*j + 0]);
-      LineIntersection(
-        barCentroids[0], barVectors[0], barCentroids[2], barVectors[2],
-        corners[4 + 2*j + 1]);
       }
     }
 
-  // compute the center in data coordinates
-  centre[0] = 0.0;
-  centre[1] = 0.0;
-  centre[2] = 0.0;
-
-  // use side plates
-  for (int k = 0; k < 4; k++)
-    {
-    centre[0] += 0.25*corners[k][0];
-    centre[1] += 0.25*corners[k][1];
-    centre[2] += 0.25*corners[k][2];
-    }
+  // compute the center in data coordinates from side plates
+  centre[0] = 0.5*(centres[0][0] + centres[1][0]);
+  centre[1] = 0.5*(centres[0][1] + centres[1][1]);
+  centre[2] = 0.5*(centres[0][2] + centres[1][2]);
 
   // improve result with front/back plates if present
   if (foundPlate[2] && foundPlate[3])
     {
-    centre[0] *= 0.5;
-    centre[1] *= 0.5;
-    centre[2] *= 0.5;
-
-    for (int k = 4; k < 8; k++)
-      {
-      centre[0] += 0.125*corners[k][0];
-      centre[1] += 0.125*corners[k][1];
-      centre[2] += 0.125*corners[k][2];
-      }
+    centre[0] = 0.5*centre[0] + 0.25*(centres[2][0] + centres[3][0]);
+    centre[1] = 0.5*centre[1] + 0.25*(centres[2][1] + centres[3][1]);
+    centre[2] = 0.5*centre[2] + 0.25*(centres[2][2] + centres[3][2]);
     }
+
+  // compute the initial z vector from the side plates
+  zvec[0] = verticals[0][0] + verticals[1][0];
+  zvec[1] = verticals[0][1] + verticals[1][1];
+  zvec[2] = verticals[0][2] + verticals[1][2];
 
   // compute the left-right direction from side plates
-  for (int j = 0; j < 3; j++)
-    {
-    xvec[j] = 0.5*(corners[2][j] + corners[3][j]);
-    xvec[j] -= 0.5*(corners[0][j] + corners[1][j]);
-    }
+  xvec[0] = centres[1][0] - centres[0][0];
+  xvec[1] = centres[1][1] - centres[0][1];
+  xvec[2] = centres[1][2] - centres[0][2];
 
   // compute the anterior-posterior direction from front/back plates
-  if (foundPlate[2] || foundPlate[3])
+  if (foundPlate[2] && foundPlate[3])
     {
-    for (int j = 0; j < 3; j++)
-      {
-      yvec[j] = 0.0;
-      if (foundPlate[2])
-        {
-        yvec[j] += centre[j] - 0.5*(corners[4][j] + corners[5][j]);
-        }
-      if (foundPlate[3])
-        {
-        yvec[j] += 0.5*(corners[6][j] + corners[7][j]) - centre[j];
-        }
-      }
+    yvec[0] = centres[3][0] - centres[2][0];
+    yvec[1] = centres[3][1] - centres[2][1];
+    yvec[2] = centres[3][2] - centres[2][2];
+    }
+  else if (foundPlate[2])
+    {
+    yvec[0] = centre[0] - centres[2][0];
+    yvec[1] = centre[1] - centres[2][1];
+    yvec[2] = centre[2] - centres[2][2];
+    }
+  else if (foundPlate[3])
+    {
+    yvec[0] = centres[3][0] - centre[0];
+    yvec[1] = centres[3][1] - centre[1];
+    yvec[2] = centres[3][2] - centre[2];
     }
   else
     {
