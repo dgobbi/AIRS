@@ -784,7 +784,6 @@ void Histogram::BuildClusters(double threshold, int maxWidth)
     if (cluster.highest - cluster.lowest <= maxWidth &&
         cluster.sum > threshold)
       {
-      cerr << cluster.highest << " - " << cluster.lowest << " <= " << maxWidth << " : " << cluster.sum << " > " << 0.5*this->Average << " : " << cluster.maxSlice << " - " << cluster.minSlice << "\n";
       clusters->push_back(cluster);
       }
     }
@@ -853,7 +852,6 @@ bool Histogram::CollapseTwo(
         if (dist < 0) { dist = b->highest - a->lowest; }
         if (a != b && dist <= maxWidth)
           {
-          cerr << "joining " << b->lowest << " " << b->highest << "\n";
           a->lowest = std::min(a->lowest, b->lowest);
           a->highest = std::max(a->highest, b->highest);
           a->minSlice = std::min(a->minSlice, b->minSlice);
@@ -868,14 +866,6 @@ bool Histogram::CollapseTwo(
 
   Cluster cluster1 = *(candidates[bestCandidate].first);
   Cluster cluster2 = *(candidates[bestCandidate].second);
-
-  cerr << "smallestDiff " << smallestDiff << "\n";
-  cerr << "pos " << (cluster1.lowest + cluster1.highest)/2
-       << " " << (cluster2.lowest + cluster2.highest)/2
-       << " sum " << cluster1.sum << " " << cluster2.sum
-       << " range1 " << cluster1.minSlice << " " << cluster1.maxSlice
-       << " range2 " << cluster2.minSlice << " " << cluster2.maxSlice
-       << "\n";
 
   clusters->clear();
   clusters->push_back(cluster1);
@@ -892,7 +882,6 @@ bool Histogram::CollapseOne(
 {
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
-  cerr << "CollapseOne clusters " << clusters->size() << "\n";
 
   double smallestDiff = 1e30;
 
@@ -904,7 +893,7 @@ bool Histogram::CollapseOne(
     {
     double binPos = 0.5*(it->lowest + it->highest);
     double curDiff = fabs(binPos - position);
-    cerr << "CollapseOne curDiff " << curDiff << " " << it->sum << "\n";
+
     if (curDiff < static_cast<double>(maxWidth))
       {
       if (curDiff < smallestDiff)
@@ -943,12 +932,6 @@ bool Histogram::CollapseOne(
 
   Cluster cluster = *(candidates[bestCandidate]);
 
-  cerr << "smallestDiff " << smallestDiff << "\n";
-  cerr << "pos " << (cluster.lowest + cluster.highest)/2
-       << " sum " << cluster.sum
-       << " range " << cluster.minSlice << " " << cluster.maxSlice
-       << "\n";
-
   clusters->clear();
   clusters->push_back(cluster);
 
@@ -981,11 +964,6 @@ bool Histogram::CollapseOne(double threshold, int maxWidth)
     }
 
   Cluster cluster = *bestCluster;
-
-  cerr << "pos " << (cluster.lowest + cluster.highest)/2
-       << " sum " << cluster.sum
-       << " range " << cluster.minSlice << " " << cluster.maxSlice
-       << "\n";
 
   clusters->clear();
   clusters->push_back(cluster);
@@ -1156,10 +1134,6 @@ bool FiducialBar::ExtractLinesFromPoints()
   this->Eigenvector[1] = eigenvectors[1][0];
   this->Eigenvector[2] = eigenvectors[2][0];
 
-  double *v = this->Eigenvector;
-  cerr << "(" << Q[0] << ", " << Q[1] << ", " << Q[2] << ") ";
-  cerr << "(" << v[0] << ", " << v[1] << ", " << v[2] << ")\n";
-
   return true;
 }
 
@@ -1204,8 +1178,6 @@ void FiducialBar::CullOutliers(double maxDist)
     {
     sum = sqrt(sum/static_cast<double>(this->Points->size()));
     }
-
-  cerr << "RMS " << sum << " maxDist " << maxDist << "\n";
 
   if (sum > maxDist)
     {
@@ -1345,18 +1317,14 @@ bool FiducialPlate::LocateBars(
   // locate the diagonal bar
   if (!hist1.CollapseOne(clusterThreshold, clusterWidthD))
     {
-    cerr << "diagonal failed\n";
     return false;
     }
-  cerr << "diagonal success\n";
 
   // locate the two vertical bars
   if (!hist2.CollapseTwo(barSeparation, clusterThreshold, clusterWidthH))
     {
-    cerr << "vertical failed\n";
     return false;
     }
-  cerr << "vertical success\n";
 
   // get the clusters for the three bars
   std::vector<Histogram::Cluster>::iterator clusters[3];
@@ -1409,7 +1377,6 @@ bool FiducialPlate::LocateBars(
     bar->CullOutliers(2.0);
     if (!bar->ExtractLinesFromPoints())
       {
-      cerr << "failed on bar " << i << "\n";
       result = false;
       }
     }
@@ -1472,8 +1439,6 @@ bool PositionFrame(
   const int extent[6], const double origin[3], const double spacing[3],
   const double direction[3], double matrix[16])
 {
-  cerr << "spacing " << spacing[0] << " " << spacing[1] << " " << spacing[2] << "\n";
-
   double plateSeparationX = 196.0;
   double plateSeparationY = 235.0;
   double barSeparation = 120.0;
@@ -1503,7 +1468,6 @@ bool PositionFrame(
                               plateClusterThreshold*xHistogram.GetAverage(),
                               clusterWidthX))
     {
-    cerr << "could not find sides\n";
     return false;
     }
   std::vector<Histogram::Cluster> *xClusters = xHistogram.GetClusters();
@@ -1560,7 +1524,6 @@ bool PositionFrame(
 
   if (!foundPlate[0] || !foundPlate[1])
     {
-    cerr << "could not find the side plates\n";
     return false;
     }
 
@@ -1593,8 +1556,6 @@ bool PositionFrame(
   yPlateRange[1][0] = (yPlatePos[1]-0.5*clusterWidth - origin[1])/spacing[1];
   yPlateRange[1][1] = (yPlatePos[1]+0.5*clusterWidth - origin[1])/spacing[1];
 
-  cerr << "y plate positions " << yPlatePos[0] << ", " << yPlatePos[1] << "\n";
-
   std::vector<Blob> yBlobs[2];
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
@@ -1626,13 +1587,10 @@ bool PositionFrame(
           (yPlatePos[j] - origin[1])/spacing[1],
           plateClusterThreshold*xHistogram.GetAverage(), clusterWidthY))
       {
-      cerr << "could not find front/back " << j << "\n";;
       foundPlate[2+j] = false;
       continue;
       }
     std::vector<Histogram::Cluster> *yClusters = yHistogram[j]->GetClusters();
-
-    cerr << "PLATE RANGE " << (yPlatePos[j]-origin[1])/spacing[1] << " " << (*yClusters)[0].lowest << " " << (*yClusters)[0].highest << " " << yBlobs[j].size() << "\n";
 
     for (std::vector<Blob>::iterator it = yBlobs[j].begin();
          it != yBlobs[j].end();
@@ -1654,8 +1612,6 @@ bool PositionFrame(
 
     if (foundPlate[2+j])
       {
-      cerr << "found end plate " << j << "\n";
-
       // compute the location of this plate
       plates[2+j].GetLocation(centres[2+j], verticals[2+j]);
 
@@ -1749,7 +1705,7 @@ int vtkFrameFinder::FindFrame(
   if (!PositionFrame(&blobs, &framePoints, extent, origin, spacing,
                      direction, matrix))
     {
-    cerr << "No frame found!\n";
+    vtkErrorMacro("Failed to find the Leksell frame in the image.");
     }
 
   m4x4->DeepCopy(matrix);
@@ -1772,6 +1728,7 @@ int vtkFrameFinder::FindFrame(
     cells->InsertNextCell(0);
     vtkIdType numVerts = 0;
 
+    // activate this to see all the blobs, not just frame blobs
 #if 0
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
@@ -1792,7 +1749,6 @@ int vtkFrameFinder::FindFrame(
     poly->SetVerts(cells);
     }
 #else
-
     for (std::vector<Point>::iterator it = framePoints.begin();
          it != framePoints.end();
          ++it)
