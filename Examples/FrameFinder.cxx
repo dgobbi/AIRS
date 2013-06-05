@@ -248,43 +248,6 @@ int main (int argc, char *argv[])
     ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
     }
 
-  // -------------------------------------------------------
-  // make the frame
-  vtkSmartPointer<vtkPoints> points =
-    vtkSmartPointer<vtkPoints>::New();
-  points->SetNumberOfPoints(16);
-
-  vtkSmartPointer<vtkCellArray> cells =
-    vtkSmartPointer<vtkCellArray>::New();
-
-  static double leksellPoints[4][4][3] = {
-    { { 196.0, 40.0, 160.0 }, { 196.0, 40.0, 40.0 },
-      { 196.0, 160.0, 160.0 }, {196.0, 160.0, 40.0 } },
-    { { 4.0, 40.0, 160.0 }, { 4.0, 40.0, 40.0 },
-      { 4.0, 160.0, 160.0 }, { 4.0, 160.0, 40.0 } },
-    { { 40.0, 217.5, 160.0 }, { 40.0, 217.5, 40.0 },
-      { 160.0, 217.5, 160.0 }, { 160.0, 217.5, 40.0 } },
-    { { 40.0, -17.5, 160.0 }, { 40.0, -17.5, 40.0 },
-      { 160.0, -17.5, 160.0 }, { 160.0, -17.5, 40.0 } } };
-
-  for (int i = 0; i < 4; i++)
-    {
-    double (*p)[3] = leksellPoints[i];
-
-    cells->InsertNextCell(4);
-    for (int j = 0; j < 4; j++)
-      {
-      int ptIdx = i*4 + j;
-      points->SetPoint(ptIdx, p[j]);
-      cells->InsertCellPoint(ptIdx);
-      }
-    }
-
-  vtkSmartPointer<vtkPolyData> frameData =
-    vtkSmartPointer<vtkPolyData>::New();
-  frameData->SetPoints(points);
-  frameData->SetLines(cells);
-
   static double leksellToDICOM16[16] = {
      1.0,  0.0,  0.0, -100.0,
      0.0, -1.0,  0.0,  100.0,
@@ -338,27 +301,7 @@ int main (int argc, char *argv[])
   sourceActor->SetProperty(sourceProperty);
   sourceActor->SetUserMatrix(sourceMatrix);
 
-  vtkSmartPointer<vtkTubeFilter> tube =
-    vtkSmartPointer<vtkTubeFilter>::New();
-  tube->SetInput(frameData);
-  tube->SetRadius(0.5);
-  tube->SetNumberOfSides(10);
-
-  vtkSmartPointer<vtkDataSetMapper> targetMapper =
-    vtkSmartPointer<vtkDataSetMapper>::New();
-  //targetMapper->SetInputConnection(tube->GetOutputPort());
-  targetMapper->SetInput(frameData);
-
-  vtkSmartPointer<vtkActor> targetActor =
-    vtkSmartPointer<vtkActor>::New();
-  targetActor->SetMapper(targetMapper);
-  targetActor->SetUserMatrix(targetMatrix);
-  targetActor->GetProperty()->SetAmbient(0.6);
-  targetActor->GetProperty()->SetColor(1.0, 1.0, 0.0);
-  targetActor->GetProperty()->SetOpacity(0.5);
-
   renderer->AddViewProp(sourceActor);
-  renderer->AddViewProp(targetActor);
   renderer->SetBackground(0.2,0.2,0.2);
 
   renderWindow->SetSize(720,720);
@@ -400,6 +343,8 @@ int main (int argc, char *argv[])
 
   frameFinder->Update();
 
+  lastTime = timer->GetUniversalTime();
+
   vtkSmartPointer<vtkMatrix4x4> frameMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkMatrix4x4::Multiply4x4(
@@ -408,7 +353,7 @@ int main (int argc, char *argv[])
 
   vtkSmartPointer<vtkDataSetMapper> frameMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
-  frameMapper->SetInputConnection(frameFinder->GetOutputPort());
+  frameMapper->SetInputConnection(frameFinder->GetOutputPort(0));
 
   vtkSmartPointer<vtkActor> frameActor =
     vtkSmartPointer<vtkActor>::New();
@@ -418,6 +363,21 @@ int main (int argc, char *argv[])
   frameActor->GetProperty()->SetColor(1.0, 0.0, 1.0);
 
   renderer->AddViewProp(frameActor);
+
+  vtkSmartPointer<vtkDataSetMapper> targetMapper =
+    vtkSmartPointer<vtkDataSetMapper>::New();
+  targetMapper->SetInputConnection(frameFinder->GetOutputPort(1));
+
+  vtkSmartPointer<vtkActor> targetActor =
+    vtkSmartPointer<vtkActor>::New();
+  targetActor->SetMapper(targetMapper);
+  targetActor->SetUserMatrix(targetMatrix);
+  targetActor->GetProperty()->SetAmbient(0.6);
+  targetActor->GetProperty()->SetColor(1.0, 1.0, 0.0);
+  targetActor->GetProperty()->SetOpacity(0.5);
+
+  renderer->AddViewProp(targetActor);
+
   if (display)
     {
     renderer->Render();
@@ -435,6 +395,8 @@ int main (int argc, char *argv[])
     writer->Update();
     }
 */
+
+  cout << "Frame finding took " << (lastTime - startTime) << " seconds\n";
 
   // -------------------------------------------------------
   // allow user to interact

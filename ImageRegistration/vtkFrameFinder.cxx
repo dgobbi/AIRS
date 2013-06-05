@@ -76,9 +76,10 @@ vtkFrameFinder::vtkFrameFinder()
 {
   this->ImageToFrameMatrix = vtkMatrix4x4::New();
   this->DICOMPatientMatrix = 0;
+  this->Success = 0;
 
   this->SetNumberOfInputPorts(1);
-  this->SetNumberOfOutputPorts(1);
+  this->SetNumberOfOutputPorts(2);
 }
 
 //----------------------------------------------------------------------------
@@ -104,6 +105,8 @@ void vtkFrameFinder::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "DICOMPatientMatrix: "
      << this->DICOMPatientMatrix << "\n";
+
+  os << indent << "Success: " << this->Success << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -147,9 +150,9 @@ vtkDataObject* vtkFrameFinder::GetInput()
 }
 
 //----------------------------------------------------------------------------
-vtkPolyData *vtkFrameFinder::GetOutput()
+vtkPolyData *vtkFrameFinder::GetOutput(int i)
 {
-  return vtkPolyData::SafeDownCast(this->GetOutputDataObject(0));
+  return vtkPolyData::SafeDownCast(this->GetOutputDataObject(i));
 }
 
 //----------------------------------------------------------------------------
@@ -185,12 +188,15 @@ int vtkFrameFinder::RequestData(
   // get the info objects
   vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
   vtkInformation *outInfo = outputVector->GetInformationObject(0);
+  vtkInformation *outInfo2 = outputVector->GetInformationObject(1);
 
   // get the input and output
   vtkImageData *input = vtkImageData::SafeDownCast(
     inInfo->Get(vtkDataObject::DATA_OBJECT()));
   vtkPolyData *output = vtkPolyData::SafeDownCast(
     outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkPolyData *output2 = vtkPolyData::SafeDownCast(
+    outInfo2->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!this->DICOMPatientMatrix)
     {
@@ -208,11 +214,20 @@ int vtkFrameFinder::RequestData(
   if (fabs(xdir[0]) < 0.9 || fabs(ydir[1]) < 0.9)
     {
     vtkErrorMacro("Frame images must be axial");
+    this->Success = 0;
     return 0;
     }
 
-  /*
-  // generate a polydata that represents the frame fiducials
+  // indicate if x or y is flipped
+  double direction[3];
+  direction[0] = xdir[0]; // DICOM +x and Leksell +x go to the right
+  direction[1] = -ydir[1]; // DICOM +y is posterior, Leksell +y is anterior
+  direction[2] = -zdir[2]; // DICOM +z is superior, Leksell +z is inferior
+
+  // find the frame in the input (last function in this cxx file)
+  this->FindFrame(input, output, direction, this->ImageToFrameMatrix);
+
+  // generate a model of the frame fiducials as second output
   vtkSmartPointer<vtkPoints> points =
     vtkSmartPointer<vtkPoints>::New();
   points->SetNumberOfPoints(16);
@@ -243,18 +258,8 @@ int vtkFrameFinder::RequestData(
       }
     }
 
-  output->SetPoints(points);
-  output->SetLines(cells);
-  */
-
-  // indicate if x or y is flipped
-  double direction[3];
-  direction[0] = xdir[0]; // DICOM +x and Leksell +x go to the right
-  direction[1] = -ydir[1]; // DICOM +y is posterior, Leksell +y is anterior
-  direction[2] = -zdir[2]; // DICOM +z is superior, Leksell +z is inferior
-
-  // find the frame in the input (last function in this cxx file)
-  this->FindFrame(input, output, direction, this->ImageToFrameMatrix);
+  output2->SetPoints(points);
+  output2->SetLines(cells);
 
   return 1;
 }
@@ -1702,11 +1707,8 @@ int vtkFrameFinder::FindFrame(
   UpdateBlobs(image, &blobs);
 
   double matrix[16];
-  if (!PositionFrame(&blobs, &framePoints, extent, origin, spacing,
-                     direction, matrix))
-    {
-    vtkErrorMacro("Failed to find the Leksell frame in the image.");
-    }
+  this->Success = PositionFrame(
+    &blobs, &framePoints, extent, origin, spacing, direction, matrix);
 
   m4x4->DeepCopy(matrix);
 
@@ -1729,6 +1731,7 @@ int vtkFrameFinder::FindFrame(
     vtkIdType numVerts = 0;
 
     // activate this to see all the blobs, not just frame blobs
+    // (for debugging purposes only)
 #if 0
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
@@ -1764,5 +1767,10 @@ int vtkFrameFinder::FindFrame(
     }
 #endif
 
-  return 1;
+  if (!this->Success)
+    {
+    vtkErrorMacro("Failed to find the Leksell frame in the image.");
+    }
+
+  return this->Success;
 }

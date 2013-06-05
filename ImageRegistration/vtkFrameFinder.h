@@ -57,14 +57,24 @@ public:
 
   // Description:
   // The input to this filter should be an image of a head with a
-  // stereotactic frame.  Axial images are required.
+  // stereotactic frame.  Axial images are required.  Call Update()
+  // in order to compute the registration matrix.
   void SetInput(vtkDataObject *);
   vtkDataObject *GetInput();
 
   // Description:
-  // The output of this filter is a polydata that contains all of the
-  // line segments that make up the frame.
-  vtkPolyData *GetOutput();
+  // The first output of this filter is a polydata that contains all
+  // of the points in the image that were identified as being part of
+  // the frame fiducials.  The second output is a wireframe model of
+  // the frame fiducials.  If the frame-finding algorithm succeeded,
+  // then the ImageToFrameMatrix can be used to transform the found
+  // points onto the frame model.
+  vtkPolyData *GetOutput(int i);
+  vtkPolyData *GetOutput() { return this->GetOutput(0); }
+
+  // Description:
+  // Get a boolean value that indicates whether 
+  bool GetSuccess() { return this->Success; }
 
   // Description:
   // Set the matrix that converts image data coordinates into DICOM
@@ -104,6 +114,8 @@ protected:
 
   vtkMatrix4x4 *ImageToFrameMatrix;
   vtkMatrix4x4 *DICOMPatientMatrix;
+
+  bool Success;
 
 private:
   // Copy constructor and assigment operator are purposely not implemented
