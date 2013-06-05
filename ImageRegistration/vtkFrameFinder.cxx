@@ -212,7 +212,7 @@ int vtkFrameFinder::RequestData(
     }
 
   /*
-  // generate the frame data
+  // generate a polydata that represents the frame fiducials
   vtkSmartPointer<vtkPoints> points =
     vtkSmartPointer<vtkPoints>::New();
   points->SetNumberOfPoints(16);
@@ -253,9 +253,8 @@ int vtkFrameFinder::RequestData(
   direction[1] = -ydir[1]; // DICOM +y is posterior, Leksell +y is anterior
   direction[2] = -zdir[2]; // DICOM +z is superior, Leksell +z is inferior
 
-  // find the frame in the input
-  this->FindFrame(input, output, direction,
-    this->ImageToFrameMatrix);
+  // find the frame in the input (last function in this cxx file)
+  this->FindFrame(input, output, direction, this->ImageToFrameMatrix);
 
   return 1;
 }
@@ -294,7 +293,9 @@ int vtkFrameFinder::ProcessRequest(
 
 namespace {
 //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Frame-finding code
+//----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
 // Store a single pixel and its value
@@ -325,8 +326,10 @@ struct Point
 };
 
 //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // Functions for finding blobs of neighboring bright pixels
 
+//----------------------------------------------------------------------------
 // Get a pixel, then zero it to remove it from future consideration
 template <class T>
 void GetAndZeroPixel(
@@ -337,6 +340,7 @@ void GetAndZeroPixel(
   array[z*pixelsPerSlice + y*pixelsPerRow + x] = 0;
 }
 
+//----------------------------------------------------------------------------
 // Add pixel to basket if in bounds and above threshold
 template <class T>
 void AddPixelIfAboveThreshold(
@@ -364,6 +368,7 @@ void AddPixelIfAboveThreshold(
     }
 }
 
+//----------------------------------------------------------------------------
 // Perform a flood-fill to search for a blob of bright pixels
 template <class T>
 Blob MakeBlob(
@@ -416,7 +421,8 @@ Blob MakeBlob(
   return theBlob;
 }
 
-// Scan an image volume for blobs
+//----------------------------------------------------------------------------
+// Scan an image volume for blobs of connected bright pixels
 template <class T>
 void ScanVolumeForBlobs(
   T* inPtr, const int dataSize[3],
@@ -464,6 +470,7 @@ void ScanVolumeForBlobs(
   delete [] array;
 }
 
+//----------------------------------------------------------------------------
 // Find the threshold that includes the given fraction of pixel values
 template <class T>
 void ComputePercentile(
@@ -550,6 +557,7 @@ void ComputePercentile(
   delete [] histo;
 }
 
+//----------------------------------------------------------------------------
 // An adapter to call ScanVolumeForBlobs on vtkImageData
 void UpdateBlobs(
   vtkImageData *input, std::vector<Blob> *blobs)
@@ -606,8 +614,8 @@ void UpdateBlobs(
 }
 
 //----------------------------------------------------------------------------
-
-//
+//----------------------------------------------------------------------------
+// This histogram class bins according to position, rather than intensity.
 class Histogram
 {
 public:
@@ -619,6 +627,8 @@ public:
   bool CollapseOne(double position, double threshold, int maxWidth);
   bool CollapseOne(double threshold, int maxWidth);
 
+  // Each bin has a value (the sum of all the blobs that went into that
+  // bin) and the slice range that the blobs cover.
   struct Bin
   {
     int minSlice;
@@ -626,6 +636,8 @@ public:
     double sum;
   };
 
+  // A cluster is a peak in the histogram.  The lowest and highest bin
+  // in the cluster are stored.
   struct Cluster
   {
     int lowest;
@@ -648,7 +660,8 @@ private:
   double Average;
 };
 
-// collapse the blob points into bins by x or y value
+//----------------------------------------------------------------------------
+// Sort the blob points according to location along vector
 Histogram::Histogram(std::vector<Blob> *blobs, const double vec[3])
 {
   std::map<int, Bin> *bins = &this->Bins;
@@ -689,14 +702,12 @@ Histogram::Histogram(std::vector<Blob> *blobs, const double vec[3])
   this->Average = sum/bins->size();
 }
 
+//----------------------------------------------------------------------------
+// Find the largest peak in the histogram, store it in the Cluster,
+// and then erase the bins from the histogram.  This method can be
+// called repeatedly to get all the peaks in order.
 void Histogram::ReturnCluster(double threshold, Cluster *cluster)
 {
-  // Picks largest peak in histogram, returns tuple consisting
-  // of range of peak and area of peak.
-  // Removes bins from Bins
-  // Multiple calls return the multiple largest peaks in the
-  // histogram
-
   // first find the peak bin
   std::map<int, Bin> *bins = &this->Bins;
   int minSlice = 0;
@@ -757,6 +768,9 @@ void Histogram::ReturnCluster(double threshold, Cluster *cluster)
   cluster->sum = sum;
 }
 
+//----------------------------------------------------------------------------
+// Find all clusters that are above the given threshold and that are
+// less than the specified maximum width
 void Histogram::BuildClusters(double threshold, int maxWidth)
 {
   std::vector<Cluster> *clusters = &this->Clusters;
@@ -768,7 +782,6 @@ void Histogram::BuildClusters(double threshold, int maxWidth)
     Cluster cluster;
     this->ReturnCluster(threshold, &cluster);
     if (cluster.highest - cluster.lowest <= maxWidth &&
-        //cluster.maxSlice - cluster.minSlice >= 50 &&
         cluster.sum > threshold)
       {
       cerr << cluster.highest << " - " << cluster.lowest << " <= " << maxWidth << " : " << cluster.sum << " > " << 0.5*this->Average << " : " << cluster.maxSlice << " - " << cluster.minSlice << "\n";
@@ -777,6 +790,9 @@ void Histogram::BuildClusters(double threshold, int maxWidth)
     }
 }
 
+//----------------------------------------------------------------------------
+// Identify two clusters that are separated by the given distance.
+// Remove all other clusters.
 bool Histogram::CollapseTwo(
   double distance, double threshold, int maxWidth)
 {
@@ -868,6 +884,9 @@ bool Histogram::CollapseTwo(
   return true;
 }
 
+//----------------------------------------------------------------------------
+// Identify the cluster that is at the given position.
+// Remove all other clusters.
 bool Histogram::CollapseOne(
   double position, double threshold, int maxWidth)
 {
@@ -936,6 +955,8 @@ bool Histogram::CollapseOne(
   return true;
 }
 
+//----------------------------------------------------------------------------
+// Identify the cluster with the highest value.
 bool Histogram::CollapseOne(double threshold, int maxWidth)
 {
   this->BuildClusters(threshold, maxWidth);
@@ -972,7 +993,10 @@ bool Histogram::CollapseOne(double threshold, int maxWidth)
   return true;
 }
 
-
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+// The fiducial bar class will compute the direction and the centre of
+// the supplied points.
 class FiducialBar
 {
 public:
@@ -982,14 +1006,9 @@ public:
     this->CentreOfMass[0] = this->CentreOfMass[1] = this->CentreOfMass[2] = 0;
     this->Eigenvalue = 0; }
 
-  void SetPoints(std::vector<Point> *p) {
-    this->Points = p;
-    this->CentreOfMass[0] = 0;
-    this->CentreOfMass[1] = 0;
-    this->CentreOfMass[2] = 0; }
+  void SetPoints(std::vector<Point> *p);
 
-  std::vector<Point> *GetPoints() {
-    return this->Points; }
+  std::vector<Point> *GetPoints();
 
   void ClipFiducialEnds(double zMin, double zMax);
 
@@ -1008,6 +1027,22 @@ private:
   double CentreOfMass[3];
 };
 
+//----------------------------------------------------------------------------
+void FiducialBar::SetPoints(std::vector<Point> *p)
+{
+  this->Points = p;
+  this->CentreOfMass[0] = 0;
+  this->CentreOfMass[1] = 0;
+  this->CentreOfMass[2] = 0;
+}
+
+//----------------------------------------------------------------------------
+std::vector<Point> *FiducialBar::GetPoints()
+{
+  return this->Points;
+}
+
+//----------------------------------------------------------------------------
 double FiducialBar::GetLine(double p[3], double v[3])
 {
   p[0] = this->CentreOfMass[0];
@@ -1028,6 +1063,7 @@ double FiducialBar::GetLine(double p[3], double v[3])
   return fabs(this->Eigenvalue);
 }
 
+//----------------------------------------------------------------------------
 void FiducialBar::ClipFiducialEnds(double minZ, double maxZ)
 {
   size_t j = 0;
@@ -1042,6 +1078,7 @@ void FiducialBar::ClipFiducialEnds(double minZ, double maxZ)
   this->Points->resize(j);
 }
 
+//----------------------------------------------------------------------------
 void FiducialBar::ComputeCentreOfMass(double com[3])
 {
   double count = 0;
@@ -1067,6 +1104,8 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
     }
 }
 
+//----------------------------------------------------------------------------
+// Compute the eigenvector that has the largest eigenvalue
 bool FiducialBar::ExtractLinesFromPoints()
 {
   if (this->Points->size() == 0)
@@ -1124,6 +1163,10 @@ bool FiducialBar::ExtractLinesFromPoints()
   return true;
 }
 
+//----------------------------------------------------------------------------
+// Remove any points that are greater than maxDist from the centre line.
+// If the RMS distance of the points from the line is greater than maxDist,
+// then remove all of the points.
 void FiducialBar::CullOutliers(double maxDist)
 {
   // Check each point in the bar for distance from the extracted line
@@ -1176,6 +1219,8 @@ void FiducialBar::CullOutliers(double maxDist)
     }
 }
 
+//----------------------------------------------------------------------------
+// Compute the intersection between two lines, return result in p.
 void LineIntersection(
   const double p1[3], const double v1[3],
   const double p2[3], const double v2[3],
@@ -1205,6 +1250,8 @@ void LineIntersection(
   p[2] = 0.5*((p1[2] + v1[2]*t1) + (p2[2] + v2[2]*t2));
 }
 
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 class FiducialPlate
 {
 public:
@@ -1224,6 +1271,7 @@ private:
   std::vector<Point> BarPoints[3];
 };
 
+//----------------------------------------------------------------------------
 bool FiducialPlate::LocateBars(
   std::vector<Blob> *blobs, const double hvec[3], const double dvec[3],
   const double origin[3], const double spacing[3],
@@ -1323,6 +1371,8 @@ bool FiducialPlate::LocateBars(
   return result;
 }
 
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 void BuildMatrix(
   const double xvec[3], const double yvec[3], const double zvec[3],
   const double centre[3], const double frameCentre[3],
@@ -1366,6 +1416,11 @@ void BuildMatrix(
   matrix[15] = 1.0;
 }
 
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+// Given the bright blobs identified in a stack of axial images, compute
+// the image-to-frame transformation matrix.  Return the points that were
+// identified as part of the frame.
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
   const int extent[6], const double origin[3], const double spacing[3],
@@ -1671,6 +1726,7 @@ bool PositionFrame(
 
 } // end anonymous namespace
 
+//----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 int vtkFrameFinder::FindFrame(
   vtkImageData *image, vtkPolyData *poly,
