@@ -1630,19 +1630,6 @@ bool PositionFrame(
       }
     }
 
-  // compute the center in data coordinates from side plates
-  centre[0] = 0.5*(centres[0][0] + centres[1][0]);
-  centre[1] = 0.5*(centres[0][1] + centres[1][1]);
-  centre[2] = 0.5*(centres[0][2] + centres[1][2]);
-
-  // improve result with front/back plates if present
-  if (foundPlate[2] && foundPlate[3])
-    {
-    centre[0] = 0.5*centre[0] + 0.25*(centres[2][0] + centres[3][0]);
-    centre[1] = 0.5*centre[1] + 0.25*(centres[2][1] + centres[3][1]);
-    centre[2] = 0.5*centre[2] + 0.25*(centres[2][2] + centres[3][2]);
-    }
-
   // compute the initial z vector from the side plates
   zvec[0] = verticals[0][0] + verticals[1][0];
   zvec[1] = verticals[0][1] + verticals[1][1];
@@ -1653,33 +1640,54 @@ bool PositionFrame(
   xvec[1] = centres[1][1] - centres[0][1];
   xvec[2] = centres[1][2] - centres[0][2];
 
-  // compute the anterior-posterior direction from front/back plates
+  // compute the center in data coordinates from side plates
+  centre[0] = 0.5*(centres[0][0] + centres[1][0]);
+  centre[1] = 0.5*(centres[0][1] + centres[1][1]);
+  centre[2] = 0.5*(centres[0][2] + centres[1][2]);
+
+  // improve result with front/back plates if present
   if (foundPlate[2] && foundPlate[3])
     {
+    // weigh results according to proximity to centre
+    double a = plateSeparationY/(plateSeparationX + plateSeparationY);
+    double b = plateSeparationX/(plateSeparationX + plateSeparationY);
+
+    centre[0] = a*centre[0] + b*0.5*(centres[2][0] + centres[3][0]);
+    centre[1] = a*centre[1] + b*0.5*(centres[2][1] + centres[3][1]);
+    centre[2] = a*centre[2] + b*0.5*(centres[2][2] + centres[3][2]);
+
     yvec[0] = centres[3][0] - centres[2][0];
     yvec[1] = centres[3][1] - centres[2][1];
     yvec[2] = centres[3][2] - centres[2][2];
     }
-  else if (foundPlate[2])
+  else if (foundPlate[2] || foundPlate[3])
     {
-    yvec[0] = centre[0] - centres[2][0];
-    yvec[1] = centre[1] - centres[2][1];
-    yvec[2] = centre[2] - centres[2][2];
-    }
-  else if (foundPlate[3])
-    {
-    yvec[0] = centres[3][0] - centre[0];
-    yvec[1] = centres[3][1] - centre[1];
-    yvec[2] = centres[3][2] - centre[2];
+    int k = (foundPlate[2] ? 2 : 3);
+
+    double offset[3];
+    offset[0] = centres[k][0] - centre[0];
+    offset[1] = centres[k][1] - centre[1];
+    offset[2] = centres[k][2] - centre[2];
+
+    // compute offset along the z direction
+    vtkMath::Normalize(zvec);
+    double d = vtkMath::Dot(zvec, offset);
+    // weigh results according to proximity to centre, also note that
+    // there are 2 side plates but 1 anterior or posterior plate
+    d *= plateSeparationX/(plateSeparationX + 2*plateSeparationY);
+    centre[0] += d*zvec[0];
+    centre[1] += d*zvec[1];
+    centre[2] += d*zvec[2];
+
+    // given just one anterior or posterior plate, we should not attempt to
+    // compute yvec from the plate centres.  Compute it from zvec instead
+    vtkMath::Cross(zvec, xvec, yvec);
     }
   else
     {
     // if front/back plates are missing, use zvec to compute yvec
     vtkMath::Cross(zvec, xvec, yvec);
     }
-
-  // recompute the z vector from x and y vectors
-  vtkMath::Cross(xvec, yvec, zvec);
 
   // create the frame registration matrix
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
