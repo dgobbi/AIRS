@@ -552,8 +552,7 @@ void ComputePercentile(
 
 // An adapter to call ScanVolumeForBlobs on vtkImageData
 void UpdateBlobs(
-  vtkImageData *input, std::vector<Blob> *blobs,
-  double *lowerThresh, double *upperThresh)
+  vtkImageData *input, std::vector<Blob> *blobs)
 {
   // get basic image information
   void *address = input->GetScalarPointer();
@@ -586,25 +585,22 @@ void UpdateBlobs(
   // threshold at half of the 98th percentile within the box
   const double fthresh = 0.5;
   const double fraction = 0.98;
-  double threshold; // to be computed by ComputePercentile
+  double thresh98; // to be computed by ComputePercentile
 
   // find the 98th percentile threshold
   switch (dataType)
     {
     vtkTemplateAliasMacro(
       ComputePercentile(static_cast<VTK_TT *>(address),
-                        dataSize, boxSize, fraction, &threshold));
+                        dataSize, boxSize, fraction, &thresh98));
     }
-
-  *lowerThresh = threshold*fthresh;
-  *upperThresh = threshold;
 
   // call the blob-finding function
   switch (dataType)
     {
     vtkTemplateAliasMacro(
       ScanVolumeForBlobs(static_cast<VTK_TT *>(address), dataSize,
-                         *lowerThresh, *upperThresh,
+                         fthresh*thresh98, thresh98,
                          maxBlobSize, blobs));
     }
 }
@@ -1372,8 +1368,7 @@ void BuildMatrix(
 
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
-  double lowerThresh, double upperThresh, const int extent[6],
-  const double origin[3], const double spacing[3],
+  const int extent[6], const double origin[3], const double spacing[3],
   const double direction[3], double matrix[16])
 {
   cerr << "spacing " << spacing[0] << " " << spacing[1] << " " << spacing[2] << "\n";
@@ -1689,13 +1684,12 @@ int vtkFrameFinder::FindFrame(
 
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
-  double lowerThresh, upperThresh;
 
-  UpdateBlobs(image, &blobs, &lowerThresh, &upperThresh);
+  UpdateBlobs(image, &blobs);
 
   double matrix[16];
-  if (!PositionFrame(&blobs, &framePoints, lowerThresh, upperThresh,
-                     extent, origin, spacing, direction, matrix))
+  if (!PositionFrame(&blobs, &framePoints, extent, origin, spacing,
+                     direction, matrix))
     {
     cerr << "No frame found!\n";
     }
