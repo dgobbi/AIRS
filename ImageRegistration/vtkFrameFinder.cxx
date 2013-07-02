@@ -77,6 +77,8 @@ vtkFrameFinder::vtkFrameFinder()
   this->ImageToFrameMatrix = vtkMatrix4x4::New();
   this->DICOMPatientMatrix = 0;
   this->Success = 0;
+  this->UseAnteriorFiducial = 1;
+  this->UsePosteriorFiducial = 1;
 
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(2);
@@ -99,6 +101,12 @@ vtkFrameFinder::~vtkFrameFinder()
 void vtkFrameFinder::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
+
+  os << indent << "UseAnteriorFiducial: "
+     << (this->UseAnteriorFiducial ? "On\n" : "Off\n");
+
+  os << indent << "UsePosteriorFiducial: "
+     << (this->UsePosteriorFiducial ? "On\n" : "Off\n");
 
   os << indent << "ImageToFrameMatrix: "
      << this->ImageToFrameMatrix << "\n";
@@ -1442,7 +1450,7 @@ void BuildMatrix(
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
   const int extent[6], const double origin[3], const double spacing[3],
-  const double direction[3], double matrix[16])
+  const double direction[3], double matrix[16], bool useAP[2])
 {
   double plateSeparationX = 196.0;
   double plateSeparationY = 235.0;
@@ -1588,7 +1596,8 @@ bool PositionFrame(
 
   for (int j = 0; j < 2; j++)
     {
-    if (!yHistogram[j]->CollapseOne(
+    if ((useAP && useAP[j] == 0) ||
+        !yHistogram[j]->CollapseOne(
           (yPlatePos[j] - origin[1])/spacing[1],
           plateClusterThreshold*xHistogram.GetAverage(), clusterWidthY))
       {
@@ -1709,6 +1718,18 @@ int vtkFrameFinder::FindFrame(
   image->GetOrigin(origin);
   image->GetExtent(extent);
 
+  bool useAP[2];
+  if (direction[1] < 0)
+    {
+    useAP[0] = (this->UseAnteriorFiducial != 0);
+    useAP[1] = (this->UsePosteriorFiducial != 0);
+    }
+  else
+    {
+    useAP[0] = (this->UseAnteriorFiducial != 0);
+    useAP[1] = (this->UsePosteriorFiducial != 0);
+    }
+
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
 
@@ -1716,7 +1737,7 @@ int vtkFrameFinder::FindFrame(
 
   double matrix[16];
   this->Success = PositionFrame(
-    &blobs, &framePoints, extent, origin, spacing, direction, matrix);
+    &blobs, &framePoints, extent, origin, spacing, direction, matrix, useAP);
 
   m4x4->DeepCopy(matrix);
 

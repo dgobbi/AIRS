@@ -77,6 +77,18 @@ public:
   bool GetSuccess() { return this->Success; }
 
   // Description:
+  // Specify whether to use the anterior and posterior fiducials.
+  // By default both of these are on, but sometimes these plates
+  // are not securely fastened and therefore not reliable.  The
+  // default is to use them if they are detected in the image.
+  vtkGetMacro(UseAnteriorFiducial, int);
+  vtkSetMacro(UseAnteriorFiducial, int);
+  vtkBooleanMacro(UseAnteriorFiducial, int);
+  vtkGetMacro(UsePosteriorFiducial, int);
+  vtkSetMacro(UsePosteriorFiducial, int);
+  vtkBooleanMacro(UsePosteriorFiducial, int);
+
+  // Description:
   // Set the matrix that converts image data coordinates into DICOM
   // patient coordinates.  Only the first two columns of this matrix
   // are used, which must be set from the ImageOrientationPatient
@@ -116,6 +128,8 @@ protected:
   vtkMatrix4x4 *DICOMPatientMatrix;
 
   bool Success;
+  int UseAnteriorFiducial;
+  int UsePosteriorFiducial;
 
 private:
   // Copy constructor and assigment operator are purposely not implemented
