@@ -1450,7 +1450,7 @@ void BuildMatrix(
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
   const int extent[6], const double origin[3], const double spacing[3],
-  const double direction[3], double matrix[16], bool useAP[2])
+  const double direction[3], const bool useAP[2], double matrix[16])
 {
   double plateSeparationX = 196.0;
   double plateSeparationY = 235.0;
@@ -1737,7 +1737,7 @@ int vtkFrameFinder::FindFrame(
 
   double matrix[16];
   this->Success = PositionFrame(
-    &blobs, &framePoints, extent, origin, spacing, direction, matrix, useAP);
+    &blobs, &framePoints, extent, origin, spacing, direction, useAP, matrix);
 
   m4x4->DeepCopy(matrix);
 
