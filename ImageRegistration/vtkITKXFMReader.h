@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkAlgorithm.h"
 
 class vtkAbstractTransform;
+class vtkTransform;
 class vtkDoubleArray;
 class vtkCollection;
 
@@ -117,6 +118,10 @@ protected:
   int ParseFloatValues(char **cpp, vtkDoubleArray *array);
 
   int ReadTransform(istream &infile, char linetext[]);
+
+  static void BuildTransform(
+    const double matparms[9], const double translation[3],
+    const double center[3], vtkTransform *transform);
 
   int CheckNumberOfParameters(
     vtkDoubleArray *parameters, vtkDoubleArray *fixedParameters,

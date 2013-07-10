@@ -325,7 +325,37 @@ int vtkITKXFMReader::CheckNumberOfParameters(
     return 0;
     }
 
-  return 1;  
+  return 1;
+}
+
+//-------------------------------------------------------------------------
+void vtkITKXFMReader::BuildTransform(
+  const double matparms[9], const double translation[3],
+  const double center[3], vtkTransform *transform)
+{
+  double matrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0 };
+
+  double mc[4] = { 0.0, 0.0, 0.0, 0.0 };
+  for (int i = 0; i < 3; i++)
+    {
+    matrix[4*i + 0] = matparms[3*i + 0];
+    matrix[4*i + 1] = matparms[3*i + 1];
+    matrix[4*i + 2] = matparms[3*i + 2];
+    mc[i] = center[i];
+    }
+
+  vtkMatrix4x4::MultiplyPoint(matrix, mc, mc);
+
+  // compute the offset
+  matrix[3] = translation[0] + center[0] - mc[0];
+  matrix[7] = translation[1] + center[1] - mc[1];
+  matrix[11] = translation[2] + center[2] - mc[2];
+
+  transform->Concatenate(matrix);
 }
 
 //-------------------------------------------------------------------------
@@ -339,7 +369,7 @@ int vtkITKXFMReader::ReadTransform(
   this->ReadLineAfterComments(infile, linetext);
   cp = linetext;
 
-  // Check for transform name 
+  // Check for transform name
   if (this->ParseLeftHandSide(&cp, identifier) &&
       strcmp(identifier, "Transform") != 0)
     {
@@ -417,20 +447,13 @@ int vtkITKXFMReader::ReadTransform(
       }
     }
 
-  // Create the transform
-  double matrix[16] = {
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 1.0 };
-
   // derived from MatrixOffsetTransformBase:
   // MatrixOffsetTransformBase
   //   AffineTransform
   //   CenteredAffineTransform
   //   FixedCenterOfRotationAffineTransform
   //   ScalableAffineTransform
-  // 
+  //
   // transforms with specialized ComputeMatrix() method
   // ScaleTransform
   // Rigid2DTransform
@@ -450,10 +473,14 @@ int vtkITKXFMReader::ReadTransform(
   // not derived from MatrixOffsetTransformBase:
   // Rigid3DPerspectiveTransform
 
-  if (strcmp(classname, "MatrixOffsetTransformBase") == 0 ||
-      strcmp(classname, "AffineTransform") == 0 ||
-      strcmp(classname, "ScalableAffineTransform") == 0 ||
-      strcmp(classname, "FixedCenterOfRotationAffineTransform") == 0)
+  vtkSmartPointer<vtkTransform> transform =
+    vtkSmartPointer<vtkTransform>::New();
+
+  double matparms[9] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
+  double translation[3] = { 0.0, 0.0, 0.0 };
+  double center[3] = { 0.0, 0.0, 0.0 };
+
+  if (strcmp(classname, "MatrixOffsetTransformBase") == 0)
     {
     if (!this->CheckNumberOfParameters(
           parameters, fixedParameters, (d1+1)*d2, d2, classname))
@@ -461,30 +488,21 @@ int vtkITKXFMReader::ReadTransform(
       return 0;
       }
 
-    double t[3] = { 0.0, 0.0, 0.0 };
-    double c[4] = { 0.0, 0.0, 0.0 };
     int rows = (d2 < 3 ? d2 : 3);
     int cols = (d1 < 3 ? d1 : 3);
     for (int i = 0; i < rows; i++)
       {
       for (int j = 0; j < cols; j++)
         {
-        matrix[4*i + j] = parameters->GetValue(d1*i + j);
+        matparms[3*i + j] = parameters->GetValue(d1*i + j);
         }
-      t[i] = parameters->GetValue(d1*d2 + i);
+      translation[i] = parameters->GetValue(d1*d2 + i);
       }
 
     for (int j = 0; j < cols; j++)
       {
-      c[j] = fixedParameters->GetValue(j);
+      center[j] = fixedParameters->GetValue(j);
       }
-
-    double mc[4];
-    vtkMatrix4x4::MultiplyPoint(matrix, c, mc);
-
-    matrix[3] = t[0] + c[0] - mc[0];
-    matrix[7] = t[1] + c[1] - mc[1];
-    matrix[11] = t[2] + c[2] - mc[2];
     }
   else
     {
@@ -493,9 +511,9 @@ int vtkITKXFMReader::ReadTransform(
     return 0;
     }
 
-  vtkSmartPointer<vtkTransform> transform =
-    vtkSmartPointer<vtkTransform>::New();
-  transform->Concatenate(matrix);
+  vtkITKXFMReader::BuildTransform(
+    matparms, translation, center, transform);
+
   this->Transforms->AddItem(transform);
 
   return 1;
