@@ -48,7 +48,6 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #include "vtkAlgorithm.h"
 
-class vtkAbstractTransform;
 class vtkTransform;
 class vtkDoubleArray;
 class vtkCollection;
@@ -69,7 +68,7 @@ public:
   // Description:
   // Get the entension for this file format.
   virtual const char* GetFileExtensions() {
-    return ".txt"; }
+    return ".txt .tfm"; }
 
   // Description:
   // Get the name of this file format.
@@ -86,13 +85,13 @@ public:
 
   // Description:
   // Get one of the transforms listed in the file.
-  virtual vtkAbstractTransform *GetNthTransform(int i);
+  virtual vtkTransform *GetNthTransform(int i);
 
   // Description:
   // Get the transform that results from concatenating all
   // of the transforms in the file.  This will return null
   // if you have not specified a file name.
-  virtual vtkAbstractTransform *GetTransform();
+  virtual vtkTransform *GetTransform();
 
   // Description:
   // Get any comments that are included in the file.
@@ -103,12 +102,12 @@ protected:
   ~vtkITKXFMReader();
 
   char *FileName;
-  vtkAbstractTransform *Transform;
+  vtkTransform *Transform;
   vtkCollection *Transforms;
   int LineNumber;
   char *Comments;
 
-  void SetTransform(vtkAbstractTransform *transform);
+  void SetTransform(vtkTransform *transform);
 
   int ReadLine(istream &infile, char result[]);
   int ReadLineAfterComments(istream &infile, char result[]);
@@ -122,6 +121,15 @@ protected:
   static void BuildTransform(
     const double matparms[9], const double translation[3],
     const double center[3], vtkTransform *transform);
+
+  static void MatrixFromQuaternion(
+    const double quat[4], double matparms[9]);
+
+  static void MatrixFromVersor(
+    const double versor[3], double matparms[9]);
+
+  static void MatrixFromEuler(
+    const double angles[3], double matparms[9]);
 
   int CheckNumberOfParameters(
     vtkDoubleArray *parameters, vtkDoubleArray *fixedParameters,
