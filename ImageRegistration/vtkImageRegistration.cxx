@@ -269,34 +269,58 @@ vtkImageStencilData* vtkImageRegistration::GetSourceImageStencil()
 //--------------------------------------------------------------------------
 namespace {
 
-void vtkTransformVersorRotation(
+void vtkTransformRotation(
   vtkTransform *transform, double rx, double ry, double rz)
 {
-  // compute quaternion from rotation parameters
-  double qs = rx*rx + ry*ry + rz*rz;
-  double qc = 1.0 - qs;
-  while (qc < 0)
+  // angle is the norm of the parameters,
+  // axis is the unit vector from the parameters
+  double theta2 = rx*rx + ry*ry + rz*rz;
+  if (theta2 > 0)
     {
-    // for rotations past 180 degrees, wrap around
-    qs = fabs(2.0 - qs);
-    qc = 1.0 - qs;
-    rx = -rx;
-    ry = -ry;
-    rz = -rz;
-    }
-  qs = sqrt(qs);
-  qc = sqrt(qc);
-  double theta = atan2(qs,qc)*180/vtkMath::DoublePi();
-  if (qs > 0)
-    {
-    rx /= qs;
-    ry /= qs;
-    rz /= qs;
-    }
+    // compute the quaternion wxyz from angle and vector,
+    // then use the quaternion to compute the matrix
+    double theta = sqrt(theta2);
+    double n = sin(0.5*theta);
+    double w = cos(0.5*theta);
+    double f = n/theta;
+    double x = f*rx;
+    double y = f*ry;
+    double z = f*rz;
 
-  if (qs > 0)
-    {
-    transform->RotateWXYZ(theta, rx, ry, rz);
+    double ww = w*w;
+    double wx = w*x;
+    double wy = w*y;
+    double wz = w*z;
+
+    double xx = x*x;
+    double yy = y*y;
+    double zz = z*z;
+
+    double xy = x*y;
+    double xz = x*z;
+    double yz = y*z;
+
+    double s = ww - xx - yy - zz;
+
+    double matrix[16];
+    matrix[0] = xx*2 + s;
+    matrix[1] = (xy - wz)*2;
+    matrix[2] = (xz + wy)*2;
+    matrix[3] = 0.0;
+    matrix[4] = (xy + wz)*2;
+    matrix[5] = yy*2 + s;
+    matrix[6] = (yz - wx)*2;
+    matrix[7] = 0.0;
+    matrix[8] = (xz - wy)*2;
+    matrix[9] = (yz + wx)*2;
+    matrix[10] = zz*2 + s;
+    matrix[11] = 0.0;
+    matrix[12] = 0.0;
+    matrix[13] = 0.0;
+    matrix[14] = 0.0;
+    matrix[15] = 1.0;
+
+    transform->Concatenate(matrix);
     }
 }
 
@@ -362,19 +386,19 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
   transform->Translate(-center[0], -center[1], -center[2]);
   if (scaledAtSource)
     {
-    vtkTransformVersorRotation(transform, -qx, -qy, -qz);
+    vtkTransformRotation(transform, -qx, -qy, -qz);
     transform->Scale(sx, sy, sz);
-    vtkTransformVersorRotation(transform, qx, qy, qz);
+    vtkTransformRotation(transform, qx, qy, qz);
     transform->Concatenate(initialMatrix);
-    vtkTransformVersorRotation(transform, rx, ry, rz);
+    vtkTransformRotation(transform, rx, ry, rz);
     }
   else
     {
-    vtkTransformVersorRotation(transform, rx, ry, rz);
+    vtkTransformRotation(transform, rx, ry, rz);
     transform->Concatenate(initialMatrix);
-    vtkTransformVersorRotation(transform, -qx, -qy, -qz);
+    vtkTransformRotation(transform, -qx, -qy, -qz);
     transform->Scale(sx, sy, sz);
-    vtkTransformVersorRotation(transform, qx, qy, qz);
+    vtkTransformRotation(transform, qx, qy, qz);
     }
   transform->Translate(center[0], center[1], center[2]);
   transform->Translate(tx,ty,tz);
