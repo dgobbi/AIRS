@@ -354,15 +354,15 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 
   if (transformType > vtkImageRegistration::Rigid)
     {
-    sx = fabs(optimizer->GetParameterValue(6));
+    sx = exp(optimizer->GetParameterValue(6));
     sy = sx;
     sz = sx;
     }
 
   if (transformType > vtkImageRegistration::Similarity)
     {
-    sx = sz*fabs(optimizer->GetParameterValue(7));
-    sy = sz*fabs(optimizer->GetParameterValue(8));
+    sx = sz*exp(optimizer->GetParameterValue(7));
+    sy = sz*exp(optimizer->GetParameterValue(8));
     }
 
   bool scaledAtSource =
@@ -774,17 +774,17 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   if (this->TransformType > vtkImageRegistration::Rigid)
     {
-    // single scale factor
-    optimizer->SetParameterValue(6, 1);
+    // single scale parameter
+    optimizer->SetParameterValue(6, 0);
     optimizer->SetParameterScale(6, sscale);
     }
 
   if (this->TransformType > vtkImageRegistration::Similarity)
     {
-    // extra scale factors, weighed at 25%
-    optimizer->SetParameterValue(7, 1);
+    // extra scale parameters, weighed at 25%
+    optimizer->SetParameterValue(7, 0);
     optimizer->SetParameterScale(7, sscale*0.25);
-    optimizer->SetParameterValue(8, 1);
+    optimizer->SetParameterValue(8, 0);
     optimizer->SetParameterScale(8, sscale*0.25);
     }
 
