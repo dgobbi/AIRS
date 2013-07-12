@@ -73,6 +73,7 @@ vtkITKXFMReader::vtkITKXFMReader()
   this->TransformParameters = vtkCollection::New();
   this->TransformNames = vtkStringArray::New();
   this->LineNumber = 0;
+  this->ErrorIndicator = 0;
 }
 
 //-------------------------------------------------------------------------
@@ -320,6 +321,7 @@ int vtkITKXFMReader::CheckNumberOfParameters(
     vtkErrorMacro("Incorrect number of Parameters for \'"
                   << classname << "\' in "
                   << this->FileName << ":" << this->LineNumber);
+    this->ErrorIndicator = 1;
     return 0;
     }
   if (fixedParameters->GetNumberOfTuples() < m)
@@ -327,6 +329,7 @@ int vtkITKXFMReader::CheckNumberOfParameters(
     vtkErrorMacro("Incorrect number of FixedParameters for \'"
                   << classname << "\' in "
                   << this->FileName << ":" << this->LineNumber);
+    this->ErrorIndicator = 1;
     return 0;
     }
 
@@ -549,52 +552,43 @@ int vtkITKXFMReader::ReadTransform(
 
   if (strcmp(classname, "IdentityTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
-          parameters, fixedParameters, 0, 0, classname))
-      {
-      return 0;
-      }
+    this->CheckNumberOfParameters(
+      parameters, fixedParameters, 0, 0, classname);
     }
   else if (strcmp(classname, "TranslationTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, d2, 0, classname))
       {
-      return 0;
-      }
-
-    int rows = (d2 < 3 ? d2 : 3);
-    for (int i = 0; i < rows; i++)
-      {
-      translation[i] = parameters->GetValue(i);
+      int rows = (d2 < 3 ? d2 : 3);
+      for (int i = 0; i < rows; i++)
+        {
+        translation[i] = parameters->GetValue(i);
+        }
       }
     }
   else if (strcmp(classname, "ScaleTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, d2, 0, classname))
       {
-      return 0;
-      }
-
-    int rows = (d2 < 3 ? d2 : 3);
-    for (int i = 0; i < rows; i++)
-      {
-      matparms[3*i + i] = parameters->GetValue(i);
+      int rows = (d2 < 3 ? d2 : 3);
+      for (int i = 0; i < rows; i++)
+        {
+        matparms[3*i + i] = parameters->GetValue(i);
+        }
       }
     }
   else if (strcmp(classname, "ScaleLogarithmicTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, d2, 0, classname))
       {
-      return 0;
-      }
-
-    int rows = (d2 < 3 ? d2 : 3);
-    for (int i = 0; i < rows; i++)
-      {
-      matparms[3*i + i] = exp(parameters->GetValue(i));
+      int rows = (d2 < 3 ? d2 : 3);
+      for (int i = 0; i < rows; i++)
+        {
+        matparms[3*i + i] = exp(parameters->GetValue(i));
+        }
       }
     }
   else if (strcmp(classname, "MatrixOffsetTransformBase") == 0 ||
@@ -604,284 +598,256 @@ int vtkITKXFMReader::ReadTransform(
            strcmp(classname, "ScalableAffineTransform") == 0 ||
            strcmp(classname, "FixedCenterOfRotationAffineTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, (d1+1)*d2, d2, classname))
       {
-      return 0;
-      }
+      int rows = (d2 < 3 ? d2 : 3);
+      int cols = (d1 < 3 ? d1 : 3);
+      for (int i = 0; i < rows; i++)
+        {
+        for (int j = 0; j < cols; j++)
+          {
+          matparms[3*i + j] = parameters->GetValue(d1*i + j);
+          }
+        translation[i] = parameters->GetValue(d1*d2 + i);
+        }
 
-    int rows = (d2 < 3 ? d2 : 3);
-    int cols = (d1 < 3 ? d1 : 3);
-    for (int i = 0; i < rows; i++)
-      {
       for (int j = 0; j < cols; j++)
         {
-        matparms[3*i + j] = parameters->GetValue(d1*i + j);
+        center[j] = fixedParameters->GetValue(j);
         }
-      translation[i] = parameters->GetValue(d1*d2 + i);
-      }
-
-    for (int j = 0; j < cols; j++)
-      {
-      center[j] = fixedParameters->GetValue(j);
       }
     }
   else if (strcmp(classname, "CenteredAffineTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, (d1+1)*d2 + d1, d2, classname))
       {
-      return 0;
-      }
+      int rows = (d2 < 3 ? d2 : 3);
+      int cols = (d1 < 3 ? d1 : 3);
+      for (int i = 0; i < rows; i++)
+        {
+        for (int j = 0; j < cols; j++)
+          {
+          matparms[3*i + j] = parameters->GetValue(d1*i + j);
+          }
+        translation[i] = parameters->GetValue(d1*(d2 + 1) + i);
+        }
 
-    int rows = (d2 < 3 ? d2 : 3);
-    int cols = (d1 < 3 ? d1 : 3);
-    for (int i = 0; i < rows; i++)
-      {
       for (int j = 0; j < cols; j++)
         {
-        matparms[3*i + j] = parameters->GetValue(d1*i + j);
+        center[j] = parameters->GetValue(d1*d2 + j);
         }
-      translation[i] = parameters->GetValue(d1*(d2 + 1) + i);
-      }
-
-    for (int j = 0; j < cols; j++)
-      {
-      center[j] = parameters->GetValue(d1*d2 + j);
       }
     }
   else if (strcmp(classname, "Euler3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 6, 3, classname))
       {
-      return 0;
+      double xyz[3];
+      for (int i = 0; i < 3; i++)
+        {
+        xyz[i] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(3 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromEuler(xyz, matparms);
       }
-
-    double xyz[3];
-    for (int i = 0; i < 3; i++)
-      {
-      xyz[i] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(3 + i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromEuler(xyz, matparms);
     }
   else if (strcmp(classname, "Rigid2DTransform") == 0 ||
            strcmp(classname, "Euler2DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 3, 2, classname))
       {
-      return 0;
+      double angle = parameters->GetValue(0);
+      translation[0] = parameters->GetValue(1);
+      translation[1] = parameters->GetValue(2);
+      center[0] = fixedParameters->GetValue(0);
+      center[1] = fixedParameters->GetValue(1);
+      vtkITKXFMReader::MatrixFromAngle(angle, matparms);
       }
-
-    double angle = parameters->GetValue(0);
-    translation[0] = parameters->GetValue(1);
-    translation[1] = parameters->GetValue(2);
-    center[0] = fixedParameters->GetValue(0);
-    center[1] = fixedParameters->GetValue(1);
-    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
     }
   else if (strcmp(classname, "Similarity2DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 4, 2, classname))
       {
-      return 0;
+      double scale = parameters->GetValue(0);
+      double angle = parameters->GetValue(1);
+      translation[0] = parameters->GetValue(2);
+      translation[1] = parameters->GetValue(3);
+      center[0] = fixedParameters->GetValue(0);
+      center[1] = fixedParameters->GetValue(1);
+      vtkITKXFMReader::MatrixFromAngle(angle, matparms);
+      matparms[0] *= scale;
+      matparms[1] *= scale;
+      matparms[3] *= scale;
+      matparms[4] *= scale;
       }
-
-    double scale = parameters->GetValue(0);
-    double angle = parameters->GetValue(1);
-    translation[0] = parameters->GetValue(2);
-    translation[1] = parameters->GetValue(3);
-    center[0] = fixedParameters->GetValue(0);
-    center[1] = fixedParameters->GetValue(1);
-    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
-    matparms[0] *= scale;
-    matparms[1] *= scale;
-    matparms[3] *= scale;
-    matparms[4] *= scale;
     }
   else if (strcmp(classname, "CenteredRigid2DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 5, 2, classname))
       {
-      return 0;
+      double angle = parameters->GetValue(0);
+      center[0] = fixedParameters->GetValue(1);
+      center[1] = fixedParameters->GetValue(2);
+      translation[0] = parameters->GetValue(3);
+      translation[1] = parameters->GetValue(4);
+      vtkITKXFMReader::MatrixFromAngle(angle, matparms);
       }
-
-    double angle = parameters->GetValue(0);
-    center[0] = fixedParameters->GetValue(1);
-    center[1] = fixedParameters->GetValue(2);
-    translation[0] = parameters->GetValue(3);
-    translation[1] = parameters->GetValue(4);
-    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
     }
   else if (strcmp(classname, "CenteredSimilarity2DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 6, 2, classname))
       {
-      return 0;
+      double scale = parameters->GetValue(0);
+      double angle = parameters->GetValue(1);
+      center[0] = parameters->GetValue(2);
+      center[1] = parameters->GetValue(3);
+      translation[0] = parameters->GetValue(4);
+      translation[1] = parameters->GetValue(5);
+      vtkITKXFMReader::MatrixFromAngle(angle, matparms);
+      matparms[0] *= scale;
+      matparms[1] *= scale;
+      matparms[3] *= scale;
+      matparms[4] *= scale;
       }
-
-    double scale = parameters->GetValue(0);
-    double angle = parameters->GetValue(1);
-    center[0] = parameters->GetValue(2);
-    center[1] = parameters->GetValue(3);
-    translation[0] = parameters->GetValue(4);
-    translation[1] = parameters->GetValue(5);
-    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
-    matparms[0] *= scale;
-    matparms[1] *= scale;
-    matparms[3] *= scale;
-    matparms[4] *= scale;
     }
   else if (strcmp(classname, "CenteredEuler3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 9, 3, classname))
       {
-      return 0;
+      double xyz[3];
+      for (int i = 0; i < 3; i++)
+        {
+        xyz[i] = parameters->GetValue(i);
+        center[i] = parameters->GetValue(3 + i);
+        translation[i] = parameters->GetValue(6 + i);
+        }
+      vtkITKXFMReader::MatrixFromEuler(xyz, matparms);
       }
-
-    double xyz[3];
-    for (int i = 0; i < 3; i++)
-      {
-      xyz[i] = parameters->GetValue(i);
-      center[i] = parameters->GetValue(3 + i);
-      translation[i] = parameters->GetValue(6 + i);
-      }
-    vtkITKXFMReader::MatrixFromEuler(xyz, matparms);
     }
   else if (strcmp(classname, "VersorTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 3, 3, classname))
       {
-      return 0;
+      double versor[3];
+      for (int i = 0; i < 3; i++)
+        {
+        versor[i] = parameters->GetValue(i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromVersor(versor, matparms);
       }
-
-    double versor[3];
-    for (int i = 0; i < 3; i++)
-      {
-      versor[i] = parameters->GetValue(i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromVersor(versor, matparms);
     }
   else if (strcmp(classname, "VersorRigid3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 6, 3, classname))
       {
-      return 0;
+      double versor[3];
+      for (int i = 0; i < 3; i++)
+        {
+        versor[i] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(3 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromVersor(versor, matparms);
       }
-
-    double versor[3];
-    for (int i = 0; i < 3; i++)
-      {
-      versor[i] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(3 + i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromVersor(versor, matparms);
     }
   else if (strcmp(classname, "Similarity3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 7, 3, classname))
       {
-      return 0;
-      }
-
-    double versor[3];
-    for (int i = 0; i < 3; i++)
-      {
-      versor[i] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(3 + i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromVersor(versor, matparms);
-    double scale = parameters->GetValue(6);
-    for (int j = 0; j < 9; j++)
-      {
-      matparms[j] *= scale;
+      double versor[3];
+      for (int i = 0; i < 3; i++)
+        {
+        versor[i] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(3 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromVersor(versor, matparms);
+      double scale = parameters->GetValue(6);
+      for (int j = 0; j < 9; j++)
+        {
+        matparms[j] *= scale;
+        }
       }
     }
   else if (strcmp(classname, "ScaleVersor3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 9, 3, classname))
       {
-      return 0;
+      double versor[3];
+      double scale[3];
+      for (int i = 0; i < 3; i++)
+        {
+        versor[i] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(3 + i);
+        scale[i] = parameters->GetValue(6 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromVersor(versor, matparms);
+      // just duplicating what ITK does...
+      matparms[0] += scale[0] - 1.0;
+      matparms[4] += scale[1] - 1.0;
+      matparms[8] += scale[2] - 1.0;
       }
-
-    double versor[3];
-    double scale[3];
-    for (int i = 0; i < 3; i++)
-      {
-      versor[i] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(3 + i);
-      scale[i] = parameters->GetValue(6 + i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromVersor(versor, matparms);
-    // just duplicating what ITK does...
-    matparms[0] += scale[0] - 1.0;
-    matparms[4] += scale[1] - 1.0;
-    matparms[8] += scale[2] - 1.0;
     }
   else if (strcmp(classname, "ScaleSkewVersor3DTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 15, 3, classname))
       {
-      return 0;
+      double versor[3];
+      double scale[3];
+      double skew[6];
+      for (int i = 0; i < 3; i++)
+        {
+        versor[i] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(3 + i);
+        scale[i] = parameters->GetValue(6 + i);
+        skew[i] = parameters->GetValue(9 + i);
+        skew[i+3] = parameters->GetValue(12 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromVersor(versor, matparms);
+      matparms[0] += scale[0] - 1.0;
+      matparms[1] += skew[0];
+      matparms[2] += skew[1];
+      matparms[3] += skew[2];
+      matparms[4] += scale[1] - 1.0;
+      matparms[5] += skew[3];
+      matparms[6] += skew[4];
+      matparms[7] += skew[5];
+      matparms[8] += scale[2] - 1.0;
       }
-
-    double versor[3];
-    double scale[3];
-    double skew[6];
-    for (int i = 0; i < 3; i++)
-      {
-      versor[i] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(3 + i);
-      scale[i] = parameters->GetValue(6 + i);
-      skew[i] = parameters->GetValue(9 + i);
-      skew[i+3] = parameters->GetValue(12 + i);
-      center[i] = fixedParameters->GetValue(i);
-      }
-    vtkITKXFMReader::MatrixFromVersor(versor, matparms);
-    matparms[0] += scale[0] - 1.0;
-    matparms[1] += skew[0];
-    matparms[2] += skew[1];
-    matparms[3] += skew[2];
-    matparms[4] += scale[1] - 1.0;
-    matparms[5] += skew[3];
-    matparms[6] += skew[4];
-    matparms[7] += skew[5];
-    matparms[8] += scale[2] - 1.0;
     }
   else if (strcmp(classname, "QuaternionRigidTransform") == 0)
     {
-    if (!this->CheckNumberOfParameters(
+    if (this->CheckNumberOfParameters(
           parameters, fixedParameters, 7, 3, classname))
       {
-      return 0;
-      }
+      double quat[4];
+      quat[0] = parameters->GetValue(3);
 
-    double quat[4];
-    quat[0] = parameters->GetValue(3);
-
-    for (int i = 0; i < 3; i++)
-      {
-      quat[i+1] = parameters->GetValue(i);
-      translation[i] = parameters->GetValue(4 + i);
-      center[i] = fixedParameters->GetValue(i);
+      for (int i = 0; i < 3; i++)
+        {
+        quat[i+1] = parameters->GetValue(i);
+        translation[i] = parameters->GetValue(4 + i);
+        center[i] = fixedParameters->GetValue(i);
+        }
+      vtkITKXFMReader::MatrixFromQuaternion(quat, matparms);
       }
-    vtkITKXFMReader::MatrixFromQuaternion(quat, matparms);
     }
 
   else
@@ -899,7 +865,7 @@ int vtkITKXFMReader::ReadTransform(
 
   this->Transforms->AddItem(transform);
 
-  return 1;
+  return (this->ErrorIndicator == 0);
 }
 
 //-------------------------------------------------------------------------
@@ -908,6 +874,7 @@ int vtkITKXFMReader::ReadFile()
   this->Transforms->RemoveAllItems();
   this->TransformParameters->RemoveAllItems();
   this->TransformNames->Reset();
+  this->ErrorIndicator = 0;
 
   // Check that the file name has been set.
   if (!this->FileName || this->FileName[0] == '\0')

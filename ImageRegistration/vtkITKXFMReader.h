@@ -114,6 +114,7 @@ protected:
   vtkStringArray *TransformNames;
   vtkCollection *TransformParameters;
   int LineNumber;
+  int ErrorIndicator;
 
   void SetTransform(vtkAbstractTransform *transform);
 
