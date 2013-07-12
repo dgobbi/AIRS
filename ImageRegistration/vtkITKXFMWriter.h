@@ -56,7 +56,7 @@ class vtkThinPlateSplineTransform;
 class vtkGridTransform;
 class vtkCollection;
 
-class VTK_HYBRID_EXPORT vtkITKXFMWriter : public vtkAlgorithm
+class VTK_EXPORT vtkITKXFMWriter : public vtkAlgorithm
 {
 public:
   vtkTypeMacro(vtkITKXFMWriter,vtkAlgorithm);
