@@ -42,6 +42,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageData.h"
 #include "vtkCollection.h"
 #include "vtkTransform.h"
+#include "vtkGeneralTransform.h"
+#include "vtkAbstractTransform.h"
 #include "vtkDoubleArray.h"
 #include "vtkStringArray.h"
 #include "vtkInformation.h"
@@ -332,9 +334,6 @@ int vtkITKXFMReader::CheckNumberOfParameters(
                   << this->FileName << ":" << this->LineNumber);
     return 0;
     }
-
-  parameters->SetNumberOfTuples(n);
-  fixedParameters->SetNumberOfTuples(m);
 
   this->TransformParameters->AddItem(parameters);
   this->TransformParameters->AddItem(fixedParameters);
@@ -878,9 +877,12 @@ int vtkITKXFMReader::ReadTransform(
 
   else
     {
-    vtkErrorMacro("Unrecognized transform type \'"
-                  << classname << "\' in ");
-    return 0;
+    // unrecognized transform, set parameters but do nothing else
+    this->CheckNumberOfParameters(
+      parameters, fixedParameters, 0, 0, classname);
+
+    vtkWarningMacro("Unrecognized transform type \'"
+                    << classname << "\', using identity matrix.");
     }
 
   vtkITKXFMReader::BuildTransform(
@@ -897,7 +899,6 @@ int vtkITKXFMReader::ReadFile()
   this->Transforms->RemoveAllItems();
   this->TransformParameters->RemoveAllItems();
   this->TransformNames->Reset();
-  this->SetTransform(0);
 
   // Check that the file name has been set.
   if (!this->FileName || this->FileName[0] == '\0')
@@ -967,7 +968,8 @@ int vtkITKXFMReader::ReadFile()
   if (n == 1)
     {
     this->SetTransform(
-      (vtkTransform *)this->Transforms->GetItemAsObject(0));
+      static_cast<vtkAbstractTransform *>(
+        this->Transforms->GetItemAsObject(0)));
     }
   else
     {
@@ -976,7 +978,8 @@ int vtkITKXFMReader::ReadFile()
     int i = 0;
     for (i = 0; i < n; i++)
       {
-      if (!this->Transforms->GetItemAsObject(i)->IsA("vtkLinearTransform"))
+      if (!vtkLinearTransform::SafeDownCast(
+            this->Transforms->GetItemAsObject(i)))
         {
         linear = 0;
         break;
@@ -992,7 +995,8 @@ int vtkITKXFMReader::ReadFile()
       for (i = 0; i < n; i++)
         {
         vtkLinearTransform *linearTransform =
-          (vtkLinearTransform *)this->Transforms->GetItemAsObject(i);
+          static_cast<vtkLinearTransform *>(
+            this->Transforms->GetItemAsObject(i));
         transform->Concatenate(linearTransform->GetMatrix());
         }
       this->SetTransform(transform);
@@ -1000,16 +1004,23 @@ int vtkITKXFMReader::ReadFile()
       }
     else
       {
-      vtkTransform *transform = vtkTransform::New();
+      vtkGeneralTransform *transform = vtkGeneralTransform::New();
       transform->PostMultiply();
       for (i = 0; i < n; i++)
         {
-        vtkTransform *aTransform =
-          (vtkTransform *)this->Transforms->GetItemAsObject(i);
-        transform->Concatenate(aTransform->GetMatrix());
+        vtkAbstractTransform *abstractTransform =
+          (vtkAbstractTransform *)this->Transforms->GetItemAsObject(i);
+        vtkLinearTransform *linearTransform =
+          vtkLinearTransform::SafeDownCast(abstractTransform);
+        if (linearTransform)
+          {
+          transform->Concatenate(linearTransform->GetMatrix());
+          }
+        else
+          {
+          transform->Concatenate(abstractTransform);
+          }
         }
-      this->SetTransform(transform);
-      transform->Delete();
       }
     }
 
@@ -1030,24 +1041,26 @@ int vtkITKXFMReader::ProcessRequest(vtkInformation *request,
 }
 
 //-------------------------------------------------------------------------
-void vtkITKXFMReader::SetTransform(vtkTransform *transform)
+void vtkITKXFMReader::SetTransform(vtkAbstractTransform *transform)
 {
   if (this->Transform != transform)
     {
-    if (this->Transform)
+    if (strcmp(transform->GetClassName(),
+               this->Transform->GetClassName()) == 0)
+      {
+      this->Transform->DeepCopy(transform);
+      }
+    else
       {
       this->Transform->Delete();
-      }
-    if (transform)
-      {
       transform->Register(this);
+      this->Transform = transform;
       }
-    this->Transform = transform;
     }
 }
 
 //-------------------------------------------------------------------------
-vtkTransform *vtkITKXFMReader::GetTransform()
+vtkAbstractTransform *vtkITKXFMReader::GetTransform()
 {
   this->Update();
 
@@ -1063,7 +1076,7 @@ int vtkITKXFMReader::GetNumberOfTransforms()
 }
 
 //-------------------------------------------------------------------------
-vtkTransform *vtkITKXFMReader::GetNthTransform(int i)
+vtkAbstractTransform *vtkITKXFMReader::GetNthTransform(int i)
 {
   this->Update();
 
@@ -1072,7 +1085,8 @@ vtkTransform *vtkITKXFMReader::GetNthTransform(int i)
     return 0;
     }
 
-  return (vtkTransform *)this->Transforms->GetItemAsObject(i);
+  return static_cast<vtkAbstractTransform *>(
+    this->Transforms->GetItemAsObject(i));
 }
 
 //-------------------------------------------------------------------------
@@ -1085,7 +1099,8 @@ vtkDoubleArray *vtkITKXFMReader::GetNthTransformParameters(int i)
     return 0;
     }
 
-  return (vtkDoubleArray*)this->TransformParameters->GetItemAsObject(2*i);
+  return static_cast<vtkDoubleArray *>(
+    this->TransformParameters->GetItemAsObject(2*i));
 }
 
 //-------------------------------------------------------------------------
@@ -1098,7 +1113,8 @@ vtkDoubleArray *vtkITKXFMReader::GetNthTransformFixedParameters(int i)
     return 0;
     }
 
-  return (vtkDoubleArray *)this->TransformParameters->GetItemAsObject(2*i+1);
+  return static_cast<vtkDoubleArray *>(
+    this->TransformParameters->GetItemAsObject(2*i));
 }
 
 //-------------------------------------------------------------------------

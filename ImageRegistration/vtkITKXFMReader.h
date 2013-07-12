@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #include "vtkAlgorithm.h"
 
+class vtkAbstractTransform;
 class vtkTransform;
 class vtkDoubleArray;
 class vtkStringArray;
@@ -86,7 +87,7 @@ public:
 
   // Description:
   // Get one of the transforms listed in the file.
-  virtual vtkTransform *GetNthTransform(int i);
+  virtual vtkAbstractTransform *GetNthTransform(int i);
 
   // Description:
   // Get the transform type.
@@ -101,7 +102,7 @@ public:
   // Get the transform that results from concatenating all
   // of the transforms in the file.  This will return null
   // if you have not specified a file name.
-  virtual vtkTransform *GetTransform();
+  virtual vtkAbstractTransform *GetTransform();
 
   // Description:
   // Get any comments that are included in the file.
@@ -112,14 +113,14 @@ protected:
   ~vtkITKXFMReader();
 
   char *FileName;
-  vtkTransform *Transform;
+  vtkAbstractTransform *Transform;
   vtkCollection *Transforms;
   vtkStringArray *TransformNames;
   vtkCollection *TransformParameters;
   int LineNumber;
   char *Comments;
 
-  void SetTransform(vtkTransform *transform);
+  void SetTransform(vtkAbstractTransform *transform);
 
   int ReadLine(istream &infile, char result[]);
   int ReadLineAfterComments(istream &infile, char result[]);
