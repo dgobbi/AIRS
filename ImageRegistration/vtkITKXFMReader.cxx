@@ -1078,7 +1078,7 @@ vtkDoubleArray *vtkITKXFMReader::GetNthTransformFixedParameters(int i)
     }
 
   return static_cast<vtkDoubleArray *>(
-    this->TransformParameters->GetItemAsObject(2*i));
+    this->TransformParameters->GetItemAsObject(2*i + 1));
 }
 
 //-------------------------------------------------------------------------
