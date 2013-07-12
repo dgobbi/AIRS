@@ -58,7 +58,6 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #include <string>
 #include <vector>
-#include <vtksys/SystemTools.hxx>
 
 #define ITKXFM_MAXLINE 1024
 
@@ -74,7 +73,6 @@ vtkITKXFMReader::vtkITKXFMReader()
   this->TransformParameters = vtkCollection::New();
   this->TransformNames = vtkStringArray::New();
   this->LineNumber = 0;
-  this->Comments = 0;
 }
 
 //-------------------------------------------------------------------------
@@ -98,7 +96,6 @@ vtkITKXFMReader::~vtkITKXFMReader()
     }
 
   delete [] this->FileName;
-  delete [] this->Comments;
 }
 
 //-------------------------------------------------------------------------
@@ -115,8 +112,6 @@ void vtkITKXFMReader::PrintSelf(ostream& os, vtkIndent indent)
     }
   os << indent << "NumberOfTransforms: "
      << this->Transforms->GetNumberOfItems() << "\n";
-  os << indent << "Comments: "
-     << (this->Comments ? this->Comments : "none") << "\n";
 }
 
 //-------------------------------------------------------------------------
@@ -439,6 +434,24 @@ void vtkITKXFMReader::MatrixFromEuler(
 }
 
 //-------------------------------------------------------------------------
+void vtkITKXFMReader::MatrixFromAngle(
+  double angle, double matparms[9])
+{
+  double cx = cos(angle);
+  double sx = sin(angle);
+
+  matparms[0] = cx;
+  matparms[1] = -sx;
+  matparms[2] = 0.0;
+  matparms[3] = sx;
+  matparms[4] = cx;
+  matparms[5] = 0.0;
+  matparms[6] = 0.0;
+  matparms[7] = 0.0;
+  matparms[8] = 1.0;
+}
+
+//-------------------------------------------------------------------------
 int vtkITKXFMReader::ReadTransform(
   istream &infile, char linetext[ITKXFM_MAXLINE])
 {
@@ -668,10 +681,7 @@ int vtkITKXFMReader::ReadTransform(
     translation[1] = parameters->GetValue(2);
     center[0] = fixedParameters->GetValue(0);
     center[1] = fixedParameters->GetValue(1);
-    matparms[0] = cos(angle);
-    matparms[1] = -sin(angle);
-    matparms[3] = sin(angle);
-    matparms[4] = cos(angle);
+    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
     }
   else if (strcmp(classname, "Similarity2DTransform") == 0)
     {
@@ -687,10 +697,11 @@ int vtkITKXFMReader::ReadTransform(
     translation[1] = parameters->GetValue(3);
     center[0] = fixedParameters->GetValue(0);
     center[1] = fixedParameters->GetValue(1);
-    matparms[0] = cos(angle)*scale;
-    matparms[1] = -sin(angle)*scale;
-    matparms[3] = sin(angle)*scale;
-    matparms[4] = cos(angle)*scale;
+    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
+    matparms[0] *= scale;
+    matparms[1] *= scale;
+    matparms[3] *= scale;
+    matparms[4] *= scale;
     }
   else if (strcmp(classname, "CenteredRigid2DTransform") == 0)
     {
@@ -705,10 +716,7 @@ int vtkITKXFMReader::ReadTransform(
     center[1] = fixedParameters->GetValue(2);
     translation[0] = parameters->GetValue(3);
     translation[1] = parameters->GetValue(4);
-    matparms[0] = cos(angle);
-    matparms[1] = -sin(angle);
-    matparms[3] = sin(angle);
-    matparms[4] = cos(angle);
+    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
     }
   else if (strcmp(classname, "CenteredSimilarity2DTransform") == 0)
     {
@@ -724,10 +732,11 @@ int vtkITKXFMReader::ReadTransform(
     center[1] = parameters->GetValue(3);
     translation[0] = parameters->GetValue(4);
     translation[1] = parameters->GetValue(5);
-    matparms[0] = cos(angle)*scale;
-    matparms[1] = -sin(angle)*scale;
-    matparms[3] = sin(angle)*scale;
-    matparms[4] = cos(angle)*scale;
+    vtkITKXFMReader::MatrixFromAngle(angle, matparms);
+    matparms[0] *= scale;
+    matparms[1] *= scale;
+    matparms[3] *= scale;
+    matparms[4] *= scale;
     }
   else if (strcmp(classname, "CenteredEuler3DTransform") == 0)
     {
@@ -935,18 +944,6 @@ int vtkITKXFMReader::ReadFile()
     infile.close();
     return 0;
     }
-  else
-    {
-    size_t n = strlen(linetext);
-    while (n > 1 && isspace(linetext[n-1]))
-      {
-      --n;
-      }
-    delete [] this->Comments;
-    this->Comments = new char[n + 1];
-    strncpy(this->Comments, linetext, n);
-    this->Comments[n] = '\0';
-    }
 
   // Read the transforms
   while (infile.good())
@@ -1128,17 +1125,4 @@ const char *vtkITKXFMReader::GetNthTransformName(int i)
     }
 
   return this->TransformNames->GetValue(i);
-}
-
-//-------------------------------------------------------------------------
-const char *vtkITKXFMReader::GetComments()
-{
-  this->Update();
-
-  if (this->Comments == 0)
-    {
-    return "";
-    }
-
-  return this->Comments;
 }

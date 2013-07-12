@@ -104,10 +104,6 @@ public:
   // if you have not specified a file name.
   virtual vtkAbstractTransform *GetTransform();
 
-  // Description:
-  // Get any comments that are included in the file.
-  virtual const char *GetComments();
-
 protected:
   vtkITKXFMReader();
   ~vtkITKXFMReader();
@@ -118,7 +114,6 @@ protected:
   vtkStringArray *TransformNames;
   vtkCollection *TransformParameters;
   int LineNumber;
-  char *Comments;
 
   void SetTransform(vtkAbstractTransform *transform);
 
@@ -143,6 +138,9 @@ protected:
 
   static void MatrixFromEuler(
     const double angles[3], double matparms[9]);
+
+  static void MatrixFromAngle(
+    double angle, double matparms[9]);
 
   int CheckNumberOfParameters(
     vtkDoubleArray *parameters, vtkDoubleArray *fixedParameters,
