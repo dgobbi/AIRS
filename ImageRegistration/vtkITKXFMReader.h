@@ -50,6 +50,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 class vtkTransform;
 class vtkDoubleArray;
+class vtkStringArray;
 class vtkCollection;
 
 class VTK_EXPORT vtkITKXFMReader : public vtkAlgorithm
@@ -88,6 +89,15 @@ public:
   virtual vtkTransform *GetNthTransform(int i);
 
   // Description:
+  // Get the transform type.
+  virtual const char *GetNthTransformName(int i);
+
+  // Description:
+  // Get the transform parameters.
+  virtual vtkDoubleArray *GetNthTransformParameters(int i);
+  virtual vtkDoubleArray *GetNthTransformFixedParameters(int i);
+
+  // Description:
   // Get the transform that results from concatenating all
   // of the transforms in the file.  This will return null
   // if you have not specified a file name.
@@ -104,6 +114,8 @@ protected:
   char *FileName;
   vtkTransform *Transform;
   vtkCollection *Transforms;
+  vtkStringArray *TransformNames;
+  vtkCollection *TransformParameters;
   int LineNumber;
   char *Comments;
 

@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkCollection.h"
 #include "vtkTransform.h"
 #include "vtkDoubleArray.h"
+#include "vtkStringArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkDemandDrivenPipeline.h"
@@ -66,8 +67,10 @@ vtkStandardNewMacro(vtkITKXFMReader);
 vtkITKXFMReader::vtkITKXFMReader()
 {
   this->FileName = 0;
-  this->Transform = 0;
+  this->Transform = vtkTransform::New();
   this->Transforms = vtkCollection::New();
+  this->TransformParameters = vtkCollection::New();
+  this->TransformNames = vtkStringArray::New();
   this->LineNumber = 0;
   this->Comments = 0;
 }
@@ -82,6 +85,14 @@ vtkITKXFMReader::~vtkITKXFMReader()
   if (this->Transform)
     {
     this->Transform->Delete();
+    }
+  if (this->TransformParameters)
+    {
+    this->TransformParameters->Delete();
+    }
+  if (this->TransformNames)
+    {
+    this->TransformNames->Delete();
     }
 
   delete [] this->FileName;
@@ -307,20 +318,27 @@ int vtkITKXFMReader::CheckNumberOfParameters(
   vtkDoubleArray *parameters, vtkDoubleArray *fixedParameters,
   vtkIdType n, vtkIdType m, const char *classname)
 {
-  if (parameters->GetNumberOfTuples() != n)
+  if (parameters->GetNumberOfTuples() < n)
     {
     vtkErrorMacro("Incorrect number of Parameters for \'"
                   << classname << "\' in "
                   << this->FileName << ":" << this->LineNumber);
     return 0;
     }
-  if (fixedParameters->GetNumberOfTuples() != m)
+  if (fixedParameters->GetNumberOfTuples() < m)
     {
     vtkErrorMacro("Incorrect number of FixedParameters for \'"
                   << classname << "\' in "
                   << this->FileName << ":" << this->LineNumber);
     return 0;
     }
+
+  parameters->SetNumberOfTuples(n);
+  fixedParameters->SetNumberOfTuples(m);
+
+  this->TransformParameters->AddItem(parameters);
+  this->TransformParameters->AddItem(fixedParameters);
+  this->TransformNames->InsertNextValue(classname);
 
   return 1;
 }
@@ -359,29 +377,41 @@ void vtkITKXFMReader::BuildTransform(
 void vtkITKXFMReader::MatrixFromQuaternion(
   const double quat[4], double matparms[9])
 {
-  double mat[3][3];
-  vtkMath::QuaternionToMatrix3x3(quat, mat);
+  double rr = quat[0]*quat[0];
+  double xx = quat[1]*quat[1];
+  double yy = quat[2]*quat[2];
+  double zz = quat[3]*quat[3];
+  double xy = quat[1]*quat[2];
+  double zx = quat[3]*quat[1];
+  double yz = quat[2]*quat[3];
+  double rx = quat[0]*quat[1];
+  double ry = quat[0]*quat[2];
+  double rz = quat[0]*quat[3];
 
-  for (int i = 0; i < 3; i++)
-    {
-    matparms[3*i + 0] = mat[i][0];
-    matparms[3*i + 1] = mat[i][1];
-    matparms[3*i + 2] = mat[i][2];
-    }
+  matparms[0] = rr + xx - yy - zz;
+  matparms[1] = 2.0*(xy - rz);
+  matparms[2] = 2.0*(zx + ry);
+  matparms[3] = 2.0*(xy + rz);
+  matparms[4] = rr - xx + yy - zz;
+  matparms[5] = 2.0*(yz - rx);
+  matparms[6] = 2.0*(zx - ry);
+  matparms[7] = 2.0*(yz + rx);
+  matparms[8] = rr - xx - yy + zz;
 }
 
 //-------------------------------------------------------------------------
 void vtkITKXFMReader::MatrixFromVersor(
   const double versor[3], double matparms[9])
 {
-  double quat[4];
   double n = vtkMath::Norm(versor);
   double d = 1.0 - n*n;
   d = (d > 0 ? d : 0.0);
-  quat[0] = versor[0];
-  quat[1] = versor[1];
-  quat[2] = versor[2];
-  quat[3] = sqrt(d);
+
+  double quat[4];
+  quat[0] = sqrt(d);
+  quat[1] = versor[0];
+  quat[2] = versor[1];
+  quat[3] = versor[2];
 
   vtkITKXFMReader::MatrixFromQuaternion(quat, matparms);
 }
@@ -399,15 +429,13 @@ void vtkITKXFMReader::MatrixFromEuler(
 
   // rotate Y, then X, then Z
   matparms[0] = cy*cz - sx*sy*sz;
-  matparms[1] = cy*sz + sx*sy*cz;
-  matparms[2] = -cx*sy;
-
-  matparms[3] = -cx*sz;
+  matparms[1] = -cx*sz;
+  matparms[2] = sy*cz + sx*cy*sz;
+  matparms[3] = cy*sz + sx*sy*cz;
   matparms[4] = cx*cz;
-  matparms[5] = sx;
-
-  matparms[6] = sy*cz + sx*cy*sz;
-  matparms[7] = sy*sz - sx*cy*cz;
+  matparms[5] = sy*sz - sx*cy*cz;
+  matparms[6] = -cx*sy;
+  matparms[7] = sx;
   matparms[8] = cx*cy;
 }
 
@@ -561,7 +589,8 @@ int vtkITKXFMReader::ReadTransform(
            strcmp(classname, "AffineTransform") == 0 ||
            strcmp(classname, "Rigid3DTransform") == 0 ||
            strcmp(classname, "v3Rigid3DTransform") == 0 ||
-           strcmp(classname, "ScalableAffineTransform") == 0)
+           strcmp(classname, "ScalableAffineTransform") == 0 ||
+           strcmp(classname, "FixedCenterOfRotationAffineTransform") == 0)
     {
     if (!this->CheckNumberOfParameters(
           parameters, fixedParameters, (d1+1)*d2, d2, classname))
@@ -585,8 +614,7 @@ int vtkITKXFMReader::ReadTransform(
       center[j] = fixedParameters->GetValue(j);
       }
     }
-  else if (strcmp(classname, "CenteredAffineTransform") == 0 ||
-           strcmp(classname, "FixedCenterOfRotationAffineTransform") == 0)
+  else if (strcmp(classname, "CenteredAffineTransform") == 0)
     {
     if (!this->CheckNumberOfParameters(
           parameters, fixedParameters, (d1+1)*d2 + d1, d2, classname))
@@ -867,6 +895,8 @@ int vtkITKXFMReader::ReadTransform(
 int vtkITKXFMReader::ReadFile()
 {
   this->Transforms->RemoveAllItems();
+  this->TransformParameters->RemoveAllItems();
+  this->TransformNames->Reset();
   this->SetTransform(0);
 
   // Check that the file name has been set.
@@ -1043,6 +1073,45 @@ vtkTransform *vtkITKXFMReader::GetNthTransform(int i)
     }
 
   return (vtkTransform *)this->Transforms->GetItemAsObject(i);
+}
+
+//-------------------------------------------------------------------------
+vtkDoubleArray *vtkITKXFMReader::GetNthTransformParameters(int i)
+{
+  this->Update();
+
+  if (i < 0 || i >= this->TransformParameters->GetNumberOfItems()/2)
+    {
+    return 0;
+    }
+
+  return (vtkDoubleArray*)this->TransformParameters->GetItemAsObject(2*i);
+}
+
+//-------------------------------------------------------------------------
+vtkDoubleArray *vtkITKXFMReader::GetNthTransformFixedParameters(int i)
+{
+  this->Update();
+
+  if (i < 0 || i >= this->TransformParameters->GetNumberOfItems()/2)
+    {
+    return 0;
+    }
+
+  return (vtkDoubleArray *)this->TransformParameters->GetItemAsObject(2*i+1);
+}
+
+//-------------------------------------------------------------------------
+const char *vtkITKXFMReader::GetNthTransformName(int i)
+{
+  this->Update();
+
+  if (i < 0 || i >= this->TransformNames->GetNumberOfValues())
+    {
+    return 0;
+    }
+
+  return this->TransformNames->GetValue(i);
 }
 
 //-------------------------------------------------------------------------
