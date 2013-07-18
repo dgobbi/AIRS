@@ -190,6 +190,17 @@ public:
   vtkGetMacro(TransformType, int);
 
   // Description:
+  // Set the transform dimensionality.  The default is 3D.
+  // Only 2D and 3D are supported.  A 2D transform will only
+  // modify the x and y coordinates.
+  vtkSetMacro(TransformDimensionality, int);
+  void SetTransformDimensionalityTo2D() {
+    this->SetTransformDimensionality(2); }
+  void SetTransformDimensionalityTo3D() {
+    this->SetTransformDimensionality(3); }
+  vtkGetMacro(TransformDimensionality, int);
+
+  // Description:
   // Set the initializer type.  The default is None.  The Centered
   // initializer sets an initial translation that will center the
   // images over each other.
@@ -286,6 +297,7 @@ protected:
   int                              InterpolatorType;
   int                              TransformType;
   int                              InitializerType;
+  int                              TransformDimensionality;
 
   int                              JointHistogramSize[2];
   int                              MaximumNumberOfIterations;

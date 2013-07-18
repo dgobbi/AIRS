@@ -74,6 +74,7 @@ struct vtkImageRegistrationInfo
   vtkAlgorithm *Metric;
   vtkMatrix4x4 *InitialMatrix;
 
+  int TransformDimensionality;
   int TransformType;
   int OptimizerType;
   int MetricType;
@@ -107,6 +108,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->InterpolatorType = vtkImageRegistration::Linear;
   this->TransformType = vtkImageRegistration::Rigid;
   this->InitializerType = vtkImageRegistration::None;
+  this->TransformDimensionality = 3;
 
   this->Transform = vtkTransform::New();
   this->Metric = NULL;
@@ -118,6 +120,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->RegistrationInfo->Optimizer = NULL;
   this->RegistrationInfo->Metric = NULL;
   this->RegistrationInfo->InitialMatrix = NULL;
+  this->RegistrationInfo->TransformDimensionality = 0;
   this->RegistrationInfo->TransformType = 0;
   this->RegistrationInfo->OptimizerType = 0;
   this->RegistrationInfo->MetricType = 0;
@@ -195,6 +198,8 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MetricType: " << this->MetricType << "\n";
   os << indent << "InterpolatorType: " << this->InterpolatorType << "\n";
   os << indent << "TransformType: " << this->TransformType << "\n";
+  os << indent << "TransformDimensionality: "
+     << this->TransformDimensionality << "\n";
   os << indent << "InitializerType: " << this->InitializerType << "\n";
   os << indent << "MetricTolerance: " << this->MetricTolerance << "\n";
   os << indent << "TransformTolerance: " << this->TransformTolerance << "\n";
@@ -332,10 +337,17 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
     vtkTransform::SafeDownCast(registrationInfo->Transform);
   vtkMatrix4x4 *initialMatrix = registrationInfo->InitialMatrix;
   int transformType = registrationInfo->TransformType;
+  int transformDim = registrationInfo->TransformDimensionality;
 
-  double tx = optimizer->GetParameterValue(0);
-  double ty = optimizer->GetParameterValue(1);
-  double tz = optimizer->GetParameterValue(2);
+  int pcount = 0;
+
+  double tx = optimizer->GetParameterValue(pcount++);
+  double ty = optimizer->GetParameterValue(pcount++);
+  double tz = 0.0;
+  if (transformDim > 2)
+    {
+    tz = optimizer->GetParameterValue(pcount++);
+    }
 
   double rx = 0.0;
   double ry = 0.0;
@@ -343,9 +355,12 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 
   if (transformType > vtkImageRegistration::Translation)
     {
-    rx = optimizer->GetParameterValue(3);
-    ry = optimizer->GetParameterValue(4);
-    rz = optimizer->GetParameterValue(5);
+    if (transformDim > 2)
+      {
+      rx = optimizer->GetParameterValue(pcount++);
+      ry = optimizer->GetParameterValue(pcount++);
+      }
+    rz = optimizer->GetParameterValue(pcount++);
     }
 
   double sx = 1.0;
@@ -354,15 +369,21 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 
   if (transformType > vtkImageRegistration::Rigid)
     {
-    sx = exp(optimizer->GetParameterValue(6));
+    sx = exp(optimizer->GetParameterValue(pcount++));
     sy = sx;
-    sz = sx;
+    if (transformDim > 2)
+      {
+      sz = sx;
+      }
     }
 
   if (transformType > vtkImageRegistration::Similarity)
     {
-    sx = sz*exp(optimizer->GetParameterValue(7));
-    sy = sz*exp(optimizer->GetParameterValue(8));
+    if (transformDim > 2)
+      {
+      sx = sz*exp(optimizer->GetParameterValue(pcount++));
+      }
+    sy = sz*exp(optimizer->GetParameterValue(pcount++));
     }
 
   bool scaledAtSource =
@@ -374,9 +395,12 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 
   if (transformType >= vtkImageRegistration::Affine)
     {
-    qx = optimizer->GetParameterValue(9);
-    qy = optimizer->GetParameterValue(10);
-    qz = optimizer->GetParameterValue(11);
+    if (transformDim > 2)
+      {
+      qx = optimizer->GetParameterValue(pcount++);
+      qy = optimizer->GetParameterValue(pcount++);
+      }
+    qz = optimizer->GetParameterValue(pcount++);
     }
 
   double *center = registrationInfo->Center;
@@ -475,6 +499,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   // update our inputs
   this->Update();
 
+  int transformDim = this->TransformDimensionality;
+  if (transformDim < 2) { transformDim = 2; }
+  if (transformDim > 3) { transformDim = 3; }
+
   vtkImageData *targetImage = this->GetTargetImage();
   vtkImageData *sourceImage = this->GetSourceImage();
 
@@ -550,6 +578,12 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     tx = tcenter[0] - center[0];
     ty = tcenter[1] - center[1];
     tz = tcenter[2] - center[2];
+    }
+
+  if (transformDim <= 2)
+    {
+    center[2] = 0.0;
+    tz = 0.0;
     }
 
   // do the setup for mutual information
@@ -703,6 +737,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Metric = this->Metric;
   this->RegistrationInfo->InitialMatrix = this->InitialTransformMatrix;
 
+  this->RegistrationInfo->TransformDimensionality =
+    this->TransformDimensionality;
   this->RegistrationInfo->TransformType = this->TransformType;
   this->RegistrationInfo->OptimizerType = this->OptimizerType;
   this->RegistrationInfo->MetricType = this->MetricType;
@@ -729,7 +765,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   // compute a radius of gyration from the two larger dimensions
   double r2 = 0.0;
   double mindim = VTK_DOUBLE_MAX;
-  for (int ii = 0; ii < 3; ii++)
+  for (int ii = 0; ii < transformDim; ii++)
     {
     mindim = (size[ii] > mindim ? mindim : size[ii]);
     r2 += size[ii]*size[ii];
@@ -753,50 +789,64 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   optimizer->Initialize();
 
+  int pcount = 0;
+
   // translation parameters
-  optimizer->SetParameterValue(0, tx);
-  optimizer->SetParameterScale(0, tscale);
-  optimizer->SetParameterValue(1, ty);
-  optimizer->SetParameterScale(1, tscale);
-  optimizer->SetParameterValue(2, tz);
-  optimizer->SetParameterScale(2, tscale);
+  optimizer->SetParameterValue(pcount, tx);
+  optimizer->SetParameterScale(pcount++, tscale);
+  optimizer->SetParameterValue(pcount, ty);
+  optimizer->SetParameterScale(pcount++, tscale);
+  if (transformDim > 2)
+    {
+    optimizer->SetParameterValue(pcount, tz);
+    optimizer->SetParameterScale(pcount++, tscale);
+    }
 
   // rotation parameters
   if (this->TransformType > vtkImageRegistration::Translation)
     {
-    optimizer->SetParameterValue(3, 0);
-    optimizer->SetParameterScale(3, rscale);
-    optimizer->SetParameterValue(4, 0);
-    optimizer->SetParameterScale(4, rscale);
-    optimizer->SetParameterValue(5, 0);
-    optimizer->SetParameterScale(5, rscale);
+    if (transformDim > 2)
+      {
+      optimizer->SetParameterValue(pcount, 0);
+      optimizer->SetParameterScale(pcount++, rscale);
+      optimizer->SetParameterValue(pcount, 0);
+      optimizer->SetParameterScale(pcount++, rscale);
+      }
+    optimizer->SetParameterValue(pcount, 0);
+    optimizer->SetParameterScale(pcount++, rscale);
     }
 
   if (this->TransformType > vtkImageRegistration::Rigid)
     {
     // single scale parameter
-    optimizer->SetParameterValue(6, 0);
-    optimizer->SetParameterScale(6, sscale);
+    optimizer->SetParameterValue(pcount, 0);
+    optimizer->SetParameterScale(pcount++, sscale);
     }
 
   if (this->TransformType > vtkImageRegistration::Similarity)
     {
     // extra scale parameters, weighed at 25%
-    optimizer->SetParameterValue(7, 0);
-    optimizer->SetParameterScale(7, sscale*0.25);
-    optimizer->SetParameterValue(8, 0);
-    optimizer->SetParameterScale(8, sscale*0.25);
+    optimizer->SetParameterValue(pcount, 0);
+    optimizer->SetParameterScale(pcount++, sscale*0.25);
+    if (transformDim > 2)
+      {
+      optimizer->SetParameterValue(pcount, 0);
+      optimizer->SetParameterScale(pcount++, sscale*0.25);
+      }
     }
 
   if (this->TransformType == vtkImageRegistration::Affine)
     {
     // extra rotation parameters, scaled at 25%
-    optimizer->SetParameterValue(9, 0);
-    optimizer->SetParameterScale(9, rscale*0.25);
-    optimizer->SetParameterValue(10, 0);
-    optimizer->SetParameterScale(10, rscale*0.25);
-    optimizer->SetParameterValue(11, 0);
-    optimizer->SetParameterScale(11, rscale*0.25);
+    if (transformDim > 2)
+      {
+      optimizer->SetParameterValue(pcount, 0);
+      optimizer->SetParameterScale(pcount++, rscale*0.25);
+      optimizer->SetParameterValue(pcount, 0);
+      optimizer->SetParameterScale(pcount++, rscale*0.25);
+      }
+    optimizer->SetParameterValue(pcount, 0);
+    optimizer->SetParameterScale(pcount++, rscale*0.25);
     }
 
   // build the initial transform from the parameters
