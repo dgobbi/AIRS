@@ -35,8 +35,15 @@ ENDIF (NOT AIRS_BINARY_DIR)
 
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
 TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
+
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
 TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration vtkRendering vtkIO)
+
+IF(AIRS_USE_DICOM)
+# actually requires NIFTI, which is in DICOM code repository
+  ADD_EXECUTABLE(ComputeStrain ComputeStrain.cxx)
+  TARGET_LINK_LIBRARIES(ComputeStrain vtkImageRegistration vtkIO ${DICOM_LIBRARIES})
+ENDIF(AIRS_USE_DICOM)

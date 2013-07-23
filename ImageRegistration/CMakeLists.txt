@@ -30,6 +30,7 @@ vtkITKXFMWriter.cxx
 vtkMNIXFMReader.cxx
 vtkMNIXFMWriter.cxx
 vtkPowellMinimizer.cxx
+vtkTransformToStrain.cxx
 )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
