@@ -52,6 +52,7 @@ ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
 TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 
@@ -62,3 +63,9 @@ TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
 TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+
+IF(AIRS_USE_DICOM)
+# actually requires NIFTI, which is in DICOM code repository
+  ADD_EXECUTABLE(ComputeStrain ComputeStrain.cxx)
+  TARGET_LINK_LIBRARIES(ComputeStrain vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+ENDIF(AIRS_USE_DICOM)

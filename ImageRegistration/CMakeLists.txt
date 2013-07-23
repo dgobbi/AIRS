@@ -20,9 +20,8 @@ vtkGaussianInterpolator.cxx
 vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
-vtkITKXFMReader.cxx
-vtkITKXFMWriter.cxx
 vtkPowellMinimizer.cxx
+vtkTransformToStrain.cxx
 )
 
 IF (${VTK_MAJOR_VERSION} GREATER 4)
