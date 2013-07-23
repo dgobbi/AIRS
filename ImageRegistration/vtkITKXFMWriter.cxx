@@ -69,6 +69,9 @@ vtkITKXFMWriter::vtkITKXFMWriter()
 {
   this->FileName = 0;
   this->Transform = 0;
+  this->TransformCenter[0] = 0.0;
+  this->TransformCenter[1] = 0.0;
+  this->TransformCenter[2] = 0.0;
   this->Transforms = vtkCollection::New();
 }
 
@@ -101,6 +104,10 @@ void vtkITKXFMWriter::PrintSelf(ostream& os, vtkIndent indent)
     {
     this->Transform->PrintSelf(os, indent.GetNextIndent());
     }
+  os << indent << "TransformCenter: "
+     << this->TransformCenter[0] << " "
+     << this->TransformCenter[1] << " "
+     << this->TransformCenter[2] << "\n";
   os << indent << "NumberOfTransforms: "
      << this->Transforms->GetNumberOfItems() << "\n";
 }
@@ -110,6 +117,13 @@ int vtkITKXFMWriter::WriteLinearTransform(
   ostream &outfile, vtkHomogeneousTransform *transform)
 {
   vtkMatrix4x4 *matrix = transform->GetMatrix();
+  double c[4] = { 0.0, 0.0, 0.0, 1.0 };
+  this->GetTransformCenter(c);
+  double t[4];
+  matrix->MultiplyPoint(c, t);
+  t[0] -= c[0];
+  t[1] -= c[1];
+  t[2] -= c[2];
 
   if (matrix->GetElement(3,0) != 0.0 ||
       matrix->GetElement(3,1) != 0.0 ||
@@ -131,14 +145,11 @@ int vtkITKXFMWriter::WriteLinearTransform(
             << " " << matrix->GetElement(i, 2);
     }
 
-  outfile << " " << matrix->GetElement(0, 3)
-          << " " << matrix->GetElement(1, 3)
-          << " " << matrix->GetElement(2, 3);
-
+  outfile << " " << t[0] << " " << t[1] << " " << t[2];
   outfile << "\n";
 
   outfile << "FixedParameters:";
-  outfile << " " << 0.0 << " " << 0.0 << " " << 0.0;
+  outfile << " " << c[0] << " " << c[1] << " " << c[2];
 
   outfile << "\n";
 

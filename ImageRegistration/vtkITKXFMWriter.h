@@ -86,6 +86,11 @@ public:
     return this->Transform; };
 
   // Description:
+  // Set the transform center.
+  vtkSetVector3Macro(TransformCenter, double);
+  vtkGetVector3Macro(TransformCenter, double);
+
+  // Description:
   // Add another transform to the file.  The next time that
   // SetTransform is called, all added transforms will be
   // removed.
@@ -106,6 +111,7 @@ protected:
   char *FileName;
   vtkAbstractTransform *Transform;
   vtkCollection *Transforms;
+  double TransformCenter[3];
 
   int WriteLinearTransform(ostream &outfile,
                            vtkHomogeneousTransform *transform);
