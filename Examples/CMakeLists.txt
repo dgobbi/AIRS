@@ -34,7 +34,7 @@ ELSE (NOT AIRS_BINARY_DIR)
 ENDIF (NOT AIRS_BINARY_DIR)
 
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
-TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO)
+TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration vtkRendering vtkIO)
 

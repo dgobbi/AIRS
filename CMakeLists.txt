@@ -75,7 +75,7 @@ SET(AIRS_KITS)
 SET(AIRS_LIBRARIES)
 
 # Include directories
-SET(AIRS_INCLUDE_DIRS)
+SET(AIRS_INCLUDE_DIRS ${AIRS_BINARY_DIR})
 
 # ---------------------------------------------------------------
 # Include the Tcl and Python wrappers
@@ -160,7 +160,7 @@ IF (BUILD_EXAMPLES)
    ADD_SUBDIRECTORY(Examples)
 ENDIF (BUILD_EXAMPLES)
 
-# Add airs.py.in file.  On Win32, this has to go into all config 
+# Add airs.py.in file.  On Win32, this has to go into all config
 IF(VTK_WRAP_PYTHON)
   IF(WIN32 AND CMAKE_CONFIGURATION_TYPES)
     FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
@@ -174,6 +174,12 @@ IF(VTK_WRAP_PYTHON)
       ${LIBRARY_OUTPUT_PATH}/airs.py)
   ENDIF(WIN32 AND CMAKE_CONFIGURATION_TYPES)
 ENDIF(VTK_WRAP_PYTHON)
+
+# Configuration header
+SET(AIRS_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+SET(AIRS_BUILD_TESTING ${BUILD_TESTING})
+CONFIGURE_FILE(CMake/AIRSConfig.h.in
+  "${AIRS_BINARY_DIR}/AIRSConfig.h" @ONLY)
 
 #-----------------------------------------------------------------------------
 # The commands in this directory are intended to be executed as

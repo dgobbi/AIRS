@@ -1,0 +1,19 @@
+/*=========================================================================
+
+Program:   Atamai Image Registration and Segmentation
+Module:    AIRSConfig.h.in
+
+   This software is distributed WITHOUT ANY WARRANTY; without even the
+   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=========================================================================*/
+
+#ifndef __AIRSConfig_h
+#define __AIRSConfig_h
+
+/* Configuration information. */
+#cmakedefine AIRS_BUILD_SHARED_LIBS
+#cmakedefine AIRS_BUILD_TESTING
+#cmakedefine AIRS_USE_DICOM
+
+#endif

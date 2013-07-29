@@ -23,7 +23,6 @@ Module:    RigidImageRegistration.cxx
 // This multi-stage approach increases the robustness and often the speed of
 // the registration.
 
-
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
@@ -36,8 +35,8 @@ Module:    RigidImageRegistration.cxx
 #include <vtkMath.h>
 
 #include <vtkMINCImageReader.h>
-#include <vtkDICOMImageReader.h>
 #include <vtkMNITransformWriter.h>
+#include <vtkDICOMImageReader.h>
 
 #include <vtkRenderer.h>
 #include <vtkCamera.h>
@@ -51,7 +50,16 @@ Module:    RigidImageRegistration.cxx
 
 #include <vtkTimerLog.h>
 
-#include <vtkImageRegistration.h>
+#include "AIRSConfig.h"
+#include "vtkITKXFMWriter.h"
+#include "vtkImageRegistration.h"
+
+// optional readers
+#ifdef AIRS_USE_DICOM
+#define AIRS_USE_NIFTI
+#include <vtkNIFTIReader.h>
+#include <vtkDICOMReader.h>
+#endif
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
@@ -149,6 +157,64 @@ void ReadMINCImage(
   matrix->Modified();
 }
 
+#ifdef AIRS_USE_NIFTI
+void ReadNIFTIImage(
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
+{
+  // read the image
+  vtkSmartPointer<vtkNIFTIReader> reader =
+    vtkSmartPointer<vtkNIFTIReader>::New();
+
+  reader->SetFileName(fileName);
+  reader->Update();
+
+  double spacing[3];
+  reader->GetOutput()->GetSpacing(spacing);
+  spacing[0] = fabs(spacing[0]);
+  spacing[1] = fabs(spacing[1]);
+  spacing[2] = fabs(spacing[2]);
+
+  // flip the image rows into a DICOM-style ordering
+  vtkSmartPointer<vtkImageReslice> flip =
+    vtkSmartPointer<vtkImageReslice>::New();
+
+  flip->SetInputConnection(reader->GetOutputPort());
+  flip->SetResliceAxesDirectionCosines(
+    -1,0,0, 0,-1,0, 0,0,1);
+  flip->SetOutputSpacing(spacing);
+  flip->Update();
+
+  //vtkImageData *image = flip->GetOutput();
+  vtkImageData *image = reader->GetOutput();
+
+  // get the data
+  data->CopyStructure(image);
+  data->GetPointData()->PassData(image->GetPointData());
+
+  // get the SForm or QForm matrix if present
+  static double nMatrix[16] =
+    { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+  if (reader->GetSFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
+    }
+  else if (reader->GetQFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
+    }
+
+  // generate the matrix, but modify to use DICOM coords
+  static double xyFlipMatrix[16] =
+    { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+  // correct for the flip that was done earlier
+  vtkMatrix4x4::Multiply4x4(nMatrix, xyFlipMatrix, *matrix->Element);
+  // do the left/right, up/down dicom-to-minc transformation
+  vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
+  matrix->Modified();
+}
+#endif /* AIRS_USE_NIFTI */
+
+
 void SetViewFromMatrix(
   vtkRenderer *renderer,
   vtkInteractorStyleImage *istyle,
@@ -208,9 +274,12 @@ int main (int argc, char *argv[])
     xfmfile = argv[argi + 1];
     argi += 2;
     size_t m = strlen(xfmfile);
-    if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
+    if (m < 4 ||
+        (strcmp(&xfmfile[m-4], ".xfm") != 0) &&
+        (strcmp(&xfmfile[m-4], ".tfm") != 0) &&
+        (strcmp(&xfmfile[m-4], ".txt") != 0))
       {
-      cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
+      cerr << argv[0] << " : transform file must end in .xfm, .tfm, or .txt\n";
       return EXIT_FAILURE;
       }
     }
@@ -246,6 +315,13 @@ int main (int argc, char *argv[])
     {
     ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
     }
+#ifdef AIRS_USE_NIFTI
+  else if ((n > 4 && strcmp(&sourcefile[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&sourcefile[n-7], ".nii.gz") == 0))
+    {
+    ReadNIFTIImage(sourceImage, sourceMatrix, sourcefile);
+    }
+#endif
   else
     {
     ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
@@ -261,6 +337,13 @@ int main (int argc, char *argv[])
     {
     ReadMINCImage(targetImage, targetMatrix, targetfile);
     }
+#ifdef AIRS_USE_NIFTI
+  else if ((n > 4 && strcmp(&targetfile[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&targetfile[n-7], ".nii.gz") == 0))
+    {
+    ReadNIFTIImage(targetImage, targetMatrix, targetfile);
+    }
+#endif
   else
     {
     ReadDICOMImage(targetImage, targetMatrix, targetfile);
@@ -423,6 +506,7 @@ int main (int argc, char *argv[])
   registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
   registration->SetInitializerTypeToCentered();
+  //registration->SetTransformDimensionalityTo2D();
   registration->SetTransformTypeToRigid();
   //registration->SetTransformTypeToScaleTargetAxes();
   //registration->SetTransformTypeToAffine();
@@ -556,11 +640,23 @@ int main (int argc, char *argv[])
   // write the output matrix
   if (xfmfile)
     {
-    vtkSmartPointer<vtkMNITransformWriter> writer =
-      vtkSmartPointer<vtkMNITransformWriter>::New();
-    writer->SetFileName(xfmfile);
-    writer->SetTransform(registration->GetTransform());
-    writer->Update();
+    size_t l = strlen(xfmfile);
+    if (l >= 4 && strcmp(xfmfile + (l - 4), ".xfm") == 0)
+      {
+      vtkSmartPointer<vtkMNITransformWriter> writer =
+        vtkSmartPointer<vtkMNITransformWriter>::New();
+      writer->SetFileName(xfmfile);
+      writer->SetTransform(registration->GetTransform());
+      writer->Update();
+      }
+    else
+      {
+      vtkSmartPointer<vtkITKXFMWriter> writer =
+        vtkSmartPointer<vtkITKXFMWriter>::New();
+      writer->SetFileName(xfmfile);
+      writer->SetTransform(registration->GetTransform());
+      writer->Write();
+      }
     }
 
   // -------------------------------------------------------
