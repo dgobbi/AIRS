@@ -63,6 +63,9 @@ Module:    register.cxx
 #include <vtkGlobFileNames.h>
 #endif
 
+// coord systems
+enum { NativeCoords, DICOMCoords, NIFTICoords };
+
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
@@ -70,7 +73,8 @@ namespace {
 
 #ifdef AIRS_USE_DICOM
 void ReadDICOMImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
+  int coordSystem)
 {
   // get the files
   vtkSmartPointer<vtkGlobFileNames> glob =
@@ -95,7 +99,14 @@ void ReadDICOMImage(
   vtkSmartPointer<vtkDICOMReader> reader =
     vtkSmartPointer<vtkDICOMReader>::New();
   reader->SetFileNames(sorter->GetFileNamesForSeries(0));
-  reader->SetMemoryRowOrderToFileNative();
+  if (coordSystem == NIFTICoords)
+    {
+    reader->SetMemoryRowOrderToBottomUp();
+    }
+  else
+    {
+    reader->SetMemoryRowOrderToFileNative();
+    }
   reader->Update();
 
   vtkImageData *image = reader->GetOutput();
@@ -111,7 +122,8 @@ void ReadDICOMImage(
 #else
 
 void ReadDICOMImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
+  int coordSystem)
 {
   // read the image
   vtkSmartPointer<vtkDICOMImageReader> reader =
@@ -120,16 +132,21 @@ void ReadDICOMImage(
   reader->SetDirectoryName(directoryName);
   reader->Update();
 
-  // the reader flips the image and reverses the ordering, so undo these
-  vtkSmartPointer<vtkImageReslice> flip =
-    vtkSmartPointer<vtkImageReslice>::New();
+  vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
-  flip->SetInputConnection(reader->GetOutputPort());
-  flip->SetResliceAxesDirectionCosines(
-    1,0,0, 0,-1,0, 0,0,-1);
-  flip->Update();
+  if (coordSystem != NIFTICoords)
+    {
+    // the reader flips the image and reverses the ordering, so undo these
+    vtkSmartPointer<vtkImageReslice> flip =
+      vtkSmartPointer<vtkImageReslice>::New();
 
-  vtkImageData *image = flip->GetOutput();
+    flip->SetInputConnection(reader->GetOutputPort());
+    flip->SetResliceAxesDirectionCosines(
+      1,0,0, 0,-1,0, 0,0,-1);
+    flip->Update();
+
+    image = flip->GetOutput();
+    }
 
   // get the data
   data->CopyStructure(image);
@@ -155,12 +172,42 @@ void ReadDICOMImage(
   matrix->Element[3][1] = 0;
   matrix->Element[3][2] = 0;
   matrix->Element[3][3] = 1;
+
+  if (coordSystem == NIFTICoords)
+    {
+    double spacing[3], origin[3];
+    int extent[6];
+    image->GetSpacing(spacing);
+    image->GetOrigin(origin);
+    image->GetExtent(extent);
+    // account fo the y and z flips
+    double point[4];
+    point[0] = origin[0] + spacing[0]*extent[0];
+    point[1] = origin[1] + spacing[1]*extent[3];
+    point[2] = origin[2] + spacing[2]*extent[5];
+    point[3] = 1.0;
+    matrix->MultiplyPoint(point, point);
+    for (int j = 0; j < 3; j++)
+      {
+      matrix->Element[i][1] = -matrix->Element[i][1];
+      matrix->Element[i][2] = -matrix->Element[i][2];
+      matrix->Element[i][3] = point[i];
+      }
+    // do the DICOM to NIFTI coord conversion
+    for (int k = 0; k < 4; k++)
+      {
+      matrix->Element[0][k] = -matrix->Element[0][k];
+      matrix->Element[1][k] = -matrix->Element[1][k];
+      }
+    }
+
   matrix->Modified();
 }
 #endif
 
 void ReadMINCImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
+  int coordSystem)
 {
   // read the image
   vtkSmartPointer<vtkMINCImageReader> reader =
@@ -169,42 +216,55 @@ void ReadMINCImage(
   reader->SetFileName(fileName);
   reader->Update();
 
-  double spacing[3];
-  reader->GetOutput()->GetSpacing(spacing);
-  spacing[0] = fabs(spacing[0]);
-  spacing[1] = fabs(spacing[1]);
-  spacing[2] = fabs(spacing[2]);
+  vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
-  // flip the image rows into a DICOM-style ordering
-  vtkSmartPointer<vtkImageReslice> flip =
-    vtkSmartPointer<vtkImageReslice>::New();
+  if (coordSystem == DICOMCoords)
+    {
+    double spacing[3];
+    reader->GetOutput()->GetSpacing(spacing);
+    spacing[0] = fabs(spacing[0]);
+    spacing[1] = fabs(spacing[1]);
+    spacing[2] = fabs(spacing[2]);
 
-  flip->SetInputConnection(reader->GetOutputPort());
-  flip->SetResliceAxesDirectionCosines(
-    -1,0,0, 0,-1,0, 0,0,1);
-  flip->SetOutputSpacing(spacing);
-  flip->Update();
+    // flip the image rows into a DICOM-style ordering
+    vtkSmartPointer<vtkImageReslice> flip =
+      vtkSmartPointer<vtkImageReslice>::New();
 
-  vtkImageData *image = flip->GetOutput();
+    flip->SetInputConnection(reader->GetOutputPort());
+    flip->SetResliceAxesDirectionCosines(
+      -1,0,0, 0,-1,0, 0,0,1);
+    flip->SetOutputSpacing(spacing);
+    flip->Update();
+
+    image = flip->GetOutput();
+    }
 
   // get the data
   data->CopyStructure(image);
   data->GetPointData()->PassData(image->GetPointData());
 
-  // generate the matrix, but modify to use DICOM coords
-  static double xyFlipMatrix[16] =
-    { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
-  // correct for the flip that was done earlier
-  vtkMatrix4x4::Multiply4x4(*reader->GetDirectionCosines()->Element,
-                            xyFlipMatrix, *matrix->Element);
-  // do the left/right, up/down dicom-to-minc transformation
-  vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
-  matrix->Modified();
+  if (coordSystem == DICOMCoords)
+    {
+    // generate the matrix, but modify to use DICOM coords
+    static double xyFlipMatrix[16] =
+      { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+    // correct for the flip that was done earlier
+    vtkMatrix4x4::Multiply4x4(*reader->GetDirectionCosines()->Element,
+                              xyFlipMatrix, *matrix->Element);
+    // do the left/right, up/down dicom-to-minc transformation
+    vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
+    matrix->Modified();
+    }
+  else
+    {
+    matrix->DeepCopy(reader->GetDirectionCosines());
+    }
 }
 
 #ifdef AIRS_USE_NIFTI
 void ReadNIFTIImage(
-  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
+  int coordSystem)
 {
   // read the image
   vtkSmartPointer<vtkNIFTIReader> reader =
@@ -213,24 +273,28 @@ void ReadNIFTIImage(
   reader->SetFileName(fileName);
   reader->Update();
 
-  double spacing[3];
-  reader->GetOutput()->GetSpacing(spacing);
-  spacing[0] = fabs(spacing[0]);
-  spacing[1] = fabs(spacing[1]);
-  spacing[2] = fabs(spacing[2]);
+  vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
-  // flip the image rows into a DICOM-style ordering
-  vtkSmartPointer<vtkImageReslice> flip =
-    vtkSmartPointer<vtkImageReslice>::New();
+  if (coordSystem == DICOMCoords)
+    {
+    double spacing[3];
+    reader->GetOutput()->GetSpacing(spacing);
+    spacing[0] = fabs(spacing[0]);
+    spacing[1] = fabs(spacing[1]);
+    spacing[2] = fabs(spacing[2]);
 
-  flip->SetInputConnection(reader->GetOutputPort());
-  flip->SetResliceAxesDirectionCosines(
-    -1,0,0, 0,-1,0, 0,0,1);
-  flip->SetOutputSpacing(spacing);
-  flip->Update();
+    // flip the image rows into a DICOM-style ordering
+    vtkSmartPointer<vtkImageReslice> flip =
+      vtkSmartPointer<vtkImageReslice>::New();
 
-  //vtkImageData *image = flip->GetOutput();
-  vtkImageData *image = reader->GetOutput();
+    flip->SetInputConnection(reader->GetOutputPort());
+    flip->SetResliceAxesDirectionCosines(
+      -1,0,0, 0,-1,0, 0,0,1);
+    flip->SetOutputSpacing(spacing);
+    flip->Update();
+
+    image = flip->GetOutput();
+    }
 
   // get the data
   data->CopyStructure(image);
@@ -248,29 +312,79 @@ void ReadNIFTIImage(
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
     }
 
-  // generate the matrix, but modify to use DICOM coords
-  static double xyFlipMatrix[16] =
-    { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
-  // correct for the flip that was done earlier
-  vtkMatrix4x4::Multiply4x4(nMatrix, xyFlipMatrix, *matrix->Element);
-  // do the left/right, up/down dicom-to-minc transformation
-  vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
-  matrix->Modified();
+  if (coordSystem == DICOMCoords)
+    {
+    // generate the matrix, but modify to use DICOM coords
+    static double xyFlipMatrix[16] =
+      { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+    // correct for the flip that was done earlier
+    vtkMatrix4x4::Multiply4x4(nMatrix, xyFlipMatrix, *matrix->Element);
+    // do the left/right, up/down dicom-to-minc transformation
+    vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
+    matrix->Modified();
+    }
+  else
+    {
+    matrix->DeepCopy(nMatrix);
+    }
 }
 #endif /* AIRS_USE_NIFTI */
 
+void ReadImage(
+  vtkImageData *image, vtkMatrix4x4 *matrix,
+  const char *filename, int coordSystem)
+{
+  size_t n = strlen(filename);
+  if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
+    {
+    ReadMINCImage(image, matrix, filename, coordSystem);
+    }
+  else if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+    {
+#ifdef AIRS_USE_NIFTI
+    ReadNIFTIImage(image, matrix, filename, coordSystem);
+#else
+    fprintf(stderr, "NIFTI files are not supported.\n");
+    exit(1);
+#endif
+    }
+  else
+    {
+    ReadDICOMImage(image, matrix, filename, coordSystem);
+    }
+}
+
+int CoordSystem(const char *filename)
+{
+  size_t n = strlen(filename);
+  if ((n > 4 && strcmp(&filename[n-4], ".mnc") == 0) ||
+      (n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
+      (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+    {
+    return NIFTICoords;
+    }
+
+  return DICOMCoords;
+}
 
 void SetViewFromMatrix(
   vtkRenderer *renderer,
   vtkInteractorStyleImage *istyle,
-  vtkMatrix4x4 *matrix)
+  vtkMatrix4x4 *matrix,
+  int coordSystem)
 {
   istyle->SetCurrentRenderer(renderer);
 
   // This view assumes the data uses the DICOM Patient Coordinate System.
   // It provides a right-is-left view of axial and coronal images
   double viewRight[4] = { 1.0, 0.0, 0.0, 0.0 };
-  double viewUp[4] = { 0.0, -1.0, 0.0, 0.0 };
+  double viewUp[4] = { 0.0, 1.0, 0.0, 0.0 };
+
+  if (coordSystem == DICOMCoords)
+    {
+    viewUp[1] = -1.0;
+    }
 
   matrix->MultiplyPoint(viewRight, viewRight);
   matrix->MultiplyPoint(viewUp, viewUp);
@@ -298,7 +412,7 @@ void register_initialize_options(register_options *options)
   options->dimensionality = 3;
   options->metric = vtkImageRegistration::NormalizedMutualInformation;
   options->transform = vtkImageRegistration::Rigid;
-  options->coords = 0;
+  options->coords = NativeCoords;
   options->interactive = 0;
   options->initial = NULL;
   options->output = NULL;
@@ -475,13 +589,13 @@ int register_read_options(
         if (strcmp(arg, "DICOM") == 0 ||
             strcmp(arg, "LPS") == 0)
           {
-          options->coords = 1;
+          options->coords = DICOMCoords;
           }
         else if (strcmp(arg, "MINC") == 0 ||
                  strcmp(arg, "NIFTI") == 0 ||
                  strcmp(arg, "RAS") == 0)
           {
-          options->coords = 2;
+          options->coords = NIFTICoords;
           }
         }
       else if (strcmp(arg, "-I") == 0 ||
@@ -557,51 +671,32 @@ int main (int argc, char *argv[])
   // -------------------------------------------------------
   // load the images
 
-  int n = 0;
+  if (options.coords == NativeCoords)
+    {
+    int ic = CoordSystem(sourcefile);
+    int oc = CoordSystem(targetfile);
 
-  // Read the source image
+    if (ic == DICOMCoords || oc == DICOMCoords)
+      {
+      options.coords = DICOMCoords;
+      }
+    else
+      {
+      options.coords = NIFTICoords;
+      }
+    }
+
   vtkSmartPointer<vtkImageData> sourceImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> sourceMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  n = strlen(sourcefile);
-  if (n > 4 && strcmp(&sourcefile[n-4], ".mnc") == 0)
-    {
-    ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
-    }
-#ifdef AIRS_USE_NIFTI
-  else if ((n > 4 && strcmp(&sourcefile[n-4], ".nii") == 0) ||
-           (n > 7 && strcmp(&sourcefile[n-7], ".nii.gz") == 0))
-    {
-    ReadNIFTIImage(sourceImage, sourceMatrix, sourcefile);
-    }
-#endif
-  else
-    {
-    ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  ReadImage(sourceImage, sourceMatrix, sourcefile, options.coords);
 
-  // Read the target image
   vtkSmartPointer<vtkImageData> targetImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  n = strlen(targetfile);
-  if (n > 4 && strcmp(&targetfile[n-4], ".mnc") == 0)
-    {
-    ReadMINCImage(targetImage, targetMatrix, targetfile);
-    }
-#ifdef AIRS_USE_NIFTI
-  else if ((n > 4 && strcmp(&targetfile[n-4], ".nii") == 0) ||
-           (n > 7 && strcmp(&targetfile[n-7], ".nii.gz") == 0))
-    {
-    ReadNIFTIImage(targetImage, targetMatrix, targetfile);
-    }
-#endif
-  else
-    {
-    ReadDICOMImage(targetImage, targetMatrix, targetfile);
-    }
+  ReadImage(targetImage, targetMatrix, targetfile, options.coords);
 
   // -------------------------------------------------------
   // display the images
@@ -689,7 +784,7 @@ int main (int argc, char *argv[])
   camera->SetFocalPoint(center);
   camera->ParallelProjectionOn();
   camera->SetParallelScale(132);
-  SetViewFromMatrix(renderer, istyle, targetMatrix);
+  SetViewFromMatrix(renderer, istyle, targetMatrix, options.coords);
   renderer->ResetCameraClippingRange();
 
   if (display)
