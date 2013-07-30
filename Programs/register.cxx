@@ -59,12 +59,56 @@ Module:    register.cxx
 #define AIRS_USE_NIFTI
 #include <vtkNIFTIReader.h>
 #include <vtkDICOMReader.h>
+#include <vtkDICOMSorter.h>
+#include <vtkGlobFileNames.h>
 #endif
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
 namespace {
+
+#ifdef AIRS_USE_DICOM
+void ReadDICOMImage(
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
+{
+  // get the files
+  vtkSmartPointer<vtkGlobFileNames> glob =
+    vtkSmartPointer<vtkGlobFileNames>::New();
+  glob->SetDirectory(directoryName);
+  glob->AddFileNames("*");
+
+  // sort the files
+  vtkSmartPointer<vtkDICOMSorter> sorter =
+    vtkSmartPointer<vtkDICOMSorter>::New();
+  sorter->SetInputFileNames(glob->GetFileNames());
+  sorter->Update();
+
+  if (sorter->GetNumberOfSeries() != 1)
+    {
+    fprintf(stderr, "directory contains %d DICOM series, expected 1: %s\n",
+            static_cast<int>(sorter->GetNumberOfSeries()), directoryName);
+    exit(1);
+    }
+
+  // read the image
+  vtkSmartPointer<vtkDICOMReader> reader =
+    vtkSmartPointer<vtkDICOMReader>::New();
+  reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+  reader->SetMemoryRowOrderToFileNative();
+  reader->Update();
+
+  vtkImageData *image = reader->GetOutput();
+
+  // get the data
+  data->CopyStructure(image);
+  data->GetPointData()->PassData(image->GetPointData());
+
+  // get the matrix
+  matrix->DeepCopy(reader->GetPatientMatrix());
+}
+
+#else
 
 void ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
@@ -113,6 +157,7 @@ void ReadDICOMImage(
   matrix->Element[3][3] = 1;
   matrix->Modified();
 }
+#endif
 
 void ReadMINCImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
