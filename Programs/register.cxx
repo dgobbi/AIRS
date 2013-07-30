@@ -814,7 +814,6 @@ int main(int argc, char *argv[])
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
   sourceProperty->CheckerboardOn();
-  sourceProperty->SetCheckerboardSpacing(40,40);
 
   sourceActor->SetMapper(sourceMapper);
   sourceActor->SetProperty(sourceProperty);
@@ -852,8 +851,11 @@ int main(int argc, char *argv[])
 
   renderWindow->SetSize(720,720);
 
-  double bounds[6], center[4];
+  double bounds[6], center[4], tspacing[3];
+  int extent[6];
   targetImage->GetBounds(bounds);
+  targetImage->GetExtent(extent);
+  targetImage->GetSpacing(tspacing);
   center[0] = 0.5*(bounds[0] + bounds[1]);
   center[1] = 0.5*(bounds[2] + bounds[3]);
   center[2] = 0.5*(bounds[4] + bounds[5]);
@@ -864,9 +866,12 @@ int main(int argc, char *argv[])
   renderer->ResetCamera();
   camera->SetFocalPoint(center);
   camera->ParallelProjectionOn();
-  camera->SetParallelScale(132);
+  camera->SetParallelScale(0.5*(bounds[3] - bounds[2]));
   SetViewFromMatrix(renderer, istyle, targetMatrix, options.coords);
   renderer->ResetCameraClippingRange();
+
+  double checkSpacing = (extent[3] - extent[2] + 7)/7*tspacing[1];
+  sourceProperty->SetCheckerboardSpacing(checkSpacing, checkSpacing);
 
   if (display)
     {
