@@ -425,7 +425,8 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     }
 }
 
-void WriteMatrix(vtkMatrix4x4 *matrix, const char *xfmfile)
+void WriteMatrix(
+  vtkMatrix4x4 *matrix, const char *xfmfile, const double center[3])
 {
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
@@ -446,6 +447,7 @@ void WriteMatrix(vtkMatrix4x4 *matrix, const char *xfmfile)
       vtkSmartPointer<vtkITKXFMWriter>::New();
     writer->SetFileName(xfmfile);
     writer->SetTransform(transform);
+    writer->SetTransformCenter(center);
     writer->Write();
     }
 }
@@ -1086,7 +1088,7 @@ int main(int argc, char *argv[])
     vtkMatrix4x4::Multiply4x4(rmatrix, wmatrix, wmatrix);
     vtkMatrix4x4::Multiply4x4(targetMatrix, wmatrix, wmatrix);
 
-    WriteMatrix(wmatrix, xfmfile);
+    WriteMatrix(wmatrix, xfmfile, center);
     }
 
   // -------------------------------------------------------

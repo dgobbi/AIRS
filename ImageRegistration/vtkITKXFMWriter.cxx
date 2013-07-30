@@ -278,6 +278,20 @@ void vtkITKXFMWriter::Write()
 }
 
 //-------------------------------------------------------------------------
+void vtkITKXFMWriter::SetTransformCenter(double x, double y, double z)
+{
+  if (x != this->TransformCenter[0] ||
+      y != this->TransformCenter[1] ||
+      z != this->TransformCenter[2])
+    {
+    this->TransformCenter[0] = x;
+    this->TransformCenter[1] = y;
+    this->TransformCenter[2] = z;
+    this->Modified();
+    }
+}
+
+//-------------------------------------------------------------------------
 int vtkITKXFMWriter::GetNumberOfTransforms()
 {
   if (this->Transform == 0)

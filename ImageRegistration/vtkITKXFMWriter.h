@@ -87,7 +87,9 @@ public:
 
   // Description:
   // Set the transform center.
-  vtkSetVector3Macro(TransformCenter, double);
+  virtual void SetTransformCenter(double x, double y, double z);
+  virtual void SetTransformCenter(const double c[3]) {
+    this->SetTransformCenter(c[0], c[1], c[2]); }
   vtkGetVector3Macro(TransformCenter, double);
 
   // Description:
