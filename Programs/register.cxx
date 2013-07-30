@@ -35,6 +35,7 @@ Module:    register.cxx
 #include <vtkMath.h>
 
 #include <vtkMINCImageReader.h>
+#include <vtkMNITransformReader.h>
 #include <vtkMNITransformWriter.h>
 #include <vtkDICOMImageReader.h>
 
@@ -51,6 +52,7 @@ Module:    register.cxx
 #include <vtkTimerLog.h>
 
 #include "AIRSConfig.h"
+#include "vtkITKXFMReader.h"
 #include "vtkITKXFMWriter.h"
 #include "vtkImageRegistration.h"
 
@@ -392,6 +394,62 @@ void SetViewFromMatrix(
   istyle->SetImageOrientation(viewRight, viewUp);
 }
 
+void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
+{
+  size_t l = strlen(xfminput);
+  if (l >= 4 && strcmp(xfminput + (l - 4), ".xfm") == 0)
+    {
+    vtkSmartPointer<vtkMNITransformReader> reader =
+      vtkSmartPointer<vtkMNITransformReader>::New();
+    reader->SetFileName(xfminput);
+    reader->Update();
+    vtkLinearTransform *transform =
+      vtkLinearTransform::SafeDownCast(reader->GetTransform());
+    if (transform)
+      {
+      matrix->DeepCopy(transform->GetMatrix());
+      }
+    }
+  else
+    {
+    vtkSmartPointer<vtkITKXFMReader> reader =
+      vtkSmartPointer<vtkITKXFMReader>::New();
+    reader->SetFileName(xfminput);
+    reader->Update();
+    vtkLinearTransform *transform =
+      vtkLinearTransform::SafeDownCast(reader->GetTransform());
+    if (transform)
+      {
+      matrix->DeepCopy(transform->GetMatrix());
+      }
+    }
+}
+
+void WriteMatrix(vtkMatrix4x4 *matrix, const char *xfmfile)
+{
+  vtkSmartPointer<vtkTransform> transform =
+    vtkSmartPointer<vtkTransform>::New();
+  transform->Concatenate(matrix);
+
+  size_t l = strlen(xfmfile);
+  if (l >= 4 && strcmp(xfmfile + (l - 4), ".xfm") == 0)
+    {
+    vtkSmartPointer<vtkMNITransformWriter> writer =
+      vtkSmartPointer<vtkMNITransformWriter>::New();
+    writer->SetFileName(xfmfile);
+    writer->SetTransform(transform);
+    writer->Update();
+    }
+  else
+    {
+    vtkSmartPointer<vtkITKXFMWriter> writer =
+      vtkSmartPointer<vtkITKXFMWriter>::New();
+    writer->SetFileName(xfmfile);
+    writer->SetTransform(transform);
+    writer->Write();
+    }
+}
+
 };
 
 struct register_options
@@ -401,6 +459,7 @@ struct register_options
   int transform;       // -T --transform
   int coords;          // -C --coords
   int interactive;     // -I --interactive
+  int checkonly;       // -J --checkonly
   const char *initial; // -i --initial (initial transform)
   const char *output;  // -o (output transform)
   const char *source;
@@ -413,6 +472,7 @@ void register_initialize_options(register_options *options)
   options->metric = vtkImageRegistration::NormalizedMutualInformation;
   options->transform = vtkImageRegistration::Rigid;
   options->coords = NativeCoords;
+  options->checkonly = 0;
   options->interactive = 0;
   options->initial = NULL;
   options->output = NULL;
@@ -603,6 +663,12 @@ int register_read_options(
         {
         options->interactive = 1;
         }
+      else if (strcmp(arg, "-J") == 0 ||
+               strcmp(arg, "--checkonly") == 0)
+        {
+        options->interactive = 1;
+        options->checkonly = 1;
+        }
       else if (strcmp(arg, "-i") == 0 ||
                strcmp(arg, "--initial") == 0)
         {
@@ -625,8 +691,7 @@ int register_read_options(
   return 1;
 }
 
-
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   register_options options;
   register_initialize_options(&options);
@@ -697,6 +762,22 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   ReadImage(targetImage, targetMatrix, targetfile, options.coords);
+
+  // -------------------------------------------------------
+  // save the original source matrix
+  vtkSmartPointer<vtkMatrix4x4> originalSourceMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  originalSourceMatrix->DeepCopy(sourceMatrix);
+
+  // -------------------------------------------------------
+  // load the initial matrix
+  if (xfminput)
+    {
+    vtkSmartPointer<vtkMatrix4x4> initialMatrix =
+      vtkSmartPointer<vtkMatrix4x4>::New();
+    ReadMatrix(initialMatrix, xfminput);
+    vtkMatrix4x4::Multiply4x4(initialMatrix, sourceMatrix, sourceMatrix);
+    }
 
   // -------------------------------------------------------
   // display the images
@@ -854,7 +935,6 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageRegistration>::New();
   registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
-  registration->SetInitializerTypeToCentered();
   registration->SetTransformDimensionality(options.dimensionality);
   registration->SetTransformType(options.transform);
   registration->SetMetricType(options.metric);
@@ -863,6 +943,15 @@ int main (int argc, char *argv[])
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
   registration->SetMaximumNumberOfIterations(500);
+  if (xfminput)
+    {
+    registration->SetInitializerTypeToNone();
+    }
+  else
+    {
+    registration->SetInitializerTypeToCentered();
+    }
+  registration->Initialize(matrix);
 
   // -------------------------------------------------------
   // make a timer
@@ -882,7 +971,7 @@ int main (int argc, char *argv[])
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
-  for (;;)
+  while (options.checkonly == 0)
     {
     if (stage == 0)
       {
@@ -984,23 +1073,15 @@ int main (int argc, char *argv[])
   // write the output matrix
   if (xfmfile)
     {
-    size_t l = strlen(xfmfile);
-    if (l >= 4 && strcmp(xfmfile + (l - 4), ".xfm") == 0)
-      {
-      vtkSmartPointer<vtkMNITransformWriter> writer =
-        vtkSmartPointer<vtkMNITransformWriter>::New();
-      writer->SetFileName(xfmfile);
-      writer->SetTransform(registration->GetTransform());
-      writer->Update();
-      }
-    else
-      {
-      vtkSmartPointer<vtkITKXFMWriter> writer =
-        vtkSmartPointer<vtkITKXFMWriter>::New();
-      writer->SetFileName(xfmfile);
-      writer->SetTransform(registration->GetTransform());
-      writer->Write();
-      }
+    vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
+    vtkSmartPointer<vtkMatrix4x4> wmatrix =
+      vtkSmartPointer<vtkMatrix4x4>::New();
+    wmatrix->DeepCopy(originalSourceMatrix);
+    wmatrix->Invert();
+    vtkMatrix4x4::Multiply4x4(rmatrix, wmatrix, wmatrix);
+    vtkMatrix4x4::Multiply4x4(targetMatrix, wmatrix, wmatrix);
+
+    WriteMatrix(wmatrix, xfmfile);
     }
 
   // -------------------------------------------------------
