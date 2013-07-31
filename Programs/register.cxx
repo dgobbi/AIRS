@@ -48,6 +48,10 @@ Module:    register.cxx
 #include <vtkImageStack.h>
 #include <vtkImageResliceMapper.h>
 #include <vtkImageProperty.h>
+#include <vtkWindowToImageFilter.h>
+#include <vtkPNGWriter.h>
+#include <vtkTIFFWriter.h>
+#include <vtkJPEGWriter.h>
 
 #include <vtkTimerLog.h>
 
@@ -452,6 +456,42 @@ void WriteMatrix(
     }
 }
 
+void WriteScreenshot(vtkWindow *window, const char *filename)
+{
+  vtkSmartPointer<vtkWindowToImageFilter> snap =
+    vtkSmartPointer<vtkWindowToImageFilter>::New();
+  snap->SetInput(window);
+  snap->Update();
+
+  size_t l = strlen(filename);
+  if (l >= 4 && strcmp(filename + (l - 4), ".png") == 0)
+    {
+    vtkSmartPointer<vtkPNGWriter> snapWriter =
+      vtkSmartPointer<vtkPNGWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+  else if ((l >= 4 && strcmp(filename + (l - 4), ".jpg") == 0) ||
+           (l >= 5 && strcmp(filename + (l - 5), ".jpeg") == 0))
+    {
+    vtkSmartPointer<vtkJPEGWriter> snapWriter =
+      vtkSmartPointer<vtkJPEGWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+  else if ((l >= 4 && strcmp(filename + (l - 4), ".tif") == 0) ||
+           (l >= 5 && strcmp(filename + (l - 5), ".tiff") == 0))
+    {
+    vtkSmartPointer<vtkTIFFWriter> snapWriter =
+      vtkSmartPointer<vtkTIFFWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+}
+
 };
 
 struct register_options
@@ -464,6 +504,7 @@ struct register_options
   int checkonly;       // -J --checkonly
   const char *initial; // -i --initial (initial transform)
   const char *output;  // -o (output transform)
+  const char *screenshot; // -s (output screenshot)
   const char *source;
   const char *target;
 };
@@ -477,6 +518,7 @@ void register_initialize_options(register_options *options)
   options->checkonly = 0;
   options->interactive = 0;
   options->initial = NULL;
+  options->screenshot = NULL;
   options->output = NULL;
   options->source = NULL;
   options->target = NULL;
@@ -677,6 +719,12 @@ int register_read_options(
         arg = check_next_arg(argc, argv, &argi, 0);
         options->initial = arg;
         }
+      else if (strcmp(arg, "-s") == 0 ||
+               strcmp(arg, "--screenshot") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->screenshot = arg;
+        }
       else if (strcmp(arg, "-o") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
@@ -705,7 +753,8 @@ int main(int argc, char *argv[])
   const char *xfmfile = options.output;
   const char *sourcefile = options.source;
   const char *targetfile = options.target;
-  bool display = (options.interactive != 0);
+  bool display = (options.interactive != 0 ||
+                  options.screenshot != 0);
 
   const char *xfiles[2];
   xfiles[0] = xfminput;
@@ -851,7 +900,7 @@ int main(int argc, char *argv[])
   renderer->AddViewProp(imageStack);
   renderer->SetBackground(0,0,0);
 
-  renderWindow->SetSize(720,720);
+  renderWindow->SetSize(1024,1024);
 
   double bounds[6], center[4], tspacing[3];
   int extent[6];
@@ -1094,7 +1143,17 @@ int main(int argc, char *argv[])
   // -------------------------------------------------------
   // allow user to interact
 
-  interactor->Start();
+  if (options.interactive)
+    {
+    interactor->Start();
+    }
 
-  return 1;
+  // -------------------------------------------------------
+  // capture a screen shot
+  if (options.screenshot)
+    {
+    WriteScreenshot(renderWindow, options.screenshot);
+    }
+
+  return 0;
 }
