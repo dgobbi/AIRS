@@ -1141,18 +1141,18 @@ int main(int argc, char *argv[])
     }
 
   // -------------------------------------------------------
+  // capture a screen shot
+  if (options.screenshot)
+    {
+    WriteScreenshot(renderWindow, options.screenshot);
+    }
+
+  // -------------------------------------------------------
   // allow user to interact
 
   if (options.interactive)
     {
     interactor->Start();
-    }
-
-  // -------------------------------------------------------
-  // capture a screen shot
-  if (options.screenshot)
-    {
-    WriteScreenshot(renderWindow, options.screenshot);
     }
 
   return 0;
