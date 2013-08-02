@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Atamai Image Registration and Segmentation
-  Module:    ComputeStrain.cxx
+  Module:    WarpImage.cxx
 
   Copyright (c) 2013 David Gobbi
   All rights reserved.
@@ -37,10 +37,11 @@
 #include "vtkNIFTIReader.h"
 #include "vtkNIFTIWriter.h"
 #include "vtkITKXFMReader.h"
-#include "vtkTransformToStrain.h"
 
+#include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
+#include <vtkImageReslice.h>
 #include <vtkMNITransformReader.h>
 #include <vtkGeneralTransform.h>
 #include <vtkGridTransform.h>
@@ -58,27 +59,26 @@
 #include <ctype.h>
 
 // Print the options
-void strain_usage(FILE *file, const char *command_name)
+void usage(FILE *file, const char *command_name)
 {
   const char *cp = command_name + strlen(command_name);
   while (cp != command_name && cp[-1] != '\\' && cp[-1] != '/') { --cp; }
 
   fprintf(file,
-    "usage: %s -o Output.nii -R Like.nii Warp.nii Affine.txt\n", cp);
+    "usage: %s Input.nii -o Output.nii -R Like.nii Warp.nii Affine.txt\n", cp);
   fprintf(file,
-    "usage: %s -o Output.nii -R Like.nii -i Affine.txt InverseWarp.nii\n", cp);
+    "usage: %s Input.nii -o Output.nii -R Like.nii -i Affine.txt InverseWarp.nii\n", cp);
   fprintf(file,
     "options:\n"
-    "  -o <output.nii[.gz]>    The output file.\n"
     "  --version               Print the version and exit.\n"
     "  --help                  Print minimal documentation.\n"
   );
 }
 
 // Print the help
-void strain_help(FILE *file, const char *command_name)
+void help(FILE *file, const char *command_name)
 {
-  strain_usage(file, command_name);
+  usage(file, command_name);
 
   fprintf(file,
     "\n");
@@ -99,7 +99,7 @@ void strain_help(FILE *file, const char *command_name)
 }
 
 // Print error
-void strain_check_error(vtkObject *o)
+void check_error(vtkObject *o)
 {
   vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(o);
   vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
@@ -165,7 +165,7 @@ void strain_check_error(vtkObject *o)
   exit(1);
 }
 
-int strain_read_transform(
+int read_transform(
   vtkGeneralTransform *transform, const char *file, bool invert)
 {
   int n = strlen(file);
@@ -183,17 +183,30 @@ int strain_read_transform(
     vtkSmartPointer<vtkMNITransformReader> reader =
       vtkSmartPointer<vtkMNITransformReader>::New();
     reader->SetFileName(file);
-    strain_check_error(reader);
+    check_error(reader);
     t = reader->GetTransform();
     }
   else if (strcmp(ext, ".txt") == 0 ||
            strcmp(ext, ".tfm") == 0)
     {
+    static const double lps[16] = {
+      -1.0, 0.0, 0.0, 0.0,
+      0.0, -1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0 };
     vtkSmartPointer<vtkITKXFMReader> reader =
       vtkSmartPointer<vtkITKXFMReader>::New();
     reader->SetFileName(file);
-    strain_check_error(reader);
+    check_error(reader);
     t = reader->GetTransform();
+    vtkSmartPointer<vtkTransform> lt =
+      vtkSmartPointer<vtkTransform>::New();
+    lt->Concatenate(vtkLinearTransform::SafeDownCast(t)->GetMatrix());
+    lt->PreMultiply();
+    lt->Concatenate(lps);
+    lt->PostMultiply();
+    lt->Concatenate(lps);
+    t = lt;
     }
   else if (strcmp(ext, ".nii") == 0 ||
            strcmp(ext, ".nii.gz") == 0)
@@ -202,12 +215,12 @@ int strain_read_transform(
       vtkSmartPointer<vtkNIFTIReader>::New();
     reader->SetFileName(file);
     reader->Update();
-    strain_check_error(reader);
+    check_error(reader);
 
     vtkSmartPointer<vtkGridTransform> gt =
       vtkSmartPointer<vtkGridTransform>::New();
     // use linear to match ANTS?
-    gt->SetInterpolationModeToCubic();
+    gt->SetInterpolationModeToLinear();
     gt->SetDisplacementGrid(reader->GetOutput());
     t = gt;
     }
@@ -252,6 +265,7 @@ int main(int argc, char *argv[])
   transform->PostMultiply();
 
   // the output and target file names
+  const char *infile = 0;
   const char *outfile = 0;
   const char *targetfile = 0;
 
@@ -262,15 +276,15 @@ int main(int argc, char *argv[])
     const char *arg = argv[argi++];
     if (strcmp(arg, "--help") == 0)
       {
-      strain_help(stdout, argv[0]);
+      help(stdout, argv[0]);
       exit(0);
       }
     else if (strcmp(arg, "-o") == 0)
       {
-      if (argi + 1 >= argc)
+      if (argi >= argc)
         {
         fprintf(stderr, "\nA file must follow the \'-o\' flag\n\n");
-        strain_usage(stderr, argv[0]);
+        usage(stderr, argv[0]);
         exit(1);
         }
       arg = argv[argi++];
@@ -278,10 +292,10 @@ int main(int argc, char *argv[])
       }
     else if (strcmp(arg, "-R") == 0)
       {
-      if (argi + 1 >= argc)
+      if (argi >= argc)
         {
         fprintf(stderr, "\nA file must follow the \'-R\' flag\n\n");
-        strain_usage(stderr, argv[0]);
+        usage(stderr, argv[0]);
         exit(1);
         }
       arg = argv[argi++];
@@ -289,21 +303,25 @@ int main(int argc, char *argv[])
       }
     else if (strcmp(arg, "-i") == 0)
       {
-      if (argi + 1 >= argc)
+      if (argi >= argc)
         {
         fprintf(stderr, "\nA file must follow the \'-R\' flag\n\n");
-        strain_usage(stderr, argv[0]);
+        usage(stderr, argv[0]);
         exit(1);
         }
       arg = argv[argi++];
-      if (!strain_read_transform(transform, arg, true))
+      if (!read_transform(transform, arg, true))
         {
         exit(1);
         }
       }
     else if (arg[0] != '-')
       {
-      if (!strain_read_transform(transform, arg, false))
+      if (!infile)
+        {
+        infile = arg;
+        }
+      else if (!read_transform(transform, arg, false))
         {
         exit(1);
         }
@@ -311,9 +329,15 @@ int main(int argc, char *argv[])
     else
       {
       fprintf(stderr, "\nUnrecognized option %s.\n\n", arg);
-      strain_usage(stderr, argv[0]);
+      usage(stderr, argv[0]);
       exit(1);
       }
+    }
+
+  if (!infile)
+    {
+    fprintf(stderr, "\nAn input file must be specified.\n");
+    exit(1);
     }
 
   if (!outfile)
@@ -322,38 +346,46 @@ int main(int argc, char *argv[])
     exit(1);
     }
 
-  if (!targetfile)
-    {
-    fprintf(stderr, "\nA target file must be specified with \"-R\"\n");
-    exit(1);
-    }
-
   vtkSmartPointer<vtkNIFTIReader> reader =
     vtkSmartPointer<vtkNIFTIReader>::New();
-  reader->SetFileName(targetfile);
+  reader->SetFileName(infile);
   reader->Update();
-  strain_check_error(reader);
+  check_error(reader);
+
+  vtkSmartPointer<vtkNIFTIReader> rreader =
+    vtkSmartPointer<vtkNIFTIReader>::New();
+  if (targetfile)
+    {
+    rreader->SetFileName(targetfile);
+    rreader->Update();
+    check_error(rreader);
+    }
+  else
+    {
+    rreader = reader;
+    }
 
   double spacing[3], origin[3];
   int extent[6];
-  vtkImageData *image = reader->GetOutput();
+  vtkImageData *image = rreader->GetOutput();
   image->GetSpacing(spacing);
   image->GetOrigin(origin);
   image->GetExtent(extent);
 
-  vtkSmartPointer<vtkTransformToStrain> computeStrain =
-    vtkSmartPointer<vtkTransformToStrain>::New();
-  computeStrain->SetOutputScalarTypeToFloat();
-  computeStrain->SetInput(transform);
-  computeStrain->SetOutputSpacing(spacing);
-  computeStrain->SetOutputOrigin(origin);
-  computeStrain->SetOutputExtent(extent);
-  computeStrain->Update();
+  vtkSmartPointer<vtkImageReslice> reslice =
+    vtkSmartPointer<vtkImageReslice>::New();
+  reslice->SetInputConnection(reader->GetOutputPort());
+  reslice->SetResliceTransform(transform);
+  reslice->SetOutputSpacing(spacing);
+  reslice->SetOutputOrigin(origin);
+  reslice->SetOutputExtent(extent);
+  reslice->SetInterpolationModeToLinear();
+  reslice->Update();
 
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
-  writer->SetInputConnection(computeStrain->GetOutputPort());
+  writer->SetInputConnection(reslice->GetOutputPort());
   writer->SetFileName(outfile);
   writer->Write();
-  strain_check_error(writer);
+  check_error(writer);
 }

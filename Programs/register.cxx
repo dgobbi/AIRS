@@ -948,12 +948,12 @@ void SetViewFromMatrix(
 
   // This view assumes the data uses the DICOM Patient Coordinate System.
   // It provides a right-is-left view of axial and coronal images
-  double viewRight[4] = { 1.0, 0.0, 0.0, 0.0 };
+  double viewRight[4] = { -1.0, 0.0, 0.0, 0.0 };
   double viewUp[4] = { 0.0, 1.0, 0.0, 0.0 };
 
   if (coordSystem == DICOMCoords)
     {
-    viewUp[1] = -1.0;
+    //viewUp[1] = -1.0;
     }
 
   matrix->MultiplyPoint(viewRight, viewRight);
