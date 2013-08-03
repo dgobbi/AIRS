@@ -39,6 +39,8 @@
 #include "vtkITKXFMReader.h"
 
 #include <vtkImageData.h>
+#include <vtkDataArray.h>
+#include <vtkPointData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
 #include <vtkImageReslice.h>
@@ -189,6 +191,8 @@ int read_transform(
   else if (strcmp(ext, ".txt") == 0 ||
            strcmp(ext, ".tfm") == 0)
     {
+    // convert ITK transforms from LPS to RAS coordinates
+    // for use with NIFTI files
     static const double lps[16] = {
       -1.0, 0.0, 0.0, 0.0,
       0.0, -1.0, 0.0, 0.0,
@@ -217,11 +221,30 @@ int read_transform(
     reader->Update();
     check_error(reader);
 
+    // break the pipeline connection to the reader
+    vtkSmartPointer<vtkImageData> image =
+      vtkSmartPointer<vtkImageData>::New();
+    image->CopyStructure(reader->GetOutput());
+    image->GetPointData()->PassData(reader->GetOutput()->GetPointData());
+
+    // reverse x and y vector components, because ITK uses LPS
+    // coordinates instead of RAS like NIFTI does
+    vtkDataArray *scalars = image->GetPointData()->GetScalars();
+    vtkIdType m = scalars->GetNumberOfTuples();
+    for (vtkIdType j = 0; j < m; j++)
+      {
+      double v[3];
+      scalars->GetTuple(j, v);
+      v[0] = -v[0];
+      v[1] = -v[1];
+      scalars->SetTuple(j, v);
+      }
+
     vtkSmartPointer<vtkGridTransform> gt =
       vtkSmartPointer<vtkGridTransform>::New();
     // use linear to match ANTS?
     gt->SetInterpolationModeToLinear();
-    gt->SetDisplacementGrid(reader->GetOutput());
+    gt->SetDisplacementGrid(image);
     t = gt;
     }
   else
