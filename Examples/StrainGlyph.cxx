@@ -57,6 +57,8 @@
 #include <vtkDataSetMapper.h>
 #include <vtkProperty.h>
 #include <vtkSphereSource.h>
+#include <vtkArrowSource.h>
+#include <vtkLineSource.h>
 #include <vtkTensorGlyph.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -71,6 +73,12 @@
 #include <vtkPoints.h>
 #include <vtkCellArray.h>
 #include <vtkPolyData.h>
+#include <vtkAppendPolyData.h>
+#include <vtkLookupTable.h>
+#include <vtkPNGWriter.h>
+#include <vtkJPEGWriter.h>
+#include <vtkTIFFWriter.h>
+#include <vtkWindowToImageFilter.h>
 
 void printUsage(const char *cmdname)
 {
@@ -309,6 +317,42 @@ void ComputeGreensStrain(
   G[2][2] *= 0.5;
 }
 
+void WriteScreenshot(vtkWindow *window, const char *filename)
+{
+  vtkSmartPointer<vtkWindowToImageFilter> snap =
+    vtkSmartPointer<vtkWindowToImageFilter>::New();
+  snap->SetInput(window);
+  snap->Update();
+
+  size_t l = strlen(filename);
+  if (l >= 4 && strcmp(filename + (l - 4), ".png") == 0)
+    {
+    vtkSmartPointer<vtkPNGWriter> snapWriter =
+      vtkSmartPointer<vtkPNGWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+  else if ((l >= 4 && strcmp(filename + (l - 4), ".jpg") == 0) ||
+           (l >= 5 && strcmp(filename + (l - 5), ".jpeg") == 0))
+    {
+    vtkSmartPointer<vtkJPEGWriter> snapWriter =
+      vtkSmartPointer<vtkJPEGWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+  else if ((l >= 4 && strcmp(filename + (l - 4), ".tif") == 0) ||
+           (l >= 5 && strcmp(filename + (l - 5), ".tiff") == 0))
+    {
+    vtkSmartPointer<vtkTIFFWriter> snapWriter =
+      vtkSmartPointer<vtkTIFFWriter>::New();
+    snapWriter->SetInputConnection(snap->GetOutputPort());
+    snapWriter->SetFileName(filename);
+    snapWriter->Write();
+    }
+}
+
 int main (int argc, char *argv[])
 {
   if (argc < 3)
@@ -363,7 +407,7 @@ int main (int argc, char *argv[])
   tensorImage->GetOrigin(tensorOrigin);
   tensorImage->GetExtent(tensorExtent);
   int middleSlice = (tensorExtent[4] + tensorExtent[5])/2;
-  int rfactor = 10;
+  int rfactor = 20;
   int trim = 1;
   tensorSpacing[0] = tensorSpacing[0]*rfactor;
   tensorSpacing[1] = tensorSpacing[1]*rfactor;
@@ -398,10 +442,28 @@ int main (int argc, char *argv[])
   tensors->GetPointData()->SetTensors(
     tensorReslice->GetOutput()->GetPointData()->GetScalars());
 
-  vtkSmartPointer<vtkSphereSource> glyphSource =
-    vtkSmartPointer<vtkSphereSource>::New();
-  glyphSource->SetPhiResolution(19);
-  glyphSource->SetThetaResolution(9);
+  //vtkSmartPointer<vtkSphereSource> glyphSource =
+  //  vtkSmartPointer<vtkSphereSource>::New();
+  //glyphSource->SetPhiResolution(19);
+  //glyphSource->SetThetaResolution(9);
+
+  vtkSmartPointer<vtkArrowSource> arrowSource =
+    vtkSmartPointer<vtkArrowSource>::New();
+  arrowSource->SetTipResolution(19);
+  arrowSource->SetShaftResolution(19);
+  arrowSource->SetTipRadius(0.03);
+  arrowSource->SetShaftRadius(0.03);
+  arrowSource->SetTipLength(0.90);
+
+  vtkSmartPointer<vtkLineSource> lineSource =
+    vtkSmartPointer<vtkLineSource>::New();
+  lineSource->SetPoint1(0.0, 0.0, 0.0);
+  lineSource->SetPoint2(1.0, 0.0, 0.0);
+
+  vtkSmartPointer<vtkAppendPolyData> glyphSource =
+    vtkSmartPointer<vtkAppendPolyData>::New();
+  glyphSource->AddInputConnection(arrowSource->GetOutputPort());
+  glyphSource->AddInputConnection(lineSource->GetOutputPort());
 
   double glyphScale = 2.0*rfactor;
   vtkSmartPointer<vtkTensorGlyph> glyph =
@@ -409,11 +471,28 @@ int main (int argc, char *argv[])
   glyph->SetInput(tensors);
   glyph->SetSource(glyphSource->GetOutput());
   glyph->SetScaleFactor(glyphScale);
+  glyph->ThreeGlyphsOn();
+  glyph->SymmetricOn();
+  glyph->ColorGlyphsOn();
+  glyph->SetColorModeToEigenvalues();
+
+  vtkSmartPointer<vtkLookupTable> glyphTable =
+    vtkSmartPointer<vtkLookupTable>::New();
+  glyphTable->SetTableRange(-0.1, 0.1);
+  double color[4] = { 0.0, 0.0, 0.0, 1.0 };
+  for (int c = 0; c < 256; c++)
+    {
+    color[0] = (c <= 127 ? (127 - c)/127.0 : 0.0);
+    color[1] = (c > 127 ? (c - 128)/127.0 : 0.0);
+    glyphTable->SetTableValue(c, color);
+    }
 
   vtkSmartPointer<vtkDataSetMapper> glyphMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
   glyphMapper->SetInputConnection(glyph->GetOutputPort());
-  glyphMapper->ScalarVisibilityOff();
+  //glyphMapper->ScalarVisibilityOff();
+  glyphMapper->SetLookupTable(glyphTable);
+  glyphMapper->UseLookupTableScalarRangeOn();
 
   vtkSmartPointer<vtkActor> glyphActor =
     vtkSmartPointer<vtkActor>::New();
@@ -439,6 +518,7 @@ int main (int argc, char *argv[])
   interactor->SetInteractorStyle(istyle);
   renderWindow->SetInteractor(interactor);
   renderWindow->AddRenderer(renderer);
+  renderWindow->SetMultiSamples(16);
 
   vtkSmartPointer<vtkImageSlice> imageActor =
     vtkSmartPointer<vtkImageSlice>::New();
@@ -509,11 +589,17 @@ int main (int argc, char *argv[])
     glyph2->SetInput(tensorData);
     glyph2->SetSource(glyphSource->GetOutput());
     glyph2->SetScaleFactor(glyphScale);
+    glyph2->ThreeGlyphsOn();
+    glyph2->SymmetricOn();
+    glyph2->ColorGlyphsOn();
+    glyph2->SetColorModeToEigenvalues();
 
     vtkSmartPointer<vtkDataSetMapper> glyph2Mapper =
       vtkSmartPointer<vtkDataSetMapper>::New();
     glyph2Mapper->SetInputConnection(glyph2->GetOutputPort());
-    glyph2Mapper->ScalarVisibilityOff();
+    //glyph2Mapper->ScalarVisibilityOff();
+    glyphMapper->SetLookupTable(glyphTable);
+    glyphMapper->UseLookupTableScalarRangeOn();
 
     vtkSmartPointer<vtkActor> glyph2Actor =
       vtkSmartPointer<vtkActor>::New();
@@ -551,6 +637,8 @@ int main (int argc, char *argv[])
 
   // -------------------------------------------------------
   // allow user to interact
+
+  WriteScreenshot(renderWindow, "tmp.png");
 
   interactor->Start();
 
