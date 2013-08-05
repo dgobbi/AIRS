@@ -38,15 +38,20 @@
 #include "vtkNIFTIWriter.h"
 #include "vtkITKXFMReader.h"
 #include "vtkTransformToStrain.h"
+//#include "vtkImageGaussianInterpolator.h"
 
 #include <vtkMatrix4x4.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
+#include <vtkStringArray.h>
+#include <vtkIntArray.h>
 #include <vtkTransform.h>
+#include <vtkImageGaussianSmooth.h>
 #include <vtkMNITransformReader.h>
 #include <vtkGeneralTransform.h>
 #include <vtkGridTransform.h>
+#include <vtkImageResize.h>
 #include <vtkErrorCode.h>
 #include <vtkSmartPointer.h>
 
@@ -67,13 +72,14 @@ void strain_usage(FILE *file, const char *command_name)
   while (cp != command_name && cp[-1] != '\\' && cp[-1] != '/') { --cp; }
 
   fprintf(file,
-    "usage: %s -o Output.nii -R Like.nii Warp.nii Affine.txt\n", cp);
+    "usage: %s -o Output.nii [--deformation] -R Like.nii Warp.nii Affine.txt\n", cp);
   fprintf(file,
-    "usage: %s -o Output.nii -R Like.nii -i Affine.txt InverseWarp.nii\n", cp);
+    "usage: %s -o Output.nii [--deformation] -R Like.nii -i Affine.txt InverseWarp.nii\n", cp);
   fprintf(file,
     "options:\n"
     "  -o <output.nii[.gz]>    The output file.\n"
-    "  --version               Print the version and exit.\n"
+    "  -R <file.nii[.gz]>      A file that has the size and spacing that are desired for the output.\n"
+    "  --deformation           Output the deformation gradient tensor, rather than the strain tensor.\n"
     "  --help                  Print minimal documentation.\n"
   );
 }
@@ -169,7 +175,8 @@ void strain_check_error(vtkObject *o)
 }
 
 int strain_read_transform(
-  vtkGeneralTransform *transform, const char *file, bool invert)
+  vtkGeneralTransform *transform, const char *file, bool invert,
+  const double outputSpacing[3])
 {
   int n = strlen(file);
   while (n) { if (file[--n] == '.') { break; } }
@@ -222,11 +229,40 @@ int strain_read_transform(
     reader->Update();
     strain_check_error(reader);
 
-    // break the pipeline connection to the reader
+    // the gaussian standard deviation will be 0.399 times the
+    // ratio of the output image spacing to the displacement grid
+    // spacing, in order to avoid aliasing of the output data
+    double spacing[3], blurFactors[3];
+    reader->GetOutput()->GetSpacing(spacing);
+    blurFactors[0] = outputSpacing[0]/spacing[0];
+    blurFactors[1] = outputSpacing[1]/spacing[1];
+    blurFactors[2] = outputSpacing[2]/spacing[2];
+
+    /*
+    vtkSmartPointer<vtkImageGaussianInterpolator> interp =
+      vtkSmartPointer<vtkImageGaussianInterpolator>::New();
+    interp->SetBlurFactors(blurFactors);
+
+    // smooth the grid with a Gaussian
+    vtkSmartPointer<vtkImageResize> smooth =
+      vtkSmartPointer<vtkImageResize>::New();
+    smooth->SetInputConnection(reader->GetOutputPort());
+    smooth->SetInterpolator(interp);
+    smooth->Update();
+    */
+    vtkSmartPointer<vtkImageGaussianSmooth> smooth =
+      vtkSmartPointer<vtkImageGaussianSmooth>::New();
+    smooth->SetInputConnection(reader->GetOutputPort());
+    smooth->SetRadiusFactors(4.5, 4.5, 4.5);
+    smooth->SetStandardDeviation(
+      0.399*blurFactors[0], 0.399*blurFactors[1], 0.399*blurFactors[2]);
+    smooth->Update();
+
+    // break the pipeline connection
     vtkSmartPointer<vtkImageData> image =
       vtkSmartPointer<vtkImageData>::New();
-    image->CopyStructure(reader->GetOutput());
-    image->GetPointData()->PassData(reader->GetOutput()->GetPointData());
+    image->CopyStructure(smooth->GetOutput());
+    image->GetPointData()->PassData(smooth->GetOutput()->GetPointData());
 
     // reverse x and y vector components, because ITK uses LPS
     // coordinates instead of RAS like NIFTI does
@@ -288,9 +324,16 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkGeneralTransform>::New();
   transform->PostMultiply();
 
+  vtkSmartPointer<vtkStringArray> transformFiles =
+    vtkSmartPointer<vtkStringArray>::New();
+  vtkSmartPointer<vtkIntArray> transformInvert =
+    vtkSmartPointer<vtkIntArray>::New();
+
   // the output and target file names
   const char *outfile = 0;
+  const char *deffile = 0;
   const char *targetfile = 0;
+  int deformation = 0;
 
   // read the options from the command line
   int argi = 1;
@@ -302,6 +345,10 @@ int main(int argc, char *argv[])
       strain_help(stdout, argv[0]);
       exit(0);
       }
+    else if (strcmp(arg, "--deformation") == 0)
+      {
+      deformation = 1;
+      }
     else if (strcmp(arg, "-o") == 0)
       {
       if (argi >= argc)
@@ -312,6 +359,17 @@ int main(int argc, char *argv[])
         }
       arg = argv[argi++];
       outfile = arg;
+      }
+    else if (strcmp(arg, "-d") == 0)
+      {
+      if (argi >= argc)
+        {
+        fprintf(stderr, "\nA file must follow the \'-d\' flag\n\n");
+        strain_usage(stderr, argv[0]);
+        exit(1);
+        }
+      arg = argv[argi++];
+      deffile = arg;
       }
     else if (strcmp(arg, "-R") == 0)
       {
@@ -328,22 +386,18 @@ int main(int argc, char *argv[])
       {
       if (argi >= argc)
         {
-        fprintf(stderr, "\nA file must follow the \'-R\' flag\n\n");
+        fprintf(stderr, "\nA file must follow the \'-i\' flag\n\n");
         strain_usage(stderr, argv[0]);
         exit(1);
         }
       arg = argv[argi++];
-      if (!strain_read_transform(transform, arg, true))
-        {
-        exit(1);
-        }
+      transformFiles->InsertNextValue(arg);
+      transformInvert->InsertNextValue(1);
       }
     else if (arg[0] != '-')
       {
-      if (!strain_read_transform(transform, arg, false))
-        {
-        exit(1);
-        }
+      transformFiles->InsertNextValue(arg);
+      transformInvert->InsertNextValue(0);
       }
     else
       {
@@ -378,8 +432,23 @@ int main(int argc, char *argv[])
   image->GetOrigin(origin);
   image->GetExtent(extent);
 
+  vtkIdType n = transformFiles->GetNumberOfValues();
+  for (vtkIdType i = 0; i < n; i++)
+    {
+    std::string tfile = transformFiles->GetValue(i);
+    int invert = transformInvert->GetValue(i);
+    if (!strain_read_transform(transform, tfile.c_str(), invert, spacing))
+      {
+      exit(1);
+      }
+    }
+
   vtkSmartPointer<vtkTransformToStrain> computeStrain =
     vtkSmartPointer<vtkTransformToStrain>::New();
+  if (deformation)
+    {
+    computeStrain->SetOutputValueToDeformationGradient();
+    }
   computeStrain->SetOutputScalarTypeToFloat();
   computeStrain->SetInput(transform);
   computeStrain->SetOutputSpacing(spacing);

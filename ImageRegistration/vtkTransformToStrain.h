@@ -74,6 +74,18 @@ public:
   vtkSetVector3Macro(OutputSpacing, double);
   vtkGetVector3Macro(OutputSpacing, double);
 
+  enum { GreensStrain, DeformationGradient };
+
+  // Description:
+  // Get/Set what to produce at the output.
+  vtkSetMacro(OutputValue, int);
+  vtkGetMacro(OutputValue, int);
+  void SetOutputValueToGreensStrain() {
+    this->SetOutputValue(GreensStrain); }
+  void SetOutputValueToDeformationGradient() {
+    this->SetOutputValue(DeformationGradient); }
+  virtual const char *GetOutputValueAsString();
+
   // Description:
   // Get/Set the scalar type of the grid.  The default is float.
   vtkSetMacro(OutputScalarType, int);
@@ -109,7 +121,7 @@ public:
 
   // Description:
   // Compute the Green's strain from the deformation gradient tensor.
-  static void GreensStrain(const double F[3][3], double G[3][3]);
+  static void ComputeGreensStrain(const double F[3][3], double G[3][3]);
 
 protected:
   vtkTransformToStrain();
@@ -130,6 +142,7 @@ protected:
 
   vtkAbstractTransform *Input;
 
+  int OutputValue;
   int OutputScalarType;
   int OutputExtent[6];
   double OutputOrigin[3];

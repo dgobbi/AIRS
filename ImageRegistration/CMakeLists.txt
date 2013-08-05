@@ -13,6 +13,7 @@ vtkFrameFinder.cxx
 vtkImage3DNoiseSource.cxx
 vtkImageDataStatistics.cxx
 vtkImageFastBlur.cxx
+vtkImageGaussianInterpolator.cxx
 vtkImageMutualInformation.cxx
 vtkImageSingleMutualInformation.cxx
 vtkImageSquaredDifference.cxx

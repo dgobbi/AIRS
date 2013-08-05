@@ -54,6 +54,7 @@ vtkTransformToStrain::vtkTransformToStrain()
   this->Input = NULL;
 
   this->OutputScalarType = VTK_FLOAT;
+  this->OutputValue = GreensStrain;
 
   for (int i = 0; i < 3; i++)
     {
@@ -107,14 +108,32 @@ void vtkTransformToStrain::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "OutputScalarType: " <<
     vtkImageScalarTypeNameMacro(this->OutputScalarType) << "\n";
 
-  this->UpdateShiftScale();
+  os << indent << "OutputValue: " << this->GetOutputValueAsString() << "\n";
 
   os << indent << "ValueScale: " << this->ValueScale << "\n";
   os << indent << "ValueShift: " << this->ValueShift << "\n";
 }
 
 //----------------------------------------------------------------------------
-void vtkTransformToStrain::GreensStrain(
+const char *vtkTransformToStrain::GetOutputValueAsString()
+{
+  const char *v = "";
+
+  switch (this->OutputValue)
+    {
+    case GreensStrain:
+      v = "GreensStrain";
+      break;
+    case DeformationGradient:
+      v = "DeformationGradient";
+      break;
+    }
+
+  return v;
+}
+
+//----------------------------------------------------------------------------
+void vtkTransformToStrain::ComputeGreensStrain(
   const double F[3][3], double G[3][3])
 {
   vtkMath::Transpose3x3(F, G);
@@ -123,6 +142,16 @@ void vtkTransformToStrain::GreensStrain(
   G[0][0] -= 1.0;
   G[1][1] -= 1.0;
   G[2][2] -= 1.0;
+
+  G[0][0] *= 0.5;
+  G[0][1] *= 0.5;
+  G[0][2] *= 0.5;
+  G[1][0] *= 0.5;
+  G[1][1] *= 0.5;
+  G[1][2] *= 0.5;
+  G[2][0] *= 0.5;
+  G[2][1] *= 0.5;
+  G[2][2] *= 0.5;
 }
 
 //----------------------------------------------------------------------------
@@ -160,7 +189,7 @@ void vtkTransformToStrain::RequestInformation(
 // the entire output extent -- this is extremely robust and extremely
 // inefficient, it should be possible to do much better than this.
 void vtkTransformToStrainMinMax(
-  vtkTransformToStrain *self, int extent[6],
+  vtkTransformToStrain *self, int extent[6], int operation,
   double &minValue, double &maxValue)
 {
   vtkAbstractTransform *transform = self->GetInput();
@@ -175,6 +204,14 @@ void vtkTransformToStrainMinMax(
 
   double *spacing = self->GetOutputSpacing();
   double *origin = self->GetOutputOrigin();
+
+  double bounds[6];
+  bounds[0] = extent[0]*spacing[0] + origin[0];
+  bounds[1] = extent[1]*spacing[0] + origin[0];
+  bounds[2] = extent[2]*spacing[1] + origin[1];
+  bounds[3] = extent[3]*spacing[1] + origin[1];
+  bounds[4] = extent[4]*spacing[2] + origin[2];
+  bounds[5] = extent[5]*spacing[2] + origin[2];
 
   maxValue = -1e37;
   minValue = +1e37;
@@ -194,7 +231,20 @@ void vtkTransformToStrainMinMax(
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
 
-        vtkTransformToStrain::GreensStrain(tensor, tensor);
+        if (newPoint[0] < bounds[0] || newPoint[0] > bounds[1] ||
+            newPoint[1] < bounds[2] || newPoint[1] > bounds[3] ||
+            newPoint[2] < bounds[4] || newPoint[2] > bounds[5])
+          {
+          tensor[0][0] = tensor[0][1] = tensor[0][2] = 0.0;
+          tensor[1][0] = tensor[1][1] = tensor[1][2] = 0.0;
+          tensor[2][0] = tensor[2][1] = tensor[2][2] = 0.0;
+          tensor[0][0] = tensor[1][1] = tensor[2][2] = 1.0;
+          }
+
+        if (operation == vtkTransformToStrain::GreensStrain)
+          {
+          vtkTransformToStrain::ComputeGreensStrain(tensor, tensor);
+          }
 
         for (int l = 0; l < 3; l++)
           {
@@ -241,9 +291,10 @@ void vtkTransformToStrain::UpdateShiftScale()
     }
 
   // get the maximum displacement
+  int operation = this->OutputValue;
   double minDisplacement, maxDisplacement;
   vtkTransformToStrainMinMax(
-    this, this->OutputExtent, minDisplacement, maxDisplacement);
+    this, this->OutputExtent, operation, minDisplacement, maxDisplacement);
 
   vtkDebugMacro(<< "displacement (min, max) = (" <<
                 minDisplacement << ", " << maxDisplacement << ")");
@@ -337,7 +388,7 @@ inline void vtkOutputRound(double val, float& rnd)
 template<class T>
 void vtkTransformToStrainExecute(
   vtkTransformToStrain *self, vtkImageData *output, T *outPtr, int extent[6],
-  double shift, double scale, int id)
+  double shift, double scale, int operation, int id)
 {
   vtkAbstractTransform *transform = self->GetInput();
   int isIdentity = 0;
@@ -350,6 +401,14 @@ void vtkTransformToStrainExecute(
   double *spacing = output->GetSpacing();
   double *origin = output->GetOrigin();
   vtkIdType *increments = output->GetIncrements();
+
+  double bounds[6];
+  bounds[0] = extent[0]*spacing[0] + origin[0];
+  bounds[1] = extent[1]*spacing[0] + origin[0];
+  bounds[2] = extent[2]*spacing[1] + origin[1];
+  bounds[3] = extent[3]*spacing[1] + origin[1];
+  bounds[4] = extent[4]*spacing[2] + origin[2];
+  bounds[5] = extent[5]*spacing[2] + origin[2];
 
   double invScale = 1.0/scale;
 
@@ -390,7 +449,20 @@ void vtkTransformToStrainExecute(
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
 
-        vtkTransformToStrain::GreensStrain(tensor, tensor);
+        if (newPoint[0] < bounds[0] || newPoint[0] > bounds[1] ||
+            newPoint[1] < bounds[2] || newPoint[1] > bounds[3] ||
+            newPoint[2] < bounds[4] || newPoint[2] > bounds[5])
+          {
+          tensor[0][0] = tensor[0][1] = tensor[0][2] = 0.0;
+          tensor[1][0] = tensor[1][1] = tensor[1][2] = 0.0;
+          tensor[2][0] = tensor[2][1] = tensor[2][2] = 0.0;
+          tensor[0][0] = tensor[1][1] = tensor[2][2] = 1.0;
+          }
+
+        if (operation == vtkTransformToStrain::GreensStrain)
+          {
+          vtkTransformToStrain::ComputeGreensStrain(tensor, tensor);
+          }
 
         for (int ii = 0; ii < 3; ii++)
           {
@@ -431,6 +503,7 @@ void vtkTransformToStrain::RequestData(
 
   void *outPtr = output->GetScalarPointerForExtent(extent);
   int outputType = output->GetScalarType();
+  int operation = this->OutputValue;
 
   this->UpdateShiftScale();
 
@@ -444,32 +517,32 @@ void vtkTransformToStrain::RequestData(
     case VTK_FLOAT:
       vtkTransformToStrainExecute(
         this, output, static_cast<float *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     case VTK_DOUBLE:
       vtkTransformToStrainExecute(
         this, output, static_cast<double *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     case VTK_SHORT:
       vtkTransformToStrainExecute(
         this, output, static_cast<short *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     case VTK_UNSIGNED_SHORT:
       vtkTransformToStrainExecute(
         this, output, static_cast<unsigned short *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     case VTK_SIGNED_CHAR:
       vtkTransformToStrainExecute(
         this, output, static_cast<unsigned char *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     case VTK_UNSIGNED_CHAR:
       vtkTransformToStrainExecute(
         this, output, static_cast<unsigned char *>(outPtr), extent,
-        shift, scale, id);
+        shift, scale, operation, id);
       break;
     default:
       vtkErrorMacro(<< "Execute: Unknown output ScalarType");
