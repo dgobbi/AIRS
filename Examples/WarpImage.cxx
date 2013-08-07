@@ -388,6 +388,42 @@ int main(int argc, char *argv[])
     rreader = reader;
     }
 
+  double imatrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0 };
+
+  double omatrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0 };
+
+  if (reader->GetQFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(imatrix, reader->GetQFormMatrix());
+    }
+  else if (reader->GetSFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(imatrix, reader->GetSFormMatrix());
+    }
+
+  if (rreader->GetQFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(omatrix, rreader->GetQFormMatrix());
+    }
+  else if (rreader->GetSFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(omatrix, rreader->GetSFormMatrix());
+    }
+
+  vtkMatrix4x4::Invert(imatrix, imatrix);
+  transform->PreMultiply();
+  transform->Concatenate(omatrix);
+  transform->PostMultiply();
+  transform->Concatenate(imatrix);
+
   double spacing[3], origin[3];
   int extent[6];
   vtkImageData *image = rreader->GetOutput();
@@ -409,6 +445,8 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkNIFTIWriter>::New();
   writer->SetInputConnection(reslice->GetOutputPort());
   writer->SetFileName(outfile);
+  writer->SetSFormMatrix(rreader->GetSFormMatrix());
+  writer->SetQFormMatrix(rreader->GetQFormMatrix());
   writer->Write();
   check_error(writer);
 }
