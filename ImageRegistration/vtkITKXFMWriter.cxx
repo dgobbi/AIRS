@@ -138,6 +138,8 @@ int vtkITKXFMWriter::WriteLinearTransform(
 
   outfile << "Parameters:";
 
+  outfile.precision(15);
+
   for (int i = 0; i < 3; i++)
     {
     outfile << " " << matrix->GetElement(i, 0)
