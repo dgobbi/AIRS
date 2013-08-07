@@ -20,6 +20,9 @@ vtkGaussianInterpolator.cxx
 vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
+vtkITKXFMReader.cxx
+vtkITKXFMWriter.cxx
+vtkLSMReader.cxx
 vtkPowellMinimizer.cxx
 vtkTransformToStrain.cxx
 )
