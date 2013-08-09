@@ -195,9 +195,9 @@ void ReadDICOMImage(
     matrix->MultiplyPoint(point, point);
     for (int j = 0; j < 3; j++)
       {
-      matrix->Element[i][1] = -matrix->Element[i][1];
-      matrix->Element[i][2] = -matrix->Element[i][2];
-      matrix->Element[i][3] = point[i];
+      matrix->Element[j][1] = -matrix->Element[j][1];
+      matrix->Element[j][2] = -matrix->Element[j][2];
+      matrix->Element[j][3] = point[j];
       }
     // do the DICOM to NIFTI coord conversion
     for (int k = 0; k < 4; k++)
