@@ -50,7 +50,8 @@
 #include <vtkImageGaussianSmooth.h>
 #include <vtkMNITransformReader.h>
 #include <vtkGeneralTransform.h>
-#include <vtkGridTransform.h>
+#include <vtkBSplineTransform.h>
+#include <vtkImageBSplineCoefficients.h>
 #include <vtkImageResize.h>
 #include <vtkErrorCode.h>
 #include <vtkSmartPointer.h>
@@ -258,6 +259,12 @@ int strain_read_transform(
       0.399*blurFactors[0], 0.399*blurFactors[1], 0.399*blurFactors[2]);
     smooth->Update();
 
+    // compute the b-spline coefficients
+    vtkSmartPointer<vtkImageBSplineCoefficients> bsplineCoeffs =
+      vtkSmartPointer<vtkImageBSplineCoefficients>::New();
+    bsplineCoeffs->SetInputConnection(smooth->GetOutputPort());
+    bsplineCoeffs->Update();
+
     // break the pipeline connection
     vtkSmartPointer<vtkImageData> image =
       vtkSmartPointer<vtkImageData>::New();
@@ -277,11 +284,11 @@ int strain_read_transform(
       scalars->SetTuple(j, v);
       }
 
-    vtkSmartPointer<vtkGridTransform> gt =
-      vtkSmartPointer<vtkGridTransform>::New();
-    // use linear to match ANTS?
-    gt->SetInterpolationModeToCubic();
-    gt->SetDisplacementGrid(image);
+    // create a b-spline for the vectors, nice for derivative computation
+    vtkSmartPointer<vtkBSplineTransform> gt =
+      vtkSmartPointer<vtkBSplineTransform>::New();
+    gt->SetBorderModeToZero();
+    gt->SetCoefficients(image);
     t = gt;
     }
   else

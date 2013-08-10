@@ -205,14 +205,6 @@ void vtkTransformToStrainMinMax(
   double *spacing = self->GetOutputSpacing();
   double *origin = self->GetOutputOrigin();
 
-  double bounds[6];
-  bounds[0] = extent[0]*spacing[0] + origin[0];
-  bounds[1] = extent[1]*spacing[0] + origin[0];
-  bounds[2] = extent[2]*spacing[1] + origin[1];
-  bounds[3] = extent[3]*spacing[1] + origin[1];
-  bounds[4] = extent[4]*spacing[2] + origin[2];
-  bounds[5] = extent[5]*spacing[2] + origin[2];
-
   maxValue = -1e37;
   minValue = +1e37;
 
@@ -230,16 +222,6 @@ void vtkTransformToStrainMinMax(
 
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
-
-        if (newPoint[0] < bounds[0] || newPoint[0] > bounds[1] ||
-            newPoint[1] < bounds[2] || newPoint[1] > bounds[3] ||
-            newPoint[2] < bounds[4] || newPoint[2] > bounds[5])
-          {
-          tensor[0][0] = tensor[0][1] = tensor[0][2] = 0.0;
-          tensor[1][0] = tensor[1][1] = tensor[1][2] = 0.0;
-          tensor[2][0] = tensor[2][1] = tensor[2][2] = 0.0;
-          tensor[0][0] = tensor[1][1] = tensor[2][2] = 1.0;
-          }
 
         if (operation == vtkTransformToStrain::GreensStrain)
           {
@@ -402,14 +384,6 @@ void vtkTransformToStrainExecute(
   double *origin = output->GetOrigin();
   vtkIdType *increments = output->GetIncrements();
 
-  double bounds[6];
-  bounds[0] = extent[0]*spacing[0] + origin[0];
-  bounds[1] = extent[1]*spacing[0] + origin[0];
-  bounds[2] = extent[2]*spacing[1] + origin[1];
-  bounds[3] = extent[3]*spacing[1] + origin[1];
-  bounds[4] = extent[4]*spacing[2] + origin[2];
-  bounds[5] = extent[5]*spacing[2] + origin[2];
-
   double invScale = 1.0/scale;
 
   double point[3];
@@ -448,16 +422,6 @@ void vtkTransformToStrainExecute(
 
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
-
-        if (newPoint[0] < bounds[0] || newPoint[0] > bounds[1] ||
-            newPoint[1] < bounds[2] || newPoint[1] > bounds[3] ||
-            newPoint[2] < bounds[4] || newPoint[2] > bounds[5])
-          {
-          tensor[0][0] = tensor[0][1] = tensor[0][2] = 0.0;
-          tensor[1][0] = tensor[1][1] = tensor[1][2] = 0.0;
-          tensor[2][0] = tensor[2][1] = tensor[2][2] = 0.0;
-          tensor[0][0] = tensor[1][1] = tensor[2][2] = 1.0;
-          }
 
         if (operation == vtkTransformToStrain::GreensStrain)
           {
