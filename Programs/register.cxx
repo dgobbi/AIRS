@@ -403,6 +403,7 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
   size_t l = strlen(xfminput);
   if (l >= 4 && strcmp(xfminput + (l - 4), ".xfm") == 0)
     {
+    // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformReader> reader =
       vtkSmartPointer<vtkMNITransformReader>::New();
     reader->SetFileName(xfminput);
@@ -414,8 +415,10 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
       matrix->DeepCopy(transform->GetMatrix());
       }
     }
-  else
+  else if ((l >= 4 && strcmp(xfminput + (l - 4), ".txt") == 0) ||
+           (l >= 4 && strcmp(xfminput + (l - 4), ".tfm") == 0))
     {
+    // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMReader> reader =
       vtkSmartPointer<vtkITKXFMReader>::New();
     reader->SetFileName(xfminput);
@@ -426,6 +429,23 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
       {
       matrix->DeepCopy(transform->GetMatrix());
       }
+    }
+  else
+    {
+    // Space-delimited text file
+    double elements[16] = {
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0 };
+
+    ifstream infile(xfminput);
+    for (int i = 0; infile && i < 16; i++)
+      {
+      infile >> elements[i];
+      }
+    infile.close();
+    matrix->DeepCopy(elements);
     }
 }
 
@@ -439,20 +459,36 @@ void WriteMatrix(
   size_t l = strlen(xfmfile);
   if (l >= 4 && strcmp(xfmfile + (l - 4), ".xfm") == 0)
     {
+    // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformWriter> writer =
       vtkSmartPointer<vtkMNITransformWriter>::New();
     writer->SetFileName(xfmfile);
     writer->SetTransform(transform);
     writer->Update();
     }
-  else
+  else if ((l >= 4 && strcmp(xfmfile + (l - 4), ".txt") == 0) ||
+           (l >= 4 && strcmp(xfmfile + (l - 4), ".tfm") == 0))
     {
+    // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMWriter> writer =
       vtkSmartPointer<vtkITKXFMWriter>::New();
     writer->SetFileName(xfmfile);
     writer->SetTransform(transform);
     writer->SetTransformCenter(center);
     writer->Write();
+    }
+  else
+    {
+    // Delimited text file
+    ofstream outfile(xfmfile, ios::out);
+    for (int i = 0; i < 4; i++)
+      {
+      outfile << matrix->Element[i][0] << "  "
+              << matrix->Element[i][1] << "  "
+              << matrix->Element[i][2] << "  "
+              << matrix->Element[i][3] << "\n";
+      }
+    outfile.close();
     }
 }
 
@@ -768,7 +804,8 @@ int main(int argc, char *argv[])
       if (m < 4 ||
           (strcmp(&xfile[m-4], ".xfm") != 0) &&
           (strcmp(&xfile[m-4], ".tfm") != 0) &&
-          (strcmp(&xfile[m-4], ".txt") != 0))
+          (strcmp(&xfile[m-4], ".txt") != 0) &&
+          (strcmp(&xfile[m-4], ".mat") != 0))
         {
         fprintf(stderr, "Transform file must end in .xfm, .tfm, or .txt\n");
         return 1;
