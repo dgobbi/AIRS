@@ -64,6 +64,7 @@ Module:    register.cxx
 #ifdef AIRS_USE_DICOM
 #define AIRS_USE_NIFTI
 #include <vtkNIFTIReader.h>
+#include <vtkNIFTIWriter.h>
 #include <vtkDICOMReader.h>
 #include <vtkDICOMSorter.h>
 #include <vtkGlobFileNames.h>
@@ -309,13 +310,13 @@ void ReadNIFTIImage(
   // get the SForm or QForm matrix if present
   static double nMatrix[16] =
     { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
-  if (reader->GetSFormMatrix())
-    {
-    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
-    }
-  else if (reader->GetQFormMatrix())
+  if (reader->GetQFormMatrix())
     {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
+    }
+  else if (reader->GetSFormMatrix())
+    {
+    vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
     }
 
   if (coordSystem == DICOMCoords)
@@ -550,7 +551,7 @@ void register_initialize_options(register_options *options)
   options->dimensionality = 3;
   options->metric = vtkImageRegistration::NormalizedMutualInformation;
   options->transform = vtkImageRegistration::Rigid;
-  options->coords = NativeCoords;
+  options->coords = DICOMCoords;
   options->checkonly = 0;
   options->interactive = 0;
   options->initial = NULL;
@@ -1183,6 +1184,25 @@ int main(int argc, char *argv[])
     {
     WriteScreenshot(renderWindow, options.screenshot);
     }
+  /*
+  vtkSmartPointer<vtkImageReslice> reslice =
+    vtkSmartPointer<vtkImageReslice>::New();
+  reslice->SetInformationInput(targetImage);
+  reslice->SetInput(sourceImage);
+  reslice->SetInterpolationModeToLinear();
+  reslice->SetInformationInput(targetImage);
+  reslice->SetResliceTransform(
+    registration->GetTransform()->GetInverse());
+  reslice->Update();
+
+  vtkSmartPointer<vtkNIFTIWriter> writer =
+    vtkSmartPointer<vtkNIFTIWriter>::New();
+  writer->SetInputConnection(reslice->GetOutputPort());
+  writer->SetQFormMatrix(targetMatrix);
+  writer->SetSFormMatrix(targetMatrix);
+  writer->SetFileName("out.nii.gz");
+  writer->Write();
+  */
 
   // -------------------------------------------------------
   // allow user to interact
