@@ -38,6 +38,7 @@
 #include "vtkNIFTIWriter.h"
 #include "vtkLSMReader.h"
 
+#include <vtkTIFFReader.h>
 #include <vtkMath.h>
 #include <vtkImageClip.h>
 #include <vtkImageChangeInformation.h>
@@ -182,6 +183,7 @@ void geometry(char *argv[], int argc, int argi, int g[4])
 // Check for IO errors that might have occurred in VTK classes
 void check_error(vtkObject *o)
 {
+  vtkTIFFReader *treader = vtkTIFFReader::SafeDownCast(o);
   vtkLSMReader *reader = vtkLSMReader::SafeDownCast(o);
   vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
   const char *filename = 0;
@@ -196,6 +198,11 @@ void check_error(vtkObject *o)
     {
     filename = reader->GetFileName();
     errorcode = reader->GetErrorCode();
+    }
+  else if (treader)
+    {
+    filename = treader->GetFileName();
+    errorcode = treader->GetErrorCode();
     }
   if (!filename)
     {
@@ -455,14 +462,30 @@ int main(int argc, char *argv[])
   // read the lsm file
   vtkSmartPointer<vtkLSMReader> reader =
     vtkSmartPointer<vtkLSMReader>::New();
-  reader->SetFileName(infile);
-  reader->Update();
-  check_error(reader);
-  port = reader->GetOutputPort();
-
-  // get the dimensions of the image
+  vtkSmartPointer<vtkTIFFReader> treader =
+    vtkSmartPointer<vtkTIFFReader>::New();
   int extent[6];
-  reader->GetOutput()->GetExtent(extent);
+  size_t l = strlen(infile);
+  if (l >= 5 &&
+      (strcmp(&infile[l-4], ".tif") == 0 ||
+       strcmp(&infile[l-4], ".TIF") == 0 ||
+       strcmp(&infile[l-5], ".tiff") == 0 ||
+       strcmp(&infile[l-5], ".TIFF") == 0))
+    {
+    treader->SetFileName(infile);
+    treader->Update();
+    check_error(treader);
+    treader->GetOutput()->GetExtent(extent);
+    port = treader->GetOutputPort();
+    }
+  else
+    {
+    reader->SetFileName(infile);
+    reader->Update();
+    check_error(reader);
+    reader->GetOutput()->GetExtent(extent);
+    port = reader->GetOutputPort();
+    }
 
   // check if the user requested for the image to be cropped
   vtkSmartPointer<vtkImageClip> cropper =
@@ -669,7 +692,7 @@ int main(int argc, char *argv[])
   writer->SetSFormMatrix(matrix);
   writer->SetQFormMatrix(matrix);
   writer->Write();
-  check_error(reader);
+  check_error(writer);
 
   delete [] outfile_generated;
 
