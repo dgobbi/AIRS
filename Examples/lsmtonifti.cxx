@@ -449,17 +449,24 @@ int main(int argc, char *argv[])
       }
     }
 
+  // for connecting to next filter
+  vtkAlgorithmOutput *port = 0;
+
   // read the lsm file
   vtkSmartPointer<vtkLSMReader> reader =
     vtkSmartPointer<vtkLSMReader>::New();
   reader->SetFileName(infile);
   reader->Update();
   check_error(reader);
+  port = reader->GetOutputPort();
 
+  // get the dimensions of the image
   int extent[6];
   reader->GetOutput()->GetExtent(extent);
 
   // check if the user requested for the image to be cropped
+  vtkSmartPointer<vtkImageClip> cropper =
+    vtkSmartPointer<vtkImageClip>::New();
   if (cropOption)
     {
     if (cropGeometry[0] == 0 ||
@@ -476,38 +483,37 @@ int main(int argc, char *argv[])
     extent[1] = extent[0] + cropGeometry[0] + 1;
     extent[2] += cropGeometry[3];
     extent[3] = extent[2] + cropGeometry[1] + 1;
-    }
 
-  // crop the image
-  vtkSmartPointer<vtkImageClip> cropper =
-    vtkSmartPointer<vtkImageClip>::New();
-  cropper->SetInputConnection(reader->GetOutputPort());
-  cropper->SetOutputWholeExtent(extent);
-  cropper->ClipDataOn();
-  cropper->Update();
+    // crop the image
+    cropper->SetInputConnection(port);
+    cropper->SetOutputWholeExtent(extent);
+    cropper->ClipDataOn();
+    cropper->Update();
+    port = cropper->GetOutputPort();
+    }
 
   // shift the extent so that it starts at (0,0,0)
   vtkSmartPointer<vtkImageChangeInformation> changer =
     vtkSmartPointer<vtkImageChangeInformation>::New();
-  changer->SetInputConnection(cropper->GetOutputPort());
+  changer->SetInputConnection(port);
   changer->SetOutputOrigin(0.0, 0.0, 0.0);
   changer->SetOutputExtentStart(0, 0, 0);
   changer->Update();
+  port = changer->GetOutputPort();
 
   // get the new, shifted extent
   changer->GetOutput()->GetExtent(extent);
 
-  // compute an intensity scaling factor for each slice
-  int numslices = extent[5] - extent[4] + 1;
-  double *scales = new double[numslices];
-  for (int k = 0; k < numslices; k++)
-    {
-    // initial value is unity
-    scales[k] = 1.0;
-    }
-
+  // perform the intensity normalization
+  vtkSmartPointer<vtkImageAppend> append =
+    vtkSmartPointer<vtkImageAppend>::New();
+  append->SetAppendAxis(2);
   if (normalizeOption)
     {
+    // compute an intensity scaling factor for each slice
+    int numslices = extent[5] - extent[4] + 1;
+    double *scales = new double[numslices];
+
     // build a histogram for each slice
     int **allhists = new int *[numslices];
     int histsize = 0;
@@ -516,10 +522,10 @@ int main(int argc, char *argv[])
       {
       vtkSmartPointer<vtkImageClip> clip =
         vtkSmartPointer<vtkImageClip>::New();
-      clip->SetInputConnection(changer->GetOutputPort());
+      clip->SetInputConnection(port);
       clip->SetOutputWholeExtent(extent[0], extent[1],
-                                extent[2], extent[3],
-                                i, i);
+                                 extent[2], extent[3],
+                                 i, i);
       clip->ClipDataOn();
 
       vtkSmartPointer<vtkImageHistogramStatistics> hist =
@@ -551,101 +557,105 @@ int main(int argc, char *argv[])
       delete [] allhists[k];
       }
     delete [] allhists;
-    }
 
-  // correct the intensity range of each slice
-  vtkSmartPointer<vtkImageAppend> append =
-    vtkSmartPointer<vtkImageAppend>::New();
-  append->SetAppendAxis(2);
-
-  for (int i = extent[4]; i <= extent[5]; i++)
-    {
-    vtkSmartPointer<vtkImageClip> clip =
-      vtkSmartPointer<vtkImageClip>::New();
-    clip->SetInputConnection(changer->GetOutputPort());
-    clip->SetOutputWholeExtent(extent[0], extent[1],
-                               extent[2], extent[3],
-                               i, i);
-    clip->ClipDataOn();
-
-    vtkSmartPointer<vtkImageShiftScale> rescale =
-      vtkSmartPointer<vtkImageShiftScale>::New();
-    rescale->SetInputConnection(clip->GetOutputPort());
-    rescale->SetScale(1.0/scales[i - extent[4]]);
-    rescale->ClampOverflowOn();
-    rescale->Update();
-
-    // leave saturated pixels at the highest possible value
-    // when rescaling the intensity?  off by default.
-    bool maintain_saturation = false;
-    if (maintain_saturation)
+    // correct the intensity range of each slice
+    for (int i = extent[4]; i <= extent[5]; i++)
       {
-      vtkSmartPointer<vtkImageThreshold> thresh =
-        vtkSmartPointer<vtkImageThreshold>::New();
-      thresh->SetInputConnection(clip->GetOutputPort());
-      thresh->ThresholdByUpper(255);
-      thresh->ReplaceOutOn();
-      thresh->SetOutValue(0);
-      thresh->Update();
+      vtkSmartPointer<vtkImageClip> clip =
+        vtkSmartPointer<vtkImageClip>::New();
+      clip->SetInputConnection(port);
+      clip->SetOutputWholeExtent(extent[0], extent[1],
+                                 extent[2], extent[3],
+                                 i, i);
+      clip->ClipDataOn();
 
-      vtkSmartPointer<vtkImageMask> mask =
-        vtkSmartPointer<vtkImageMask>::New();
-      mask->SetInputConnection(0, rescale->GetOutputPort());
-      mask->SetInputConnection(1, thresh->GetOutputPort());
-      mask->SetMaskedOutputValue(255);
-      mask->NotMaskOn();
-      mask->Update();
+      vtkSmartPointer<vtkImageShiftScale> rescale =
+        vtkSmartPointer<vtkImageShiftScale>::New();
+      rescale->SetInputConnection(clip->GetOutputPort());
+      rescale->SetScale(1.0/scales[i - extent[4]]);
+      rescale->ClampOverflowOn();
+      rescale->Update();
 
-      append->AddInputConnection(mask->GetOutputPort());
+      // leave saturated pixels at the highest possible value
+      // when rescaling the intensity?  off by default.
+      bool maintain_saturation = false;
+      if (maintain_saturation)
+        {
+        vtkSmartPointer<vtkImageThreshold> thresh =
+          vtkSmartPointer<vtkImageThreshold>::New();
+        thresh->SetInputConnection(clip->GetOutputPort());
+        thresh->ThresholdByUpper(255);
+        thresh->ReplaceOutOn();
+        thresh->SetOutValue(0);
+        thresh->Update();
+
+        vtkSmartPointer<vtkImageMask> mask =
+          vtkSmartPointer<vtkImageMask>::New();
+        mask->SetInputConnection(0, rescale->GetOutputPort());
+        mask->SetInputConnection(1, thresh->GetOutputPort());
+        mask->SetMaskedOutputValue(255);
+        mask->NotMaskOn();
+        mask->Update();
+
+        append->AddInputConnection(mask->GetOutputPort());
+        }
+      else
+        {
+        append->AddInputConnection(rescale->GetOutputPort());
+        }
       }
-    else
-      {
-      append->AddInputConnection(rescale->GetOutputPort());
-      }
+
+    port = append->GetOutputPort();
+
+    delete [] scales;
     }
-
-  delete [] scales;
 
   // resize the image
-  if (!resizeOption)
-    {
-    resizeGeometry[0] = extent[1] - extent[0] + 1;
-    resizeGeometry[1] = extent[3] - extent[2] + 1;
-    }
-
   vtkSmartPointer<vtkImageResize> resize =
     vtkSmartPointer<vtkImageResize>::New();
-  resize->SetInputConnection(append->GetOutputPort());
-  resize->SetBorder(1);
-  resize->SetInterpolate(resizeOption);
-  resize->SetResizeMethodToOutputDimensions();
-  resize->SetOutputDimensions(resizeGeometry[0], resizeGeometry[1],
-                              (extent[5] - extent[4] + 1));
-  resize->Update();
+  if (resizeOption)
+    {
+    resize->SetInputConnection(port);
+    resize->SetBorder(1);
+    resize->SetResizeMethodToOutputDimensions();
+    resize->SetOutputDimensions(resizeGeometry[0], resizeGeometry[1],
+                                (extent[5] - extent[4] + 1));
+    resize->Update();
+    port = resize->GetOutputPort();
+    }
 
   // create the grid overlay
-  vtkSmartPointer<vtkImageGridSource> grid =
-    vtkSmartPointer<vtkImageGridSource>::New();
-  grid->SetGridSpacing(gridGeometry[0], gridGeometry[1], 0);
-  grid->SetGridOrigin(gridGeometry[2], gridGeometry[3], 0);
-  grid->SetDataOrigin(resize->GetOutput()->GetOrigin());
-  grid->SetDataSpacing(resize->GetOutput()->GetSpacing());
-  grid->SetDataExtent(resize->GetOutput()->GetExtent());
-  grid->SetLineValue(255);
-  grid->SetFillValue(0);
-  grid->SetDataScalarTypeToUnsignedChar();
-
-  vtkSmartPointer<vtkImageAppendComponents> appendc =
-    vtkSmartPointer<vtkImageAppendComponents>::New();
-  appendc->SetInputConnection(grid->GetOutputPort());
-  appendc->AddInputConnection(grid->GetOutputPort());
-
   vtkSmartPointer<vtkImageBlend> blend =
     vtkSmartPointer<vtkImageBlend>::New();
-  blend->SetInputConnection(resize->GetOutputPort());
-  blend->AddInputConnection(appendc->GetOutputPort());
-  blend->SetOpacity(1, (gridOption ? 0.5 : 0.0));
-  blend->Update();
+  if (gridOption)
+    {
+    vtkSmartPointer<vtkImageChangeInformation> info =
+      vtkSmartPointer<vtkImageChangeInformation>::New();
+    info->SetInputConnection(port);
+    info->Update();
+
+    vtkSmartPointer<vtkImageGridSource> grid =
+      vtkSmartPointer<vtkImageGridSource>::New();
+    grid->SetGridSpacing(gridGeometry[0], gridGeometry[1], 0);
+    grid->SetGridOrigin(gridGeometry[2], gridGeometry[3], 0);
+    grid->SetDataOrigin(info->GetOutput()->GetOrigin());
+    grid->SetDataSpacing(info->GetOutput()->GetSpacing());
+    grid->SetDataExtent(info->GetOutput()->GetExtent());
+    grid->SetLineValue(255);
+    grid->SetFillValue(0);
+    grid->SetDataScalarTypeToUnsignedChar();
+
+    vtkSmartPointer<vtkImageAppendComponents> appendc =
+      vtkSmartPointer<vtkImageAppendComponents>::New();
+    appendc->SetInputConnection(grid->GetOutputPort());
+    appendc->AddInputConnection(grid->GetOutputPort());
+
+    blend->SetInputConnection(port);
+    blend->AddInputConnection(appendc->GetOutputPort());
+    blend->SetOpacity(1, 0.5);
+    blend->Update();
+    port = blend->GetOutputPort();
+    }
 
   // create an identity matrix for the NIfTI header
   vtkSmartPointer<vtkMatrix4x4> matrix =
@@ -654,11 +664,12 @@ int main(int argc, char *argv[])
   // write the nifti file
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
-  writer->SetInputConnection(blend->GetOutputPort());
+  writer->SetInputConnection(port);
   writer->SetFileName(outfile);
   writer->SetSFormMatrix(matrix);
   writer->SetQFormMatrix(matrix);
   writer->Write();
+  check_error(reader);
 
   delete [] outfile_generated;
 
