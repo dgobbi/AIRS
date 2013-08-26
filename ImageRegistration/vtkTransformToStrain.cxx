@@ -155,6 +155,25 @@ void vtkTransformToStrain::ComputeGreensStrain(
 }
 
 //----------------------------------------------------------------------------
+void vtkTransformToStrain::ComputePrincipals(
+  const double F[3][3], double w[3], double G[3][3])
+{
+  double X3[3][3];
+  double *X[3];
+  double *Y[3];
+  for (int i = 0; i < 3; i++)
+    {
+    X3[i][0] = F[i][0];
+    X3[i][1] = F[i][1];
+    X3[i][2] = F[i][2];
+    X[i] = X3[i];
+    Y[i] = G[i];
+    }
+
+  vtkMath::Jacobi(X, w, Y);
+}
+
+//----------------------------------------------------------------------------
 // This method returns the largest data that can be generated.
 void vtkTransformToStrain::RequestInformation(
   vtkInformation *vtkNotUsed(request),

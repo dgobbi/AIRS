@@ -123,6 +123,12 @@ public:
   // Compute the Green's strain from the deformation gradient tensor.
   static void ComputeGreensStrain(const double F[3][3], double G[3][3]);
 
+  // Description:
+  // Decompose a tensor into principal components, sortest from highest
+  // to lowest.
+  static void ComputePrincipals(
+    const double F[3][3], double w[3], double G[3][3]);
+
 protected:
   vtkTransformToStrain();
   ~vtkTransformToStrain();
