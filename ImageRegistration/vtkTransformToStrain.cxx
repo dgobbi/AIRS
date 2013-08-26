@@ -54,7 +54,7 @@ vtkTransformToStrain::vtkTransformToStrain()
   this->Input = NULL;
 
   this->OutputScalarType = VTK_FLOAT;
-  this->OutputValue = GreensStrain;
+  this->OutputValue = GreensStrainTensor;
 
   for (int i = 0; i < 3; i++)
     {
@@ -121,11 +121,17 @@ const char *vtkTransformToStrain::GetOutputValueAsString()
 
   switch (this->OutputValue)
     {
-    case GreensStrain:
-      v = "GreensStrain";
-      break;
     case DeformationGradient:
       v = "DeformationGradient";
+      break;
+    case GreensStrainTensor:
+      v = "GreensStrainTensor";
+      break;
+    case PrincipalComponents:
+      v = "PrincipalComponents";
+      break;
+    case PrincipalDirections:
+      v = "PrincipalDirections";
       break;
     }
 
@@ -166,11 +172,48 @@ void vtkTransformToStrain::ComputePrincipals(
     X3[i][0] = F[i][0];
     X3[i][1] = F[i][1];
     X3[i][2] = F[i][2];
-    X[i] = X3[i];
     Y[i] = G[i];
     }
 
   vtkMath::Jacobi(X, w, Y);
+}
+
+//----------------------------------------------------------------------------
+void vtkTransformToStrain::ComputeStrain(
+  int operation, const double F[3][3], double G[3][3])
+{
+  if (operation == vtkTransformToStrain::GreensStrainTensor)
+    {
+    vtkTransformToStrain::ComputeGreensStrain(F, G);
+    }
+  else if (operation == vtkTransformToStrain::PrincipalComponents)
+    {
+    double w[3];
+    vtkTransformToStrain::ComputeGreensStrain(F, G);
+    vtkTransformToStrain::ComputePrincipals(F, w, G);
+    // save the first two principal directions
+    for (int i = 0; i < 3; i++)
+      {
+      G[2][i] = G[1][i];
+      G[1][i] = G[0][i];
+      G[0][i] = w[i];
+      }
+    }
+  else if (operation == vtkTransformToStrain::PrincipalDirections)
+    {
+    double w[3];
+    vtkTransformToStrain::ComputeGreensStrain(F, G);
+    vtkTransformToStrain::ComputePrincipals(F, w, G);
+    }
+  else
+    {
+    for (int i = 0; i < 3; i++)
+      {
+      G[i][0] = F[i][0];
+      G[i][1] = F[i][1];
+      G[i][2] = F[i][2];
+      }
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -242,10 +285,7 @@ void vtkTransformToStrainMinMax(
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
 
-        if (operation == vtkTransformToStrain::GreensStrain)
-          {
-          vtkTransformToStrain::ComputeGreensStrain(tensor, tensor);
-          }
+        vtkTransformToStrain::ComputeStrain(operation, tensor, tensor);
 
         for (int l = 0; l < 3; l++)
           {
@@ -442,10 +482,7 @@ void vtkTransformToStrainExecute(
         transform->InternalTransformDerivative(
           point, newPoint, tensor);
 
-        if (operation == vtkTransformToStrain::GreensStrain)
-          {
-          vtkTransformToStrain::ComputeGreensStrain(tensor, tensor);
-          }
+        vtkTransformToStrain::ComputeStrain(operation, tensor, tensor);
 
         for (int ii = 0; ii < 3; ii++)
           {

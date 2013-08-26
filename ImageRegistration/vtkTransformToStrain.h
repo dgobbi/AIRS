@@ -37,7 +37,8 @@
 // .SECTION Description
 // vtkTransformToStrain takes any transform as input and produces a
 // nine-component image where each voxel in the image is a strain
-// tensor.  The Green's strain is used.
+// tensor.  It can also, optionally, perform principal component
+// decomposition of the tensor.
 
 #ifndef __vtkTransformToStrain_h
 #define __vtkTransformToStrain_h
@@ -74,16 +75,30 @@ public:
   vtkSetVector3Macro(OutputSpacing, double);
   vtkGetVector3Macro(OutputSpacing, double);
 
-  enum { GreensStrain, DeformationGradient };
+  enum {
+    DeformationGradient,
+    GreensStrainTensor,
+    PrincipalComponents,
+    PrincipalDirections
+  };
 
   // Description:
-  // Get/Set what to produce at the output.
+  // Get/Set what to produce at the output.  The default output is
+  // the GreensStrainTensor.  Other options are:
+  // - DeformationGradient: the deformation gradient tensor
+  // - PrincipalDirections: the three principal directions of Green's strain
+  // - PrincipalComponents: the three principal components of Green's strain,
+  //   sorted from highest to lowest, and the first two principal directions.
   vtkSetMacro(OutputValue, int);
   vtkGetMacro(OutputValue, int);
-  void SetOutputValueToGreensStrain() {
-    this->SetOutputValue(GreensStrain); }
   void SetOutputValueToDeformationGradient() {
     this->SetOutputValue(DeformationGradient); }
+  void SetOutputValueToGreensStrainTensor() {
+    this->SetOutputValue(GreensStrainTensor); }
+  void SetOutputValueToPrincipalComponents() {
+    this->SetOutputValue(PrincipalComponents); }
+  void SetOutputValueToPrincipalDirections() {
+    this->SetOutputValue(PrincipalDirections); }
   virtual const char *GetOutputValueAsString();
 
   // Description:
@@ -103,8 +118,8 @@ public:
 
   // Description:
   // Get the scale and shift to convert integer grid elements into
-  // real values:  dx = scale*di + shift.  If the grid is of double type,
-  // then scale = 1 and shift = 0.
+  // real values:  dx = scale*di + shift.  If the grid is of float type,
+  // then scale will be 1.0 and shift will be 0.0.
   double GetValueScale() {
     this->UpdateShiftScale(); return this->ValueScale; };
   double GetValueShift() {
@@ -120,11 +135,16 @@ public:
     vtkInformation*, vtkInformationVector**, vtkInformationVector*);
 
   // Description:
+  // The main function for computing the tensor for the output.
+  static void ComputeStrain(
+    int operation, const double F[3][3], double G[3][3]);
+
+  // Description:
   // Compute the Green's strain from the deformation gradient tensor.
   static void ComputeGreensStrain(const double F[3][3], double G[3][3]);
 
   // Description:
-  // Decompose a tensor into principal components, sortest from highest
+  // Decompose a tensor into principal components, sorted from highest
   // to lowest.
   static void ComputePrincipals(
     const double F[3][3], double w[3], double G[3][3]);
