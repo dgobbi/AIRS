@@ -119,8 +119,13 @@ void ReadDICOMImage(
     reader->SetMemoryRowOrderToFileNative();
     }
 
-  // get the sorted files
   reader->UpdateInformation();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
+
+  // get the sorted files
   vtkIntArray *fileArray = reader->GetFileIndexArray();
 
   // create a filtered list of files
@@ -136,6 +141,10 @@ void ReadDICOMImage(
   reader->SetFileNames(fileNames);
 
   reader->Update();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
 
   vtkImageData *image = reader->GetOutput();
 
@@ -159,6 +168,10 @@ void ReadDICOMImage(
 
   reader->SetDirectoryName(directoryName);
   reader->Update();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
@@ -243,6 +256,10 @@ void ReadMINCImage(
 
   reader->SetFileName(fileName);
   reader->Update();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
@@ -300,6 +317,10 @@ void ReadNIFTIImage(
 
   reader->SetFileName(fileName);
   reader->Update();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
