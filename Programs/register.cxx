@@ -32,6 +32,8 @@ Module:    register.cxx
 #include <vtkPointData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
+#include <vtkIntArray.h>
+#include <vtkStringArray.h>
 #include <vtkMath.h>
 
 #include <vtkMINCImageReader.h>
@@ -106,6 +108,8 @@ void ReadDICOMImage(
   vtkSmartPointer<vtkDICOMReader> reader =
     vtkSmartPointer<vtkDICOMReader>::New();
   reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+  reader->SetDesiredTimeIndex(0);
+
   if (coordSystem == NIFTICoords)
     {
     reader->SetMemoryRowOrderToBottomUp();
@@ -114,6 +118,23 @@ void ReadDICOMImage(
     {
     reader->SetMemoryRowOrderToFileNative();
     }
+
+  // get the sorted files
+  reader->UpdateInformation();
+  vtkIntArray *fileArray = reader->GetFileIndexArray();
+
+  // create a filtered list of files
+  vtkSmartPointer<vtkStringArray> fileNames =
+    vtkSmartPointer<vtkStringArray>::New();
+  vtkIdType n = fileArray->GetNumberOfTuples();
+  for (vtkIdType i = 0; i < n; i++)
+    {
+    fileNames->InsertNextValue(
+      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
+    }
+
+  reader->SetFileNames(fileNames);
+
   reader->Update();
 
   vtkImageData *image = reader->GetOutput();
