@@ -24,6 +24,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkMultiThreader.h"
 #include "vtkTemplateAliasMacro.h"
+#include "vtkPointData.h"
 
 #include <math.h>
 
@@ -266,6 +267,9 @@ void vtkImageMutualInformationExecute(
   vtkImageStencilIterator<T2>
     inIter1(inData1, stencil, extent, NULL);
 
+  int pixelInc = inData0->GetNumberOfScalarComponents();
+  int pixelInc1 = inData1->GetNumberOfScalarComponents();
+
   static double xmin = 0;
   static double ymin = 0;
   double xmax = numBins[0] - 1;
@@ -288,8 +292,8 @@ void vtkImageMutualInformationExecute(
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
         {
-        double x = *inPtr++;
-        double y = *inPtr1++;
+        double x = *inPtr;
+        double y = *inPtr1;
 
         x += xshift;
         x *= xscale;
@@ -309,6 +313,9 @@ void vtkImageMutualInformationExecute(
         vtkIdType *outPtr1 = outPtr + yi*outIncY + xi;
 
         (*outPtr1)++;
+
+        inPtr += pixelInc;
+        inPtr1 += pixelInc1;
         }
       }
     inIter.NextSpan();
@@ -329,6 +336,9 @@ void vtkImageMutualInformationExecutePreScaled(
   vtkImageStencilIterator<unsigned char>
     inIter1(inData1, stencil, extent, NULL);
 
+  int pixelInc = inData0->GetNumberOfScalarComponents();
+  int pixelInc1 = inData1->GetNumberOfScalarComponents();
+
   int xmax = numBins[0] - 1;
   int ymax = numBins[1] - 1;
   int outIncY = numBins[1];
@@ -345,8 +355,8 @@ void vtkImageMutualInformationExecutePreScaled(
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
         {
-        int x = *inPtr++;
-        int y = *inPtr1++;
+        int x = *inPtr;
+        int y = *inPtr1;
 
         x = (x < xmax ? x : xmax);
         y = (y < ymax ? y : ymax);
@@ -354,6 +364,9 @@ void vtkImageMutualInformationExecutePreScaled(
         vtkIdType *outPtr1 = outPtr + y*outIncY + x;
 
         (*outPtr1)++;
+
+        inPtr += pixelInc;
+        inPtr1 += pixelInc1;
         }
       }
     inIter.NextSpan();

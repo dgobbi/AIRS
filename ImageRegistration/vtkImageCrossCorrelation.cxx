@@ -154,6 +154,9 @@ void vtkImageCrossCorrelationExecute(
   vtkImageStencilIterator<T2>
     inIter1(inData1, stencil, extent, NULL);
 
+  int pixelInc = inData0->GetNumberOfScalarComponents();
+  int pixelInc1 = inData1->GetNumberOfScalarComponents();
+
   double xSum = 0;
   double ySum = 0;
   double xxSum = 0;
@@ -173,8 +176,8 @@ void vtkImageCrossCorrelationExecute(
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
         {
-        double x = *inPtr++;
-        double y = *inPtr1++;
+        double x = *inPtr;
+        double y = *inPtr1;
 
         xSum += x;
         ySum += y;
@@ -182,6 +185,9 @@ void vtkImageCrossCorrelationExecute(
         yySum += y*y;
         xySum += x*y;
         count++;
+
+        inPtr += pixelInc;
+        inPtr1 += pixelInc1;
         }
       }
     inIter.NextSpan();
