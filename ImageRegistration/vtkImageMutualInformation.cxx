@@ -575,7 +575,7 @@ int vtkImageMutualInformation::RequestData(
 
   // compute total pixel count and entropy of first image
   vtkIdType count = 0;
-  for (int ix = 0; ix < nx; ++ix)
+  for (ix = 0; ix < nx; ++ix)
     {
     vtkIdType b = xHist[ix];
     count += b;
@@ -661,7 +661,7 @@ void vtkImageMutualInformationExecute1(
 void vtkImageMutualInformation::ThreadedRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
-  vtkInformationVector *outputVector,
+  vtkInformationVector *vtkNotUsed(outputVector),
   vtkImageData ***vtkNotUsed(inData),
   vtkImageData **vtkNotUsed(outData),
   int extent[6], int threadId)
@@ -671,7 +671,7 @@ void vtkImageMutualInformation::ThreadedRequestData(
 
   // initialize the joint histogram to zero
   vtkIdType outIncY = this->NumberOfBins[0];
-  vtkIdType outCount = this->NumberOfBins[0];
+  vtkIdType outCount = outIncY;
   outCount *= this->NumberOfBins[1];
   vtkIdType *outPtr1 = outPtr;
   do { *outPtr1++ = 0; } while (--outCount > 0);
