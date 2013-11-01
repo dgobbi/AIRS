@@ -641,6 +641,99 @@ const char *check_next_arg(
   return 0;
 }
 
+void register_show_usage(FILE *fp, const char *command)
+{
+  const char *cp = command + strlen(command);
+  while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
+
+  fprintf(fp,
+    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
+  fprintf(fp, "\n");
+  fprintf(fp,
+    "For more information, type \"%s --help\"\n\n", command);
+}
+ 
+void register_show_help(FILE *fp, const char *command)
+{
+  const char *cp = command + strlen(command);
+  while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
+
+  fprintf(fp,
+    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
+  fprintf(fp,
+    " -D --dimensionality   (default: 3)\n"
+    "                 2\n"
+    "                 3\n"
+    "\n"
+    "    If the dimensionality is set to 2 for a 3D file, then the\n"
+    "    registration will be limited to in-plane transformations.\n"
+    "\n"
+    " -M --metric           (default NMI)\n"
+    "                 SD        SquaredDifference\n"
+    "                 CC        CrossCorrelation\n"
+    "                 NCC       NormalizedCrossCorrelation\n"
+    "                 NC        NeighborhoodCorrelation\n"
+    "                 MI        MutualInformation\n"
+    "                 NMI       NormalizedMutualInformation\n"
+    "\n"
+    "    Normalized mutual information (the default) should be used in\n"
+    "    most cases.  Mutual information (without normalization) may give\n"
+    "    better results if one input or both inputs are only a small part\n"
+    "    of the anatomy that is being imaged.\n"
+    "\n"    
+    " -T --transform        (default: RI)\n"
+    "                 TR        Translation\n"
+    "                 RI        Rigid\n"
+    "                 SI        Similarity\n"
+    "                 SS        ScaleSourceAxes\n"
+    "                 ST        ScaleTargetAxes\n"
+    "                 AF        Affine\n"
+    "\n"
+    "    A rigid transform should always be used for intra-subject\n"
+    "    registration.  For inter-subject registration, the SS and ST\n"
+    "    transforms restrict the scale part of the transformation to be\n"
+    "    either along the directions of the source image axes, or along\n"
+    "    the directions of the target image axes.  The transformation is\n"
+    "    always applied to the source image and never to the target image.\n"
+    "\n"
+    " -C --coords           (default: guess from file type)\n"
+    "                 DICOM     LPS\n"
+    "                 NIFTI     RAS\n"
+    "                 MINC      RAS\n"
+    "\n"
+    "    The DICOM standard defines a patient coordinate system where the\n"
+    "    x-axis points left, the y-axis points towards the back, and the\n"
+    "    z-axis points towards the head.  NIFTI and MINC use a coordinate\n"
+    "    system where x points right and y points towards the front.  The\n"
+    "    matrix that is written by the \"-o\" option will be in the chosen\n"
+    "    coordinate system.\n"
+    "\n"
+    " -I --interactive      (default: off)\n"
+    "\n"
+    "    Display the images during the registration.\n"
+    "\n"
+    " -s --screenshot <file>\n"
+    "\n"
+    "    Write a screenshot as a png, jpeg, or tiff file.  This is useful\n"
+    "    when performing registration in a batch file in order to provide\n"
+    "    a simple means of visually assessing the results retrospectively.\n"
+    "\n"
+    " -J --checkonly        (default: off)\n"
+    "\n"
+    "    Do not perform a registration, just read the input files and\n"
+    "    write any output files.\n"
+    "\n"
+    " -i --initial <file>\n"
+    "\n"
+    "    Provide an initial transform to use as a starting point for the\n"
+    "    registration.\n"
+    "\n"
+    " -o <file>\n"
+    "\n"
+    "    Provide a file for the resulting transform to be written to.\n"
+    "\n");
+}
+
 int register_read_options(
   int argc, char *argv[], register_options *options)
 {
@@ -689,8 +782,14 @@ int register_read_options(
       }
     else
       {
-      if (strcmp(arg, "-D") == 0 ||
-          strcmp(arg, "--dimensionality") == 0)
+      if (strcmp(arg, "-h") == 0 ||
+          strcmp(arg, "--help") == 0)
+        {
+        register_show_help(stdout, argv[0]);
+        exit(0);
+        }
+      else if (strcmp(arg, "-D") == 0 ||
+               strcmp(arg, "--dimensionality") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, dimensionality_args);
         options->dimensionality = (arg[0] == '2' ? 2 : 3);
@@ -812,6 +911,7 @@ int register_read_options(
       else
         {
         fprintf(stderr, "Unrecognized option \"%s\"\n", arg);
+        register_show_usage(stderr, argv[0]);
         exit(1);
         }
       }
@@ -854,6 +954,12 @@ int main(int argc, char *argv[])
         return 1;
         }
       }
+    }
+
+  if (!sourcefile || !targetfile)
+    {
+    register_show_usage(stderr, argv[0]);
+    return 1;
     }
 
   // -------------------------------------------------------
