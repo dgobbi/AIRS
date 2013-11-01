@@ -37,6 +37,7 @@ Module:    register.cxx
 #include <vtkMath.h>
 
 #include <vtkMINCImageReader.h>
+#include <vtkMINCImageWriter.h>
 #include <vtkMNITransformReader.h>
 #include <vtkMNITransformWriter.h>
 #include <vtkDICOMImageReader.h>
@@ -57,6 +58,8 @@ Module:    register.cxx
 
 #include <vtkTimerLog.h>
 
+#include <vtksys/SystemTools.hxx>
+
 #include "AIRSConfig.h"
 #include "vtkITKXFMReader.h"
 #include "vtkITKXFMWriter.h"
@@ -69,6 +72,10 @@ Module:    register.cxx
 #include <vtkNIFTIWriter.h>
 #include <vtkDICOMReader.h>
 #include <vtkDICOMSorter.h>
+#include <vtkDICOMMRGenerator.h>
+#include <vtkDICOMCTGenerator.h>
+#include <vtkDICOMWriter.h>
+#include <vtkDICOMMetaData.h>
 #include <vtkGlobFileNames.h>
 #endif
 
@@ -81,7 +88,7 @@ enum { NativeCoords, DICOMCoords, NIFTICoords };
 namespace {
 
 #ifdef AIRS_USE_DICOM
-void ReadDICOMImage(
+vtkDICOMReader *ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
   int coordSystem)
 {
@@ -105,8 +112,7 @@ void ReadDICOMImage(
     }
 
   // read the image
-  vtkSmartPointer<vtkDICOMReader> reader =
-    vtkSmartPointer<vtkDICOMReader>::New();
+  vtkDICOMReader *reader = vtkDICOMReader::New();
   reader->SetFileNames(sorter->GetFileNamesForSeries(0));
   reader->SetDesiredTimeIndex(0);
 
@@ -154,17 +160,99 @@ void ReadDICOMImage(
 
   // get the matrix
   matrix->DeepCopy(reader->GetPatientMatrix());
+
+  return reader;
+}
+
+void WriteDICOMImage(
+  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
+  int coordSystem)
+{
+  if (vtksys::SystemTools::FileExists(directoryName))
+    {
+    if (!vtksys::SystemTools::FileIsDirectory(directoryName))
+      {
+      fprintf(stderr, "option -o must give a directory, not a file.\n");
+      exit(1);
+      }
+    }
+  else if (!vtksys::SystemTools::MakeDirectory(directoryName))
+    {
+    fprintf(stderr, "Cannot create directory: %s\n", directoryName);
+    exit(1);
+    }
+
+  // get the meta data
+  vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(sourceReader);
+  vtkDICOMReader *reader2 = vtkDICOMReader::SafeDownCast(targetReader);
+  vtkDICOMMetaData *meta = 0;
+  if (reader)
+    {
+    meta = vtkDICOMMetaData::New();
+    meta->DeepCopy(reader->GetMetaData());
+    }
+
+  // make the generator
+  vtkSmartPointer<vtkDICOMMRGenerator> mrgenerator =
+    vtkSmartPointer<vtkDICOMMRGenerator>::New();
+  vtkSmartPointer<vtkDICOMCTGenerator> ctgenerator =
+    vtkSmartPointer<vtkDICOMCTGenerator>::New();
+  vtkDICOMGenerator *generator = 0;
+  if (meta)
+    {
+    std::string SOPClass =
+      meta->GetAttributeValue(DC::SOPClassUID).AsString();
+    if (SOPClass == "1.2.840.10008.5.1.4.1.1.2")
+      {
+      generator = ctgenerator;
+      }
+    else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4")
+      {
+      generator = mrgenerator;
+      }
+    }
+
+  // prepare the writer to write the image
+  vtkSmartPointer<vtkDICOMWriter> writer =
+    vtkSmartPointer<vtkDICOMWriter>::New();
+  if (generator)
+    {
+    writer->SetGenerator(generator);
+    }
+  writer->SetMetaData(meta);
+  writer->SetFilePrefix(directoryName);
+  writer->SetFilePattern("%s/IM-0001-%04.4d.dcm");
+  writer->TimeAsVectorOn();
+  if (reader->GetTimeDimension() > 1)
+    {
+    writer->SetTimeDimension(reader->GetTimeDimension());
+    writer->SetTimeSpacing(reader->GetTimeSpacing());
+    }
+  writer->SetPatientMatrix(matrix);
+  if (reader->GetRescaleSlope() > 0)
+    {
+    writer->SetRescaleSlope(reader->GetRescaleSlope());
+    writer->SetRescaleIntercept(reader->GetRescaleIntercept());
+    }
+  writer->SetInput(data);
+  writer->SetMemoryRowOrderToFileNative();
+  writer->Write();
+
+  if (meta)
+    {
+    meta->Delete();
+    }
 }
 
 #else
 
-void ReadDICOMImage(
+vtkDICOMImageReader *ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
   int coordSystem)
 {
   // read the image
-  vtkSmartPointer<vtkDICOMImageReader> reader =
-    vtkSmartPointer<vtkDICOMImageReader>::New();
+  reader = vtkDICOMImageReader::New();
 
   reader->SetDirectoryName(directoryName);
   reader->Update();
@@ -243,16 +331,17 @@ void ReadDICOMImage(
     }
 
   matrix->Modified();
+
+  return reader;
 }
 #endif
 
-void ReadMINCImage(
+vtkMINCImageReader *ReadMINCImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
   int coordSystem)
 {
   // read the image
-  vtkSmartPointer<vtkMINCImageReader> reader =
-    vtkSmartPointer<vtkMINCImageReader>::New();
+  vtkMINCImageReader *reader = vtkMINCImageReader::New();
 
   reader->SetFileName(fileName);
   reader->Update();
@@ -304,16 +393,30 @@ void ReadMINCImage(
     {
     matrix->DeepCopy(reader->GetDirectionCosines());
     }
+
+  return reader;
+}
+
+void WriteMINCImage(
+  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
+  int coordSystem)
+{
+  vtkSmartPointer<vtkMINCImageWriter> writer =
+    vtkSmartPointer<vtkMINCImageWriter>::New();
+  writer->SetInput(data);
+  // the input matrix must be converted
+  //writer->SetDirectionCosines(matrix);
+  writer->Write();
 }
 
 #ifdef AIRS_USE_NIFTI
-void ReadNIFTIImage(
+vtkNIFTIReader *ReadNIFTIImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
   int coordSystem)
 {
   // read the image
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkNIFTIReader *reader = vtkNIFTIReader::New();
 
   reader->SetFileName(fileName);
   reader->Update();
@@ -376,32 +479,47 @@ void ReadNIFTIImage(
     {
     matrix->DeepCopy(nMatrix);
     }
+
+  return reader;
 }
+
+void WriteNIFTIImage(
+  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
+  int coordSystem)
+{
+  vtkSmartPointer<vtkNIFTIWriter> writer =
+    vtkSmartPointer<vtkNIFTIWriter>::New();
+  writer->SetInput(data);
+  writer->SetQFormMatrix(matrix);
+  writer->SetSFormMatrix(matrix);
+  writer->SetFileName(fileName);
+  writer->Write();
+}
+
 #endif /* AIRS_USE_NIFTI */
 
-void ReadImage(
+vtkImageReader2 *ReadImage(
   vtkImageData *image, vtkMatrix4x4 *matrix,
   const char *filename, int coordSystem)
 {
   size_t n = strlen(filename);
   if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
     {
-    ReadMINCImage(image, matrix, filename, coordSystem);
+    return ReadMINCImage(image, matrix, filename, coordSystem);
     }
   else if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
            (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
     {
 #ifdef AIRS_USE_NIFTI
-    ReadNIFTIImage(image, matrix, filename, coordSystem);
+    return ReadNIFTIImage(image, matrix, filename, coordSystem);
 #else
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
     }
-  else
-    {
-    ReadDICOMImage(image, matrix, filename, coordSystem);
-    }
+
+  return ReadDICOMImage(image, matrix, filename, coordSystem);
 }
 
 int CoordSystem(const char *filename)
@@ -416,6 +534,41 @@ int CoordSystem(const char *filename)
 
   return DICOMCoords;
 }
+
+void WriteImage(
+  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
+  vtkImageData *image, vtkMatrix4x4 *matrix,
+  const char *filename, int coordSystem)
+{
+  size_t n = strlen(filename);
+  if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
+    {
+    WriteMINCImage(
+      sourceReader, targetReader, image, matrix, filename, coordSystem);
+    }
+  else if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
+           (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+    {
+#ifdef AIRS_USE_NIFTI
+    WriteNIFTIImage(
+      sourceReader, targetReader, image, matrix, filename, coordSystem);
+#else
+    fprintf(stderr, "NIFTI files are not supported.\n");
+    exit(1);
+#endif
+    }
+  else
+    {
+#ifdef AIRS_USE_DICOM
+    WriteDICOMImage(
+      sourceReader, targetReader, image, matrix, filename, coordSystem);
+#else
+    fprintf(stderr, "Writing DICOM files is not supported.\n");
+    exit(1);
+#endif
+    }
+}
+
 
 void SetViewFromMatrix(
   vtkRenderer *renderer,
@@ -930,6 +1083,7 @@ int main(int argc, char *argv[])
   // the files
   const char *xfminput = options.initial;
   const char *xfmfile = options.output;
+  const char *imagefile = 0;
   const char *sourcefile = options.source;
   const char *targetfile = options.target;
   bool display = (options.interactive != 0 ||
@@ -992,13 +1146,17 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> sourceMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  ReadImage(sourceImage, sourceMatrix, sourcefile, options.coords);
+  vtkSmartPointer<vtkImageReader2> sourceReader =
+    ReadImage(sourceImage, sourceMatrix, sourcefile, options.coords);
+  sourceReader->Delete();
 
   vtkSmartPointer<vtkImageData> targetImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  ReadImage(targetImage, targetMatrix, targetfile, options.coords);
+  vtkSmartPointer<vtkImageReader2> targetReader =
+    ReadImage(targetImage, targetMatrix, targetfile, options.coords);
+  targetReader->Delete();
 
   // -------------------------------------------------------
   // save the original source matrix
@@ -1292,7 +1450,19 @@ int main(int argc, char *argv[])
       }
 
     double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " stage " << stage << " took "
+    double blurSpacing[3];
+    sourceBlur->GetOutputSpacing(blurSpacing);
+    double minBlurSpacing = VTK_DOUBLE_MAX;
+    for (int kk = 0; kk < 3; kk++)
+      {
+      if (blurSpacing[kk] < minBlurSpacing)
+        {
+        minBlurSpacing = blurSpacing[kk];
+        }
+      }
+
+    cout << (stage ? "interpolated " : "non-interp'd ")
+         << minBlurSpacing << " mm took "
          << (newTime - lastTime) << "s and "
          << registration->GetNumberOfEvaluations() << " evaluations" << endl;
     lastTime = newTime;
@@ -1332,25 +1502,24 @@ int main(int argc, char *argv[])
     {
     WriteScreenshot(renderWindow, options.screenshot);
     }
-  /*
-  vtkSmartPointer<vtkImageReslice> reslice =
-    vtkSmartPointer<vtkImageReslice>::New();
-  reslice->SetInformationInput(targetImage);
-  reslice->SetInput(sourceImage);
-  reslice->SetInterpolationModeToLinear();
-  reslice->SetInformationInput(targetImage);
-  reslice->SetResliceTransform(
-    registration->GetTransform()->GetInverse());
-  reslice->Update();
 
-  vtkSmartPointer<vtkNIFTIWriter> writer =
-    vtkSmartPointer<vtkNIFTIWriter>::New();
-  writer->SetInputConnection(reslice->GetOutputPort());
-  writer->SetQFormMatrix(targetMatrix);
-  writer->SetSFormMatrix(targetMatrix);
-  writer->SetFileName("out.nii.gz");
-  writer->Write();
-  */
+  // -------------------------------------------------------
+  // write the output file
+  if (imagefile)
+    {
+    vtkSmartPointer<vtkImageReslice> reslice =
+      vtkSmartPointer<vtkImageReslice>::New();
+    reslice->SetInformationInput(targetImage);
+    reslice->SetInput(sourceImage);
+    reslice->SetInterpolationModeToLinear();
+    reslice->SetInformationInput(targetImage);
+    reslice->SetResliceTransform(
+      registration->GetTransform()->GetInverse());
+    reslice->Update();
+
+    WriteImage(sourceReader, targetReader,
+      reslice->GetOutput(), targetMatrix, imagefile, options.coords);
+    }
 
   // -------------------------------------------------------
   // allow user to interact
