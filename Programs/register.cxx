@@ -26,6 +26,7 @@ Module:    register.cxx
 #include <vtkIntArray.h>
 #include <vtkStringArray.h>
 #include <vtkMath.h>
+#include <vtkCommand.h>
 
 #include <vtkMINCImageReader.h>
 #include <vtkMINCImageWriter.h>
@@ -658,8 +659,29 @@ void SetViewFromMatrix(
   istyle->SetImageOrientation(viewRight, viewUp);
 }
 
+// a class to look for errors when reading transforms.
+class ErrorObserver : public vtkCommand
+{
+public:
+  static ErrorObserver *New() { return new ErrorObserver; }
+  vtkTypeMacro(ErrorObserver, vtkCommand);
+  virtual void Execute(vtkObject *o, unsigned long eventId, void *callData);
+};
+
+void ErrorObserver::Execute(
+  vtkObject *, unsigned long, void *callData)
+{
+  if (callData)
+    {
+    fprintf(stderr, "%s\n", static_cast<char *>(callData));
+    }
+  exit(1);
+}
+
 void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
 {
+  vtkSmartPointer<ErrorObserver> observer =
+    vtkSmartPointer<ErrorObserver>::New();
   int t = GuessFileType(xfminput);
 
   if (t == MNITransform) // .xfm
@@ -668,12 +690,18 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     vtkSmartPointer<vtkMNITransformReader> reader =
       vtkSmartPointer<vtkMNITransformReader>::New();
     reader->SetFileName(xfminput);
+    reader->AddObserver(vtkCommand::ErrorEvent, observer);
     reader->Update();
     vtkLinearTransform *transform =
       vtkLinearTransform::SafeDownCast(reader->GetTransform());
     if (transform)
       {
       matrix->DeepCopy(transform->GetMatrix());
+      }
+    else
+      {
+      fprintf(stderr, "Unable to read input transform %s\n", xfminput);
+      exit(1);
       }
     }
   else if (t == ITKTransform) // .tfm
@@ -682,12 +710,18 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     vtkSmartPointer<vtkITKXFMReader> reader =
       vtkSmartPointer<vtkITKXFMReader>::New();
     reader->SetFileName(xfminput);
+    reader->AddObserver(vtkCommand::ErrorEvent, observer);
     reader->Update();
     vtkLinearTransform *transform =
       vtkLinearTransform::SafeDownCast(reader->GetTransform());
     if (transform)
       {
       matrix->DeepCopy(transform->GetMatrix());
+      }
+    else
+      {
+      fprintf(stderr, "Unable to read input transform %s\n", xfminput);
+      exit(1);
       }
     }
   else
@@ -715,6 +749,11 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
         }
       }
     infile.close();
+    if (i < 16)
+      {
+      fprintf(stderr, "Unable to read input transform %s\n", xfminput);
+      exit(1);
+      }
     matrix->DeepCopy(elements);
     }
 }
@@ -722,6 +761,8 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
 void WriteMatrix(
   vtkMatrix4x4 *matrix, const char *xfmfile, const double center[3])
 {
+  vtkSmartPointer<ErrorObserver> observer =
+    vtkSmartPointer<ErrorObserver>::New();
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
   transform->Concatenate(matrix);
@@ -735,6 +776,7 @@ void WriteMatrix(
       vtkSmartPointer<vtkMNITransformWriter>::New();
     writer->SetFileName(xfmfile);
     writer->SetTransform(transform);
+    writer->AddObserver(vtkCommand::ErrorEvent, observer);
     writer->Update();
     }
   else if (t == ITKTransform) // .tfm
@@ -745,6 +787,7 @@ void WriteMatrix(
     writer->SetFileName(xfmfile);
     writer->SetTransform(transform);
     writer->SetTransformCenter(center);
+    writer->AddObserver(vtkCommand::ErrorEvent, observer);
     writer->Write();
     }
   else
@@ -758,6 +801,11 @@ void WriteMatrix(
               << matrix->Element[i][1] << delim
               << matrix->Element[i][2] << delim
               << matrix->Element[i][3] << "\n";
+      }
+    if (!outfile.good())
+      {
+      fprintf(stderr, "Unable to write output transform.\n");
+      exit(1);
       }
     outfile.close();
     }
@@ -1283,6 +1331,28 @@ int main(int argc, char *argv[])
   double initialBlurFactor = 4.0;
 
   // -------------------------------------------------------
+  // load the initial matrix
+  vtkSmartPointer<vtkMatrix4x4> initialMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  if (xfminput)
+    {
+    if (!options.silent)
+      {
+      cout << "Reading initial transform: " << sourcefile << endl;
+      if (options.invert)
+        {
+        cout << "Using inverse of transform." << endl;
+        }
+      }
+
+    ReadMatrix(initialMatrix, xfminput);
+    if (options.invert)
+      {
+      initialMatrix->Invert();
+      }
+    }
+
+  // -------------------------------------------------------
   // load the images
 
   if (options.coords == NativeCoords)
@@ -1344,19 +1414,8 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   originalSourceMatrix->DeepCopy(sourceMatrix);
 
-  // -------------------------------------------------------
-  // load the initial matrix
-  if (xfminput)
-    {
-    vtkSmartPointer<vtkMatrix4x4> initialMatrix =
-      vtkSmartPointer<vtkMatrix4x4>::New();
-    ReadMatrix(initialMatrix, xfminput);
-    if (options.invert)
-      {
-      initialMatrix->Invert();
-      }
-    vtkMatrix4x4::Multiply4x4(initialMatrix, sourceMatrix, sourceMatrix);
-    }
+  // apply the initialization matrix
+  vtkMatrix4x4::Multiply4x4(initialMatrix, sourceMatrix, sourceMatrix);
 
   // -------------------------------------------------------
   // display the images
