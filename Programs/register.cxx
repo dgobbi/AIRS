@@ -8,15 +8,6 @@ Module:    register.cxx
 
 =========================================================================*/
 
-// This example demonstrates rigid registration of images.  Since it is a
-// rigid registration, the expectation is that the images come from the
-// same patient.
-
-// Two image file formats are supported for this example: MINC and DICOM.
-// DICOM images are read with the troublesome vtkDICOMImageReader, which
-// may get the slice spacing or ordering wrong, or even fail to read the
-// images altogether.
-
 // Image registration is done first on a blurred, low-resolution version of
 // the image before being done on the full resolution image, and is also
 // done first with no interpolation before being done with linear interpolation.
@@ -82,10 +73,51 @@ Module:    register.cxx
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
 
+// file types
+enum { DICOMImage, NIFTIImage, MINCImage,
+         LastImageType = MINCImage,
+       MNITransform, ITKTransform, CSVTransform, TXTTransform,
+         LastTransformType = TXTTransform };
+
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
 namespace {
+
+int GuessFileType(const char *filename)
+{
+  size_t n = strlen(filename);
+
+  if (n > 4 && strcmp(&filename[n-4], ".xfm") == 0)
+    {
+    return MNITransform;
+    }
+  if (n > 4 && strcmp(&filename[n-4], ".tfm") == 0)
+    {
+    return ITKTransform;
+    }
+  if ((n > 4 && strcmp(&filename[n-4], ".txt") == 0) ||
+      (n > 4 && strcmp(&filename[n-4], ".mat") == 0))
+    {
+    return TXTTransform;
+    }
+  if (n > 4 && strcmp(&filename[n-4], ".csv") == 0)
+    {
+    return CSVTransform;
+    }
+
+  if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
+    {
+    return MINCImage;
+    }
+  if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
+      (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+    {
+    return NIFTIImage;
+    }
+
+  return DICOMImage;
+}
 
 #ifdef AIRS_USE_DICOM
 vtkDICOMReader *ReadDICOMImage(
@@ -114,7 +146,6 @@ vtkDICOMReader *ReadDICOMImage(
   // read the image
   vtkDICOMReader *reader = vtkDICOMReader::New();
   reader->SetFileNames(sorter->GetFileNamesForSeries(0));
-  reader->SetDesiredTimeIndex(0);
 
   if (coordSystem == NIFTICoords)
     {
@@ -131,20 +162,27 @@ vtkDICOMReader *ReadDICOMImage(
     exit(1);
     }
 
-  // get the sorted files
-  vtkIntArray *fileArray = reader->GetFileIndexArray();
-
-  // create a filtered list of files
-  vtkSmartPointer<vtkStringArray> fileNames =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkIdType n = fileArray->GetNumberOfTuples();
-  for (vtkIdType i = 0; i < n; i++)
+  // when reading target image, only read 1st component if the
+  // image has multiple components or multiple time points
+  static int readCount = 0;
+  if (readCount++ > 0)
     {
-    fileNames->InsertNextValue(
-      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
-    }
+    // get the sorted files
+    vtkIntArray *fileArray = reader->GetFileIndexArray();
 
-  reader->SetFileNames(fileNames);
+    // create a filtered list of files
+    vtkSmartPointer<vtkStringArray> fileNames =
+      vtkSmartPointer<vtkStringArray>::New();
+    vtkIdType n = fileArray->GetNumberOfTuples();
+    for (vtkIdType i = 0; i < n; i++)
+      {
+      fileNames->InsertNextValue(
+        reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
+      }
+
+    reader->SetDesiredTimeIndex(0);
+    reader->SetFileNames(fileNames);
+    }
 
   reader->Update();
   if (reader->GetErrorCode())
@@ -167,13 +205,13 @@ vtkDICOMReader *ReadDICOMImage(
 void WriteDICOMImage(
   vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
-  int coordSystem)
+  int vtkNotUsed(coordSystem))
 {
   if (vtksys::SystemTools::FileExists(directoryName))
     {
     if (!vtksys::SystemTools::FileIsDirectory(directoryName))
       {
-      fprintf(stderr, "option -o must give a directory, not a file.\n");
+      fprintf(stderr, "option -o must give a DICOM directory, not a file.\n");
       exit(1);
       }
     }
@@ -186,11 +224,21 @@ void WriteDICOMImage(
   // get the meta data
   vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(sourceReader);
   vtkDICOMReader *reader2 = vtkDICOMReader::SafeDownCast(targetReader);
-  vtkDICOMMetaData *meta = 0;
+
+  vtkSmartPointer<vtkDICOMMetaData> meta =
+    vtkSmartPointer<vtkDICOMMetaData>::New();
+
   if (reader)
     {
-    meta = vtkDICOMMetaData::New();
+    // copy the bulk of the meta data from the source image
     meta->DeepCopy(reader->GetMetaData());
+    }
+  if (reader2)
+    {
+    // set the frame of reference from the target image
+    meta->SetAttributeValue(DC::FrameOfReferenceUID,
+      reader2->GetMetaData()->GetAttributeValue(
+      DC::FrameOfReferenceUID));
     }
 
   // make the generator
@@ -199,7 +247,7 @@ void WriteDICOMImage(
   vtkSmartPointer<vtkDICOMCTGenerator> ctgenerator =
     vtkSmartPointer<vtkDICOMCTGenerator>::New();
   vtkDICOMGenerator *generator = 0;
-  if (meta)
+  if (reader)
     {
     std::string SOPClass =
       meta->GetAttributeValue(DC::SOPClassUID).AsString();
@@ -224,25 +272,23 @@ void WriteDICOMImage(
   writer->SetFilePrefix(directoryName);
   writer->SetFilePattern("%s/IM-0001-%04.4d.dcm");
   writer->TimeAsVectorOn();
-  if (reader->GetTimeDimension() > 1)
+  if (reader)
     {
-    writer->SetTimeDimension(reader->GetTimeDimension());
-    writer->SetTimeSpacing(reader->GetTimeSpacing());
-    }
-  writer->SetPatientMatrix(matrix);
-  if (reader->GetRescaleSlope() > 0)
-    {
-    writer->SetRescaleSlope(reader->GetRescaleSlope());
-    writer->SetRescaleIntercept(reader->GetRescaleIntercept());
+    if (reader->GetTimeDimension() > 1)
+      {
+      writer->SetTimeDimension(reader->GetTimeDimension());
+      writer->SetTimeSpacing(reader->GetTimeSpacing());
+      }
+    if (reader->GetRescaleSlope() > 0)
+      {
+      writer->SetRescaleSlope(reader->GetRescaleSlope());
+      writer->SetRescaleIntercept(reader->GetRescaleIntercept());
+      }
+    writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
     }
   writer->SetInput(data);
-  writer->SetMemoryRowOrderToFileNative();
+  writer->SetPatientMatrix(matrix);
   writer->Write();
-
-  if (meta)
-    {
-    meta->Delete();
-    }
 }
 
 #else
@@ -398,12 +444,16 @@ vtkMINCImageReader *ReadMINCImage(
 }
 
 void WriteMINCImage(
-  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
-  vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
-  int coordSystem)
+  vtkImageReader2 *vtkNotUsed(sourceReader),
+  vtkImageReader2 *vtkNotUsed(targetReader),
+  vtkImageData *data, vtkMatrix4x4 *vtkNotUsed(matrix), const char *fileName,
+  int vtkNotUsed(coordSystem))
 {
+  fprintf(stderr, "Writing MINC images is not supported yet, "
+          "the output file will have incorrect information\n");
   vtkSmartPointer<vtkMINCImageWriter> writer =
     vtkSmartPointer<vtkMINCImageWriter>::New();
+  writer->SetFileName(fileName);
   writer->SetInput(data);
   // the input matrix must be converted
   //writer->SetDirectionCosines(matrix);
@@ -484,12 +534,27 @@ vtkNIFTIReader *ReadNIFTIImage(
 }
 
 void WriteNIFTIImage(
-  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
+  vtkImageReader2 *sourceReader, vtkImageReader2 *vtkNotUsed(targetReader),
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
-  int coordSystem)
+  int vtkNotUsed(coordSystem))
 {
+  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(sourceReader);
+
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
+  if (reader)
+    {
+    writer->SetNIFTIHeader(reader->GetNIFTIHeader());
+    if (reader->GetTimeDimension() > 1)
+      {
+      writer->SetTimeDimension(reader->GetTimeDimension());
+      writer->SetTimeSpacing(reader->GetTimeSpacing());
+      }
+    if (reader->GetQFac() < 0)
+      {
+      writer->SetQFac(-1.0);
+      }
+    }
   writer->SetInput(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
@@ -503,13 +568,13 @@ vtkImageReader2 *ReadImage(
   vtkImageData *image, vtkMatrix4x4 *matrix,
   const char *filename, int coordSystem)
 {
-  size_t n = strlen(filename);
-  if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
+  int t = GuessFileType(filename);
+
+  if (t == MINCImage)
     {
     return ReadMINCImage(image, matrix, filename, coordSystem);
     }
-  else if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
-           (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+  else if (t == NIFTIImage)
     {
 #ifdef AIRS_USE_NIFTI
     return ReadNIFTIImage(image, matrix, filename, coordSystem);
@@ -524,10 +589,9 @@ vtkImageReader2 *ReadImage(
 
 int CoordSystem(const char *filename)
 {
-  size_t n = strlen(filename);
-  if ((n > 4 && strcmp(&filename[n-4], ".mnc") == 0) ||
-      (n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
-      (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+  int t = GuessFileType(filename);
+
+  if (t == MINCImage || t == NIFTIImage)
     {
     return NIFTICoords;
     }
@@ -540,14 +604,14 @@ void WriteImage(
   vtkImageData *image, vtkMatrix4x4 *matrix,
   const char *filename, int coordSystem)
 {
-  size_t n = strlen(filename);
-  if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
+  int t = GuessFileType(filename);
+
+  if (t == MINCImage)
     {
     WriteMINCImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
     }
-  else if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
-           (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+  else if (t == NIFTIImage)
     {
 #ifdef AIRS_USE_NIFTI
     WriteNIFTIImage(
@@ -596,8 +660,9 @@ void SetViewFromMatrix(
 
 void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
 {
-  size_t l = strlen(xfminput);
-  if (l >= 4 && strcmp(xfminput + (l - 4), ".xfm") == 0)
+  int t = GuessFileType(xfminput);
+
+  if (t == MNITransform) // .xfm
     {
     // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformReader> reader =
@@ -611,8 +676,7 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
       matrix->DeepCopy(transform->GetMatrix());
       }
     }
-  else if ((l >= 4 && strcmp(xfminput + (l - 4), ".txt") == 0) ||
-           (l >= 4 && strcmp(xfminput + (l - 4), ".tfm") == 0))
+  else if (t == ITKTransform) // .tfm
     {
     // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMReader> reader =
@@ -628,7 +692,7 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     }
   else
     {
-    // Space-delimited text file
+    // text file
     double elements[16] = {
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
@@ -636,9 +700,19 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
       0.0, 0.0, 0.0, 1.0 };
 
     ifstream infile(xfminput);
-    for (int i = 0; infile && i < 16; i++)
+    int i = 0;
+    while (infile.good() && i < 16)
       {
       infile >> elements[i];
+      if (infile.fail() && !infile.bad())
+        {
+        infile.clear();
+        infile.get();
+        }
+      else
+        {
+        i++;
+        }
       }
     infile.close();
     matrix->DeepCopy(elements);
@@ -652,8 +726,9 @@ void WriteMatrix(
     vtkSmartPointer<vtkTransform>::New();
   transform->Concatenate(matrix);
 
-  size_t l = strlen(xfmfile);
-  if (l >= 4 && strcmp(xfmfile + (l - 4), ".xfm") == 0)
+  int t = GuessFileType(xfmfile);
+
+  if (t == MNITransform) // .xfm
     {
     // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformWriter> writer =
@@ -662,8 +737,7 @@ void WriteMatrix(
     writer->SetTransform(transform);
     writer->Update();
     }
-  else if ((l >= 4 && strcmp(xfmfile + (l - 4), ".txt") == 0) ||
-           (l >= 4 && strcmp(xfmfile + (l - 4), ".tfm") == 0))
+  else if (t == ITKTransform) // .tfm
     {
     // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMWriter> writer =
@@ -676,12 +750,13 @@ void WriteMatrix(
   else
     {
     // Delimited text file
+    const char *delim = ((t == CSVTransform) ? "," : "\t");
     ofstream outfile(xfmfile, ios::out);
     for (int i = 0; i < 4; i++)
       {
-      outfile << matrix->Element[i][0] << "  "
-              << matrix->Element[i][1] << "  "
-              << matrix->Element[i][2] << "  "
+      outfile << matrix->Element[i][0] << delim
+              << matrix->Element[i][1] << delim
+              << matrix->Element[i][2] << delim
               << matrix->Element[i][3] << "\n";
       }
     outfile.close();
@@ -732,28 +807,34 @@ struct register_options
   int metric;          // -M --metric
   int transform;       // -T --transform
   int coords;          // -C --coords
-  int interactive;     // -I --interactive
-  int checkonly;       // -J --checkonly
-  const char *initial; // -i --initial (initial transform)
-  const char *output;  // -o (output transform)
-  const char *screenshot; // -s (output screenshot)
+  int maxiter;         // -M --maxiter
+  int display;         // -d --display
+  int silent;          // -s --silent
+  int invert;          // -i --invert (input transform)
+  const char *outxfm;  // -o (output transform)
+  const char *output;  // -o (output image)
+  const char *screenshot; // -j (output screenshot)
   const char *source;
   const char *target;
+  const char *initial;
 };
 
 void register_initialize_options(register_options *options)
 {
   options->dimensionality = 3;
-  options->metric = vtkImageRegistration::NormalizedMutualInformation;
+  options->metric = vtkImageRegistration::MutualInformation;
   options->transform = vtkImageRegistration::Rigid;
   options->coords = DICOMCoords;
-  options->checkonly = 0;
-  options->interactive = 0;
-  options->initial = NULL;
+  options->invert = 0;
+  options->maxiter = 500;
+  options->display = 0;
+  options->silent = 0;
   options->screenshot = NULL;
   options->output = NULL;
+  options->outxfm = NULL;
   options->source = NULL;
   options->target = NULL;
+  options->initial = NULL;
 }
 
 const char *check_next_arg(
@@ -800,7 +881,7 @@ void register_show_usage(FILE *fp, const char *command)
   while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
 
   fprintf(fp,
-    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
+    "Usage: %s [options] -o <output> [<transform>] <source image> <target image>\n", cp);
   fprintf(fp, "\n");
   fprintf(fp,
     "For more information, type \"%s --help\"\n\n", command);
@@ -812,7 +893,37 @@ void register_show_help(FILE *fp, const char *command)
   while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
 
   fprintf(fp,
-    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
+    "Usage: %s [options] -o <output> [<transform>] <source image> <target image>\n", cp);
+  fprintf(fp,
+    "\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.0.\n"
+    "\n"
+    "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
+    "image volumes.  It reads the image header (or the DICOM meta data) in\n"
+    "order to discover the orientation of the image slices in real-world\n"
+    "coordinates (e.g. the DICOM patient coodinate system for DICOM files,\n"
+    "or \"world coordinates\" for MINC and NIFTI files).  The result of the\n"
+    "registration is that the source image is resampled (i.e. regridded via\n"
+    "trilinear interpolation) in order to put it into the same coordinate\n"
+    "system as, and with the same slice geometry as, the target image.\n"
+    "\n"
+    "The registration is performed via a multi-resolution pyramid, starting\n"
+    "with images that have been blurred to four times their original pixel\n"
+    "spacing, proceeding to images that have been blurred to two times their\n"
+    "original spacing, and finishing with unblurred, full-resolution images.\n"
+    "At each resolution, the registration is first done with nearest-neighbor\n"
+    "interpolation, and then refined with linear interpolation.\n"
+    "\n"
+    "The \"-o\" option allows you to specify either an output image, or an\n"
+    "output transform file.  The transform file will provide the coordinate\n"
+    "transform from the target image space back to the source image space.\n"
+    "This \"space\" is the coordinate system specified by the image header.\n"
+    "\n"
+    "If you have a transform file and want to apply it to another image,\n"
+    "the transform file can be provided as an input to the program, and the\n"
+    "number of registration iterations can be set to zero (-N 0) in order\n"
+    "to apply the transform directly without performing another registration.\n"
+    "\n");
   fprintf(fp,
     " -D --dimensionality   (default: 3)\n"
     "                 2\n"
@@ -821,7 +932,7 @@ void register_show_help(FILE *fp, const char *command)
     "    If the dimensionality is set to 2 for a 3D file, then the\n"
     "    registration will be limited to in-plane transformations.\n"
     "\n"
-    " -M --metric           (default NMI)\n"
+    " -M --metric           (default MutualInformation)\n"
     "                 SD        SquaredDifference\n"
     "                 CC        CrossCorrelation\n"
     "                 NCC       NormalizedCrossCorrelation\n"
@@ -829,12 +940,12 @@ void register_show_help(FILE *fp, const char *command)
     "                 MI        MutualInformation\n"
     "                 NMI       NormalizedMutualInformation\n"
     "\n"
-    "    Normalized mutual information (the default) should be used in\n"
-    "    most cases.  Mutual information (without normalization) may give\n"
-    "    better results if one input or both inputs are only a small part\n"
-    "    of the anatomy that is being imaged.\n"
+    "    Mutual information (the default) should be used in most cases.\n"
+    "    Normalized Mutual information may be more robust (but not more\n"
+    "    accurate) if one input or both inputs are only a small part\n"
+    "    of the organ or anatomy that is being registered.\n"
     "\n"    
-    " -T --transform        (default: RI)\n"
+    " -T --transform        (default: Rigid)\n"
     "                 TR        Translation\n"
     "                 RI        Rigid\n"
     "                 SI        Similarity\n"
@@ -846,8 +957,8 @@ void register_show_help(FILE *fp, const char *command)
     "    registration.  For inter-subject registration, the SS and ST\n"
     "    transforms restrict the scale part of the transformation to be\n"
     "    either along the directions of the source image axes, or along\n"
-    "    the directions of the target image axes.  The transformation is\n"
-    "    always applied to the source image and never to the target image.\n"
+    "    the directions of the target image axes.  It is always the source\n"
+    "    image that is modified by the transform, never the target image.\n"
     "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
@@ -861,29 +972,36 @@ void register_show_help(FILE *fp, const char *command)
     "    matrix that is written by the \"-o\" option will be in the chosen\n"
     "    coordinate system.\n"
     "\n"
-    " -I --interactive      (default: off)\n"
+    " -N --maxiter   (default: 500)\n"
+    "\n"
+    "    Set the maximum number of iterations per stage.  Set this to zero\n"
+    "    if you want to use the initial transform as-is.\n"
+    "\n"
+    " -d --display      (default: off)\n"
     "\n"
     "    Display the images during the registration.\n"
     "\n"
-    " -s --screenshot <file>\n"
+    " -s --silent       (default: off)\n"
+    "\n"
+    "    Do not print information to the console during the resistration.\n"
+    "    This is useful when running in batch mode.  Error messages will\n"
+    "    still be printed.\n"
+    "\n"
+    " -j --screenshot <file>\n"
     "\n"
     "    Write a screenshot as a png, jpeg, or tiff file.  This is useful\n"
     "    when performing registration in a batch file in order to provide\n"
     "    a simple means of visually assessing the results retrospectively.\n"
     "\n"
-    " -J --checkonly        (default: off)\n"
-    "\n"
-    "    Do not perform a registration, just read the input files and\n"
-    "    write any output files.\n"
-    "\n"
-    " -i --initial <file>\n"
-    "\n"
-    "    Provide an initial transform to use as a starting point for the\n"
-    "    registration.\n"
-    "\n"
     " -o <file>\n"
     "\n"
-    "    Provide a file for the resulting transform to be written to.\n"
+    "    Provide a file for the resulting transform or image to be written\n"
+    "    to.  If you want to write both a transform file and an image file,\n"
+    "    then use the -o option twice (once for each desired output).\n"
+    "\n"
+    " -i --invert <transform>\n"
+    "\n"
+    "    Use the inverse of the given transform as the initial transform.\n"
     "\n");
 }
 
@@ -919,18 +1037,35 @@ int register_read_options(
     const char *arg = argv[argi++];
     if (arg[0] != '-')
       {
-      if (options->source == 0)
+      int t = GuessFileType(arg);
+
+      if (t <= LastImageType)
         {
-        options->source = arg;
+        if (options->source == 0)
+          {
+          options->source = arg;
+          }
+        else if (options->target == 0)
+          {
+          options->target = arg;
+          }
+        else
+          {
+          fprintf(stderr, "Too many input images listed on command line\n");
+          exit(1);
+          }
         }
-      else if (options->target == 0)
+      else if (t <= LastTransformType)
         {
-        options->target = arg;
-        }
-      else
-        {
-        fprintf(stderr, "Too many files listed on command line\n");
-        exit(1);
+        if (options->initial == 0)
+          {
+          options->initial = arg;
+          }
+        else
+          {
+          fprintf(stderr, "Too many input transforms listed on command line\n");
+          exit(1);
+          }
         }
       }
     else
@@ -1033,24 +1168,50 @@ int register_read_options(
           options->coords = NIFTICoords;
           }
         }
-      else if (strcmp(arg, "-I") == 0 ||
-               strcmp(arg, "--interactive") == 0)
-        {
-        options->interactive = 1;
-        }
-      else if (strcmp(arg, "-J") == 0 ||
-               strcmp(arg, "--checkonly") == 0)
-        {
-        options->interactive = 1;
-        options->checkonly = 1;
-        }
-      else if (strcmp(arg, "-i") == 0 ||
-               strcmp(arg, "--initial") == 0)
+      else if (strcmp(arg, "-N") == 0 ||
+               strcmp(arg, "--maxiter") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
-        options->initial = arg;
+        options->maxiter = static_cast<int>(strtoul(arg, NULL, 0));
+        }
+      else if (strcmp(arg, "-d") == 0 ||
+               strcmp(arg, "--display") == 0)
+        {
+        options->display = 1;
         }
       else if (strcmp(arg, "-s") == 0 ||
+               strcmp(arg, "--silent") == 0)
+        {
+        options->silent = 1;
+        }
+      else if (strcmp(arg, "-i") == 0 ||
+               strcmp(arg, "--invert") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        int t = GuessFileType(arg);
+
+        if (t > LastImageType && t <= LastTransformType)
+          {
+          if (options->initial == 0)
+            {
+            options->initial = arg;
+            options->invert = 1;
+            }
+          else
+            {
+            fprintf(stderr,
+                    "Too many input transforms listed on command line\n");
+            exit(1);
+            }
+          }
+        else
+          {
+          fprintf(stderr,
+                  "The \"-i\" option must be followed by a transform\n");
+          exit(1);
+          }
+        }
+      else if (strcmp(arg, "-j") == 0 ||
                strcmp(arg, "--screenshot") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
@@ -1059,7 +1220,25 @@ int register_read_options(
       else if (strcmp(arg, "-o") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
-        options->output = arg;
+        int t = GuessFileType(arg);
+        if (t <= LastImageType)
+          {
+          if (options->output)
+            {
+            fprintf(stderr, "Too many -o options specified!\n");
+            register_show_usage(stderr, argv[0]);
+            }
+          options->output = arg;
+          }
+        else if (t <= LastTransformType)
+          {
+          if (options->outxfm)
+            {
+            fprintf(stderr, "Too many -o options specified!\n");
+            register_show_usage(stderr, argv[0]);
+            }
+          options->outxfm = arg;
+          }
         }
       else
         {
@@ -1082,33 +1261,12 @@ int main(int argc, char *argv[])
   // -------------------------------------------------------
   // the files
   const char *xfminput = options.initial;
-  const char *xfmfile = options.output;
-  const char *imagefile = 0;
+  const char *xfmfile = options.outxfm;
+  const char *imagefile = options.output;
   const char *sourcefile = options.source;
   const char *targetfile = options.target;
-  bool display = (options.interactive != 0 ||
+  bool display = (options.display != 0 ||
                   options.screenshot != 0);
-
-  const char *xfiles[2];
-  xfiles[0] = xfminput;
-  xfiles[1] = xfmfile;
-  for (int xi = 0; xi < 2; xi++)
-    {
-    const char *xfile = xfiles[xi];
-    if (xfile != 0)
-      {
-      size_t m = strlen(xfile);
-      if (m < 4 ||
-          (strcmp(&xfile[m-4], ".xfm") != 0) &&
-          (strcmp(&xfile[m-4], ".tfm") != 0) &&
-          (strcmp(&xfile[m-4], ".txt") != 0) &&
-          (strcmp(&xfile[m-4], ".mat") != 0))
-        {
-        fprintf(stderr, "Transform file must end in .xfm, .tfm, or .txt\n");
-        return 1;
-        }
-      }
-    }
 
   if (!sourcefile || !targetfile)
     {
@@ -1142,6 +1300,11 @@ int main(int argc, char *argv[])
       }
     }
 
+  if (!options.silent)
+    {
+    cout << "Reading source image: " << sourcefile << endl;
+    }
+
   vtkSmartPointer<vtkImageData> sourceImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> sourceMatrix =
@@ -1150,6 +1313,11 @@ int main(int argc, char *argv[])
     ReadImage(sourceImage, sourceMatrix, sourcefile, options.coords);
   sourceReader->Delete();
 
+  if (!options.silent)
+    {
+    cout << "Reading target image: " << targetfile << endl;
+    }
+
   vtkSmartPointer<vtkImageData> targetImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
@@ -1157,6 +1325,18 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageReader2> targetReader =
     ReadImage(targetImage, targetMatrix, targetfile, options.coords);
   targetReader->Delete();
+
+  if (!options.silent)
+    {
+    if (options.coords == DICOMCoords)
+      {
+      cout << "Using DICOM patient coords." << endl;;
+      }
+    else
+      {
+      cout << "Using NIFTI (or MINC) world coords." << endl;
+      }
+    }
 
   // -------------------------------------------------------
   // save the original source matrix
@@ -1171,6 +1351,10 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4> initialMatrix =
       vtkSmartPointer<vtkMatrix4x4>::New();
     ReadMatrix(initialMatrix, xfminput);
+    if (options.invert)
+      {
+      initialMatrix->Invert();
+      }
     vtkMatrix4x4::Multiply4x4(initialMatrix, sourceMatrix, sourceMatrix);
     }
 
@@ -1244,7 +1428,7 @@ int main(int argc, char *argv[])
   renderer->AddViewProp(imageStack);
   renderer->SetBackground(0,0,0);
 
-  renderWindow->SetSize(1024,1024);
+  renderWindow->SetSize(512,512);
 
   double bounds[6], center[4], tspacing[3];
   int extent[6];
@@ -1342,7 +1526,7 @@ int main(int argc, char *argv[])
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
-  registration->SetMaximumNumberOfIterations(500);
+  registration->SetMaximumNumberOfIterations(options.maxiter);
   if (xfminput)
     {
     registration->SetInitializerTypeToNone();
@@ -1371,7 +1555,7 @@ int main(int argc, char *argv[])
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
-  while (options.checkonly == 0)
+  while (options.maxiter > 0)
     {
     if (stage == 0)
       {
@@ -1461,11 +1645,14 @@ int main(int argc, char *argv[])
         }
       }
 
-    cout << (stage ? "interpolated " : "non-interp'd ")
-         << minBlurSpacing << " mm took "
-         << (newTime - lastTime) << "s and "
-         << registration->GetNumberOfEvaluations() << " evaluations" << endl;
-    lastTime = newTime;
+    if (!options.silent)
+      {
+      cout << (stage ? "interpolated " : "non-interp'd ")
+           << minBlurSpacing << " mm took "
+           << (newTime - lastTime) << "s and "
+           << registration->GetNumberOfEvaluations() << " evaluations" << endl;
+      lastTime = newTime;
+      }
 
     // prepare for next iteration
     if (stage == 1)
@@ -1479,12 +1666,20 @@ int main(int argc, char *argv[])
     stage = (stage + 1) % 2;
     }
 
-  cout << "registration took " << (lastTime - startTime) << "s" << endl;
+  if (!options.silent)
+    {
+    cout << "registration took " << (lastTime - startTime) << "s" << endl;
+    }
 
   // -------------------------------------------------------
   // write the output matrix
   if (xfmfile)
     {
+    if (!options.silent)
+      {
+      cout << "Writing transform file: " << xfmfile << endl;
+      }
+
     vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
     vtkSmartPointer<vtkMatrix4x4> wmatrix =
       vtkSmartPointer<vtkMatrix4x4>::New();
@@ -1507,6 +1702,11 @@ int main(int argc, char *argv[])
   // write the output file
   if (imagefile)
     {
+    if (!options.silent)
+      {
+      cout << "Writing transformed image: " << imagefile << endl;
+      }
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(targetImage);
@@ -1524,7 +1724,7 @@ int main(int argc, char *argv[])
   // -------------------------------------------------------
   // allow user to interact
 
-  if (options.interactive)
+  if (options.display)
     {
     interactor->Start();
     }
