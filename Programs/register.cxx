@@ -299,7 +299,7 @@ vtkDICOMImageReader *ReadDICOMImage(
   int coordSystem)
 {
   // read the image
-  reader = vtkDICOMImageReader::New();
+  vtkDICOMImageReader *reader = vtkDICOMImageReader::New();
 
   reader->SetDirectoryName(directoryName);
   reader->Update();
