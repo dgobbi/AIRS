@@ -27,7 +27,6 @@ Module:    DifferenceRegistration.cxx
 #include <vtkMNITransformWriter.h>
 
 // optional readers
-#define AIRS_USE_DICOM
 #ifdef AIRS_USE_DICOM
 #define AIRS_USE_NIFTI
 #include <vtkNIFTIReader.h>
