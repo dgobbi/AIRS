@@ -860,7 +860,7 @@ struct register_options
   int metric;          // -M --metric
   int transform;       // -T --transform
   int coords;          // -C --coords
-  int maxiter;         // -M --maxiter
+  int maxiter[3];      // -M --maxiter
   int display;         // -d --display
   int silent;          // -s --silent
   int invert;          // -i --invert (input transform)
@@ -879,7 +879,9 @@ void register_initialize_options(register_options *options)
   options->transform = vtkImageRegistration::Rigid;
   options->coords = DICOMCoords;
   options->invert = 0;
-  options->maxiter = 500;
+  options->maxiter[0] = 500;
+  options->maxiter[1] = 500;
+  options->maxiter[2] = 500;
   options->display = 0;
   options->silent = 0;
   options->screenshot = NULL;
@@ -1025,7 +1027,7 @@ void register_show_help(FILE *fp, const char *command)
     "    matrix that is written by the \"-o\" option will be in the chosen\n"
     "    coordinate system.\n"
     "\n"
-    " -N --maxiter   (default: 500)\n"
+    " -N --maxiter   (default: 500x500x500)\n"
     "\n"
     "    Set the maximum number of iterations per stage.  Set this to zero\n"
     "    if you want to use the initial transform as-is.\n"
@@ -1225,7 +1227,12 @@ int register_read_options(
                strcmp(arg, "--maxiter") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
-        options->maxiter = static_cast<int>(strtoul(arg, NULL, 0));
+        for (int i = 0; i < 3; i++)
+          {
+          options->maxiter[i] = static_cast<int>(
+            strtoul(arg, const_cast<char **>(&arg), 0));
+          if (*arg == 'x') { arg++; }
+          }
         }
       else if (strcmp(arg, "-d") == 0 ||
                strcmp(arg, "--display") == 0)
@@ -1590,7 +1597,6 @@ int main(int argc, char *argv[])
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
-  registration->SetMaximumNumberOfIterations(options.maxiter);
   if (xfminput)
     {
     registration->SetInitializerTypeToNone();
@@ -1615,12 +1621,14 @@ int main(int argc, char *argv[])
   double blurFactor = initialBlurFactor;
   // two stages for each resolution:
   // first without interpolation, and then with interpolation
+  int level = 0;
   int stage = 0;
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
-  while (options.maxiter > 0)
+  while (level < 3 && options.maxiter[level] > 0)
     {
+    registration->SetMaximumNumberOfIterations(options.maxiter[level]);
     if (stage == 0)
       {
       registration->SetInterpolatorTypeToNearest();
@@ -1721,11 +1729,8 @@ int main(int argc, char *argv[])
     // prepare for next iteration
     if (stage == 1)
       {
+      level++;
       blurFactor /= 2.0;
-      if (blurFactor < 0.9)
-        {
-        break;
-        }
       }
     stage = (stage + 1) % 2;
     }
