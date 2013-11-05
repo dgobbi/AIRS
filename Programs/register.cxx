@@ -137,10 +137,15 @@ vtkDICOMReader *ReadDICOMImage(
   sorter->SetInputFileNames(glob->GetFileNames());
   sorter->Update();
 
-  if (sorter->GetNumberOfSeries() != 1)
+  if (sorter->GetNumberOfSeries() == 0)
     {
-    fprintf(stderr, "directory contains %d DICOM series, expected 1: %s\n",
-            static_cast<int>(sorter->GetNumberOfSeries()), directoryName);
+    fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
+    exit(1);
+    }
+  else
+    {
+    fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
+            directoryName);
     exit(1);
     }
 
