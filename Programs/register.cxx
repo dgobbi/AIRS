@@ -19,6 +19,8 @@ Module:    register.cxx
 #include <vtkImageReslice.h>
 #include <vtkImageResize.h>
 #include <vtkImageSincInterpolator.h>
+#include <vtkImageHistogramStatistics.h>
+#include <vtkROIStencilSource.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
 #include <vtkMatrix4x4.h>
@@ -852,6 +854,55 @@ void WriteScreenshot(vtkWindow *window, const char *filename)
     }
 }
 
+void ComputeRange(vtkImageData *image, double range[2])
+{
+  // compute the range within a cylinder that is slightly smaller than
+  // the image bounds (the idea is to capture only the reconstructed
+  // portion of a CT image).
+  double spacing[3];
+  double origin[3];
+  int extent[6];
+  double bounds[6];
+  image->GetSpacing(spacing);
+  image->GetOrigin(origin);
+  image->GetWholeExtent(extent);
+  for (int i = 0; i < 3; ++i)
+    {
+    double b1 = extent[2*i]*spacing[i] + origin[i];
+    double b2 = extent[2*i+1]*spacing[i] + origin[i];
+    b1 = (i == 2 ? b1 : -b1); // flip if not Z
+    b2 = (i == 2 ? b2 : -b2); // flip if not Z
+    bounds[2*i] = (b1 < b2 ? b1 : b2);
+    bounds[2*i+1] = (b1 < b2 ? b2 : b1);
+    spacing[i] = fabs(spacing[i]);
+    origin[i] = bounds[2*i];
+    // reduce bounds by 2% in X and Y for use in cylinder generation
+    double bl = (i == 2 ? 0.0 : 0.01*(bounds[2*i+1] - bounds[2*i]));
+    bounds[2*i] += bl;
+    bounds[2*i+1] -= bl;
+    }
+
+  // extract just the reconstructed portion of CT image
+  vtkSmartPointer<vtkROIStencilSource> cylinder =
+    vtkSmartPointer<vtkROIStencilSource>::New();
+
+  cylinder->SetShapeToCylinderZ();
+  cylinder->SetOutputSpacing(spacing);
+  cylinder->SetOutputOrigin(origin);
+  cylinder->SetOutputWholeExtent(extent);
+  cylinder->SetBounds(bounds);
+
+  // get the range within the cylinder
+  vtkSmartPointer<vtkImageHistogramStatistics> rangeFinder =
+    vtkSmartPointer<vtkImageHistogramStatistics>::New();
+
+  rangeFinder->SetInput(image);
+  rangeFinder->SetStencil(cylinder->GetOutput());
+  rangeFinder->Update();
+
+  rangeFinder->GetAutoRange(range);
+}
+
 };
 
 struct register_options
@@ -1459,7 +1510,7 @@ int main(int argc, char *argv[])
   sourceMapper->ResampleToScreenPixelsOff();
 
   double sourceRange[2];
-  sourceImage->GetScalarRange(sourceRange);
+  ComputeRange(sourceImage, sourceRange);
   sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
@@ -1482,7 +1533,7 @@ int main(int argc, char *argv[])
   targetMapper->ResampleToScreenPixelsOff();
 
   double targetRange[2];
-  targetImage->GetScalarRange(targetRange);
+  ComputeRange(targetImage, targetRange);
   targetProperty->SetInterpolationTypeToLinear();
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
   targetProperty->SetColorLevel(0.5*(targetRange[0]+targetRange[1]));
