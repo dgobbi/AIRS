@@ -1749,7 +1749,7 @@ int main(int argc, char *argv[])
       targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
       targetMatrix->Invert();
       vtkMatrix4x4::Multiply4x4(
-        originalTargetMatrix, targetMatrix, targetMatrix);
+        sourceMatrix, targetMatrix, targetMatrix);
       targetMatrix->Modified();
       if (display)
         {
