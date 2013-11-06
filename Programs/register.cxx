@@ -928,7 +928,7 @@ void register_initialize_options(register_options *options)
   options->dimensionality = 3;
   options->metric = vtkImageRegistration::MutualInformation;
   options->transform = vtkImageRegistration::Rigid;
-  options->coords = DICOMCoords;
+  options->coords = NativeCoords;
   options->invert = 0;
   options->maxiter[0] = 500;
   options->maxiter[1] = 500;
