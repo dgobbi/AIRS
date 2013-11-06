@@ -144,7 +144,7 @@ vtkDICOMReader *ReadDICOMImage(
     fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
     exit(1);
     }
-  else
+  else if (sorter->GetNumberOfSeries() > 1)
     {
     fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
             directoryName);
