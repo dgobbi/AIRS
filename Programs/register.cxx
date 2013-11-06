@@ -1641,6 +1641,8 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageRegistration>::New();
   registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
   registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
+  registration->SetSourceImageRange(sourceRange);
+  registration->SetTargetImageRange(targetRange);
   registration->SetTransformDimensionality(options.dimensionality);
   registration->SetTransformType(options.transform);
   registration->SetMetricType(options.metric);

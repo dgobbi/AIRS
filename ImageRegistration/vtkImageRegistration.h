@@ -218,6 +218,16 @@ public:
   vtkGetVector2Macro(JointHistogramSize, int);
 
   // Description:
+  // Set the ranges of the two axes of the joint histogram.
+  // By default, the joint histogram covers the full range of data values
+  // present in the image (this default is used whenever the first value
+  // in the range is greater than the second value in the range).
+  vtkSetVector2Macro(SourceImageRange, double);
+  vtkSetVector2Macro(TargetImageRange, double);
+  vtkGetVector2Macro(SourceImageRange, double);
+  vtkGetVector2Macro(TargetImageRange, double);
+
+  // Description:
   // Initialize the transform.  This will also initialize the
   // NumberOfEvaluations to zero.  If a TransformInitializer is
   // set, then only the rotation part of this matrix will be used,
@@ -273,7 +283,8 @@ protected:
   vtkImageRegistration();
   ~vtkImageRegistration();
 
-  void ComputeImageRange(vtkImageData *data, double range[2]);
+  void ComputeImageRange(vtkImageData *data, vtkImageStencilData *stencil,
+                         double range[2]);
   int ExecuteRegistration();
 
   // Functions overridden from Superclass
@@ -299,11 +310,14 @@ protected:
   int                              InitializerType;
   int                              TransformDimensionality;
 
-  int                              JointHistogramSize[2];
   int                              MaximumNumberOfIterations;
   double                           MetricTolerance;
   double                           TransformTolerance;
   double                           MetricValue;
+
+  int                              JointHistogramSize[2];
+  double                           SourceImageRange[2];
+  double                           TargetImageRange[2];
 
   vtkTimeStamp                     ExecuteTime;
 

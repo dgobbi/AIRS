@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkAmoebaMinimizer.h"
+#include "vtkImageHistogramStatistics.h"
 
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
@@ -128,6 +129,10 @@ vtkImageRegistration::vtkImageRegistration()
 
   this->JointHistogramSize[0] = 64;
   this->JointHistogramSize[1] = 64;
+  this->SourceImageRange[0] = 0.0;
+  this->SourceImageRange[1] = -1.0;
+  this->TargetImageRange[0] = 0.0;
+  this->TargetImageRange[1] = -1.0;
 
   this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
@@ -207,6 +212,10 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
      << this->MaximumNumberOfIterations << "\n";
   os << indent << "JointHistogramSize: " << this->JointHistogramSize[0] << " "
      << this->JointHistogramSize[1] << "\n";
+  os << indent << "SourceImageRange: " << this->SourceImageRange[0] << " "
+     << this->SourceImageRange[1] << "\n";
+  os << indent << "TargetImageRange: " << this->TargetImageRange[0] << " "
+     << this->TargetImageRange[1] << "\n";
   os << indent << "MetricValue: " << this->MetricValue << "\n";
   os << indent << "NumberOfEvaluations: "
      << this->RegistrationInfo->NumberOfEvaluations << "\n";
@@ -482,15 +491,25 @@ void vtkEvaluateFunction(void * arg)
 
 //--------------------------------------------------------------------------
 void vtkImageRegistration::ComputeImageRange(
-  vtkImageData *data, double range[2])
+  vtkImageData *data, vtkImageStencilData *stencil, double range[2])
 {
-  data->GetScalarRange(range);
+  vtkImageHistogramStatistics *hist =
+    vtkImageHistogramStatistics::New();
+  hist->SetStencil(stencil);
+  hist->SetInput(data);
+  hist->SetActiveComponent(0);
+  hist->Update();
 
-  //range[0] = 0.0;
+  range[0] = hist->GetMinimum();
+  range[1] = hist->GetMaximum();
+
   if (range[0] >= range[1])
     {
     range[1] = range[0] + 1.0;
     }
+
+  hist->SetInput(NULL);
+  hist->Delete();
 }
 
 //--------------------------------------------------------------------------
@@ -587,51 +606,71 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     }
 
   // do the setup for mutual information
-  if ((this->MetricType ==
-       vtkImageRegistration::MutualInformation ||
-       this->MetricType ==
-       vtkImageRegistration::NormalizedMutualInformation) &&
-      this->InterpolatorType == vtkImageRegistration::Nearest &&
-      this->JointHistogramSize[0] <= 256 &&
-      this->JointHistogramSize[1] <= 256)
+  double sourceImageRange[2];
+  double targetImageRange[2];
+  sourceImageRange[0] = this->SourceImageRange[0];
+  sourceImageRange[1] = this->SourceImageRange[1];
+  targetImageRange[0] = this->TargetImageRange[0];
+  targetImageRange[1] = this->TargetImageRange[1];
+
+  if (this->MetricType ==
+      vtkImageRegistration::MutualInformation ||
+      this->MetricType ==
+      vtkImageRegistration::NormalizedMutualInformation) 
     {
-    // If nearest-neighbor interpolation is used, then the image instensity
-    // can be quantized during initialization, instead of being done at each
-    // iteration of the registration.
+    if (sourceImageRange[0] >= sourceImageRange[1])
+      {
+      this->ComputeImageRange(sourceImage, this->GetSourceImageStencil(),
+        sourceImageRange);
+      }
+    if (targetImageRange[0] >= targetImageRange[1])
+      {
+      this->ComputeImageRange(targetImage, NULL,
+        targetImageRange);
+      }
 
-    double sourceImageRange[2];
-    this->ComputeImageRange(sourceImage, sourceImageRange);
+    if (this->InterpolatorType == vtkImageRegistration::Nearest &&
+        this->JointHistogramSize[0] <= 256 &&
+        this->JointHistogramSize[1] <= 256)
+      {
+      // If nearest-neighbor interpolation is used, then the image instensity
+      // can be quantized during initialization, instead of being done at each
+      // iteration of the registration.
 
-    double sourceScale = ((this->JointHistogramSize[1] - 1)/
-      (sourceImageRange[1] - sourceImageRange[0]));
-    // The "0.5/sourceScale" causes the vtkImageShiftScale filter to
-    // round the value, instead of truncating it.
-    double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
+      double sourceScale = ((this->JointHistogramSize[1] - 1)/
+        (sourceImageRange[1] - sourceImageRange[0]));
+      // The "0.5/sourceScale" causes the vtkImageShiftScale filter to
+      // round the value, instead of truncating it.
+      double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
 
-    vtkImageShiftScale *sourceQuantizer = this->SourceImageQuantizer;
-    sourceQuantizer->SetInput(sourceImage);
-    sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
-    sourceQuantizer->ClampOverflowOn();
-    sourceQuantizer->SetShift(sourceShift);
-    sourceQuantizer->SetScale(sourceScale);
-    sourceQuantizer->Update();
-    sourceImage = sourceQuantizer->GetOutput();
+      vtkImageShiftScale *sourceQuantizer = this->SourceImageQuantizer;
+      sourceQuantizer->SetInput(sourceImage);
+      sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
+      sourceQuantizer->ClampOverflowOn();
+      sourceQuantizer->SetShift(sourceShift);
+      sourceQuantizer->SetScale(sourceScale);
+      sourceQuantizer->Update();
+      sourceImage = sourceQuantizer->GetOutput();
 
-    double targetImageRange[2];
-    this->ComputeImageRange(targetImage, targetImageRange);
+      double targetScale = ((this->JointHistogramSize[0] - 1)/
+        (targetImageRange[1] - targetImageRange[0]));
+      double targetShift = (-targetImageRange[0] + 0.5/targetScale);
 
-    double targetScale = ((this->JointHistogramSize[0] - 1)/
-      (targetImageRange[1] - targetImageRange[0]));
-    double targetShift = (-targetImageRange[0] + 0.5/targetScale);
+      vtkImageShiftScale *targetQuantizer = this->TargetImageQuantizer;
+      targetQuantizer->SetInput(targetImage);
+      targetQuantizer->SetOutputScalarTypeToUnsignedChar();
+      targetQuantizer->ClampOverflowOn();
+      targetQuantizer->SetShift(targetShift);
+      targetQuantizer->SetScale(targetScale);
+      targetQuantizer->Update();
+      targetImage = targetQuantizer->GetOutput();
 
-    vtkImageShiftScale *targetQuantizer = this->TargetImageQuantizer;
-    targetQuantizer->SetInput(targetImage);
-    targetQuantizer->SetOutputScalarTypeToUnsignedChar();
-    targetQuantizer->ClampOverflowOn();
-    targetQuantizer->SetShift(targetShift);
-    targetQuantizer->SetScale(targetScale);
-    targetQuantizer->Update();
-    targetImage = targetQuantizer->GetOutput();
+      // the rescaled image range is now the histogram range
+      targetImageRange[0] = 0;
+      targetImageRange[1] = this->JointHistogramSize[0] - 1;
+      sourceImageRange[0] = 0;
+      sourceImageRange[1] = this->JointHistogramSize[1] - 1;
+      }
     }
 
   vtkImageReslice *reslice = this->ImageReslice;
@@ -707,11 +746,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       metric->SetNumberOfBins(this->JointHistogramSize);
 
-      double targetImageRange[2], sourceImageRange[2];
-      this->ComputeImageRange(targetImage, targetImageRange);
-      this->ComputeImageRange(sourceImage, sourceImageRange);
-
-      metric->SetBinOrigin(sourceImageRange[0], targetImageRange[0]);
+      metric->SetBinOrigin(
+        sourceImageRange[0], targetImageRange[0]);
       metric->SetBinSpacing(
         (sourceImageRange[1] - sourceImageRange[0])/
           (this->JointHistogramSize[0]-1),
