@@ -230,8 +230,8 @@ void WriteDICOMImage(
     }
 
   // get the meta data
-  vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(sourceReader);
-  vtkDICOMReader *reader2 = vtkDICOMReader::SafeDownCast(targetReader);
+  vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(targetReader);
+  vtkDICOMReader *reader2 = vtkDICOMReader::SafeDownCast(sourceReader);
 
   vtkSmartPointer<vtkDICOMMetaData> meta =
     vtkSmartPointer<vtkDICOMMetaData>::New();
@@ -542,11 +542,11 @@ vtkNIFTIReader *ReadNIFTIImage(
 }
 
 void WriteNIFTIImage(
-  vtkImageReader2 *sourceReader, vtkImageReader2 *vtkNotUsed(targetReader),
+  vtkImageReader2 *vtkNotUsed(sourceReader), vtkImageReader2 *targetReader,
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
   int vtkNotUsed(coordSystem))
 {
-  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(sourceReader);
+  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(targetReader);
 
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
@@ -987,7 +987,7 @@ void register_show_usage(FILE *fp, const char *command)
   while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
 
   fprintf(fp,
-    "Usage: %s [options] -o <output> [<transform>] <source image> <target image>\n", cp);
+    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp, "\n");
   fprintf(fp,
     "For more information, type \"%s --help\"\n\n", command);
@@ -999,19 +999,19 @@ void register_show_help(FILE *fp, const char *command)
   while (cp > command && cp[-1] != '/' && cp[-1] != '\\') { --cp; }
 
   fprintf(fp,
-    "Usage: %s [options] -o <output> [<transform>] <source image> <target image>\n", cp);
+    "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.0.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.1.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
     "order to discover the orientation of the image slices in real-world\n"
     "coordinates (e.g. the DICOM patient coodinate system for DICOM files,\n"
     "or \"world coordinates\" for MINC and NIFTI files).  The result of the\n"
-    "registration is that the source image is resampled (i.e. regridded via\n"
+    "registration is that the target image is resampled (i.e. regridded via\n"
     "trilinear interpolation) in order to put it into the same coordinate\n"
-    "system as, and with the same slice geometry as, the target image.\n"
+    "system as, and with the same slice geometry as, the source image.\n"
     "\n"
     "The registration is performed via a multi-resolution pyramid, starting\n"
     "with images that have been blurred to four times their original pixel\n"
@@ -1022,7 +1022,7 @@ void register_show_help(FILE *fp, const char *command)
     "\n"
     "The \"-o\" option allows you to specify either an output image, or an\n"
     "output transform file.  The transform file will provide the coordinate\n"
-    "transform from the target image space back to the source image space.\n"
+    "transformation from the source image space to the target image space.\n"
     "This \"space\" is the coordinate system specified by the image header.\n"
     "\n"
     "If you have a transform file and want to apply it to another image,\n"
@@ -1472,13 +1472,17 @@ int main(int argc, char *argv[])
     }
 
   // -------------------------------------------------------
-  // save the original source matrix
-  vtkSmartPointer<vtkMatrix4x4> originalSourceMatrix =
+  // save the original target matrix
+  vtkSmartPointer<vtkMatrix4x4> originalTargetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  originalSourceMatrix->DeepCopy(sourceMatrix);
+  originalTargetMatrix->DeepCopy(targetMatrix);
 
   // apply the initialization matrix
-  vtkMatrix4x4::Multiply4x4(initialMatrix, sourceMatrix, sourceMatrix);
+  vtkSmartPointer<vtkMatrix4x4> matrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  matrix->DeepCopy(initialMatrix);
+  matrix->Invert();
+  vtkMatrix4x4::Multiply4x4(matrix, targetMatrix, targetMatrix);
 
   // -------------------------------------------------------
   // display the images
@@ -1554,21 +1558,21 @@ int main(int argc, char *argv[])
 
   double bounds[6], center[4], tspacing[3];
   int extent[6];
-  targetImage->GetBounds(bounds);
-  targetImage->GetExtent(extent);
-  targetImage->GetSpacing(tspacing);
+  sourceImage->GetBounds(bounds);
+  sourceImage->GetExtent(extent);
+  sourceImage->GetSpacing(tspacing);
   center[0] = 0.5*(bounds[0] + bounds[1]);
   center[1] = 0.5*(bounds[2] + bounds[3]);
   center[2] = 0.5*(bounds[4] + bounds[5]);
   center[3] = 1.0;
-  targetMatrix->MultiplyPoint(center, center);
+  sourceMatrix->MultiplyPoint(center, center);
 
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
   camera->SetFocalPoint(center);
   camera->ParallelProjectionOn();
   camera->SetParallelScale(0.5*(bounds[3] - bounds[2]));
-  SetViewFromMatrix(renderer, istyle, targetMatrix, options.coords);
+  SetViewFromMatrix(renderer, istyle, sourceMatrix, options.coords);
   renderer->ResetCameraClippingRange();
 
   double checkSpacing = (extent[3] - extent[2] + 7)/7*tspacing[1];
@@ -1630,8 +1634,6 @@ int main(int argc, char *argv[])
   targetBlur->InterpolateOn();
 
   // get the initial transformation
-  vtkSmartPointer<vtkMatrix4x4> matrix =
-    vtkSmartPointer<vtkMatrix4x4>::New();
   matrix->DeepCopy(targetMatrix);
   matrix->Invert();
   vtkMatrix4x4::Multiply4x4(matrix, sourceMatrix, matrix);
@@ -1749,9 +1751,12 @@ int main(int argc, char *argv[])
       {
       // registration->UpdateRegistration();
       // will iterate until convergence or failure
+
+      targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
+      targetMatrix->Invert();
       vtkMatrix4x4::Multiply4x4(
-        targetMatrix,registration->GetTransform()->GetMatrix(),sourceMatrix);
-      sourceMatrix->Modified();
+        originalTargetMatrix, targetMatrix, targetMatrix);
+      targetMatrix->Modified();
       if (display)
         {
         interactor->Render();
@@ -1805,10 +1810,10 @@ int main(int argc, char *argv[])
     vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
     vtkSmartPointer<vtkMatrix4x4> wmatrix =
       vtkSmartPointer<vtkMatrix4x4>::New();
-    wmatrix->DeepCopy(originalSourceMatrix);
+    wmatrix->DeepCopy(sourceMatrix);
     wmatrix->Invert();
     vtkMatrix4x4::Multiply4x4(rmatrix, wmatrix, wmatrix);
-    vtkMatrix4x4::Multiply4x4(targetMatrix, wmatrix, wmatrix);
+    vtkMatrix4x4::Multiply4x4(originalTargetMatrix, wmatrix, wmatrix);
 
     WriteMatrix(wmatrix, xfmfile, center);
     }
@@ -1831,16 +1836,16 @@ int main(int argc, char *argv[])
 
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
-    reslice->SetInformationInput(targetImage);
-    reslice->SetInput(sourceImage);
+    reslice->SetInformationInput(sourceImage);
+    reslice->SetInput(targetImage);
     reslice->SetInterpolationModeToLinear();
-    reslice->SetInformationInput(targetImage);
+    reslice->SetInformationInput(sourceImage);
     reslice->SetResliceTransform(
-      registration->GetTransform()->GetInverse());
+      registration->GetTransform());
     reslice->Update();
 
     WriteImage(sourceReader, targetReader,
-      reslice->GetOutput(), targetMatrix, imagefile, options.coords);
+      reslice->GetOutput(), sourceMatrix, imagefile, options.coords);
     }
 
   // -------------------------------------------------------
