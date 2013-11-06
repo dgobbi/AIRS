@@ -170,27 +170,21 @@ vtkDICOMReader *ReadDICOMImage(
     exit(1);
     }
 
-  // when reading target image, only read 1st component if the
+  // when reading images, only read 1st component if the
   // image has multiple components or multiple time points
-  static int readCount = 0;
-  if (readCount++ > 0)
+  vtkIntArray *fileArray = reader->GetFileIndexArray();
+
+  // create a filtered list of files
+  vtkSmartPointer<vtkStringArray> fileNames =
+    vtkSmartPointer<vtkStringArray>::New();
+  vtkIdType n = fileArray->GetNumberOfTuples();
+  for (vtkIdType i = 0; i < n; i++)
     {
-    // get the sorted files
-    vtkIntArray *fileArray = reader->GetFileIndexArray();
-
-    // create a filtered list of files
-    vtkSmartPointer<vtkStringArray> fileNames =
-      vtkSmartPointer<vtkStringArray>::New();
-    vtkIdType n = fileArray->GetNumberOfTuples();
-    for (vtkIdType i = 0; i < n; i++)
-      {
-      fileNames->InsertNextValue(
-        reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
-      }
-
-    reader->SetDesiredTimeIndex(0);
-    reader->SetFileNames(fileNames);
+    fileNames->InsertNextValue(
+      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
     }
+  reader->SetDesiredTimeIndex(0);
+  reader->SetFileNames(fileNames);
 
   reader->Update();
   if (reader->GetErrorCode())
