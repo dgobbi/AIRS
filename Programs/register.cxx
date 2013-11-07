@@ -232,12 +232,20 @@ void WriteDICOMImage(
 
   if (reader)
     {
-    // copy the bulk of the meta data from the source image
+    // copy the bulk of the meta data from the target image
     meta->DeepCopy(reader->GetMetaData());
+    meta->SetAttributeValue(DC::SeriesNumber,
+      meta->GetAttributeValue(DC::SeriesNumber).AsUnsignedInt() + 1000);
+    std::string seriesDescription =
+      meta->GetAttributeValue(DC::SeriesDescription).AsString() + " REG";
+    if (seriesDescription.size() < 64)
+      {
+      meta->SetAttributeValue(DC::SeriesDescription, seriesDescription);
+      }
     }
   if (reader2)
     {
-    // set the frame of reference from the target image
+    // set the frame of reference from the source image
     meta->SetAttributeValue(DC::FrameOfReferenceUID,
       reader2->GetMetaData()->GetAttributeValue(
       DC::FrameOfReferenceUID));
@@ -996,7 +1004,7 @@ void register_show_help(FILE *fp, const char *command)
     "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.1.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.2.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
