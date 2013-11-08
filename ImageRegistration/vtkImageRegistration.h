@@ -95,7 +95,7 @@ public:
   // Optimizer types
   enum
   {
-    Amoeba,
+    Amoeba
   };
 
   // Metric types
@@ -106,7 +106,7 @@ public:
     NormalizedCrossCorrelation,
     NeighborhoodCorrelation,
     MutualInformation,
-    NormalizedMutualInformation,
+    NormalizedMutualInformation
   };
 
   // Interpolator types
@@ -115,6 +115,7 @@ public:
     Nearest,
     Linear,
     Cubic,
+    Sinc
   };
 
   // Transform types
@@ -125,14 +126,14 @@ public:
     Similarity,
     ScaleSourceAxes,
     ScaleTargetAxes,
-    Affine,
+    Affine
   };
 
   // Initializer types
   enum
   {
     None,
-    Centered,
+    Centered
   };
 
   // Description:
@@ -175,7 +176,7 @@ public:
   // Set the transform type.  The default is Rigid.  The Similarity
   // transform type adds a universal scale factor, ScaleSourceAxes
   // allows scaling along all three source image axes, ScaleTargetAxes
-  // allows scaling along all three target image axes. 
+  // allows scaling along all three target image axes.
   vtkSetMacro(TransformType, int);
   void SetTransformTypeToRigid() {
     this->SetTransformType(Rigid); }

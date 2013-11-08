@@ -912,6 +912,7 @@ struct register_options
   int dimensionality;  // -D --dimensionality
   int metric;          // -M --metric
   int transform;       // -T --transform
+  int interpolator;    // -I --interpolator
   int coords;          // -C --coords
   int maxiter[3];      // -M --maxiter
   int display;         // -d --display
@@ -930,6 +931,7 @@ void register_initialize_options(register_options *options)
   options->dimensionality = 3;
   options->metric = vtkImageRegistration::MutualInformation;
   options->transform = vtkImageRegistration::Rigid;
+  options->interpolator = vtkImageRegistration::Linear;
   options->coords = NativeCoords;
   options->invert = 0;
   options->maxiter[0] = 500;
@@ -994,7 +996,7 @@ void register_show_usage(FILE *fp, const char *command)
   fprintf(fp,
     "For more information, type \"%s --help\"\n\n", command);
 }
- 
+
 void register_show_help(FILE *fp, const char *command)
 {
   const char *cp = command + strlen(command);
@@ -1004,7 +1006,7 @@ void register_show_help(FILE *fp, const char *command)
     "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.2.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.3.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
@@ -1052,7 +1054,7 @@ void register_show_help(FILE *fp, const char *command)
     "    Normalized Mutual information may be more robust (but not more\n"
     "    accurate) if one input or both inputs are only a small part\n"
     "    of the organ or anatomy that is being registered.\n"
-    "\n"    
+    "\n"
     " -T --transform        (default: Rigid)\n"
     "                 TR        Translation\n"
     "                 RI        Rigid\n"
@@ -1067,6 +1069,18 @@ void register_show_help(FILE *fp, const char *command)
     "    either along the directions of the source image axes, or along\n"
     "    the directions of the target image axes.  It is always the source\n"
     "    image that is modified by the transform, never the target image.\n"
+    "\n"
+    " -I --interpolator     (default: Linear)\n"
+    "                 NN        NearestNeighbor\n"
+    "                 LI        Linear\n"
+    "                 CU        Cubic\n"
+    "                 WS        WindowedSinc\n"
+    "\n"
+    "    Linear interpolation is usually the best choice, it provides\n"
+    "    a good balance between efficience and quality.  NearestNeighbor\n"
+    "    is required if one of the images is a label image.  The Windowed\n"
+    "    Sinc interpolator uses a five-lobe Blackman-windowed sinc kernel\n"
+    "    and offers the highest overall quality.\n"
     "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
@@ -1133,6 +1147,12 @@ int register_read_options(
     "ScaleSourceAxes", "SS",
     "ScaleTargetAxes", "ST",
     "Affine", "AF",
+    0 };
+  static const char *interpolator_args[] = {
+    "NearestNeighbor", "NN",
+    "Linear", "LI",
+    "Cubic", "CU",
+    "WindowedSinc", "WS",
     0 };
   static const char *coords_args[] = {
     "DICOM", "LPS",
@@ -1258,6 +1278,31 @@ int register_read_options(
                  strcmp(arg, "AF") == 0)
           {
           options->transform = vtkImageRegistration::Affine;
+          }
+        }
+      else if (strcmp(arg, "-I") == 0 ||
+               strcmp(arg, "--interpolator") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, interpolator_args);
+        if (strcmp(arg, "NearestNeighbor") == 0 ||
+            strcmp(arg, "NN") == 0)
+          {
+          options->interpolator = vtkImageRegistration::Nearest;
+          }
+        else if (strcmp(arg, "Linear") == 0 ||
+                 strcmp(arg, "LI") == 0)
+          {
+          options->interpolator = vtkImageRegistration::Linear;
+          }
+        else if (strcmp(arg, "Cubic") == 0 ||
+                 strcmp(arg, "CU") == 0)
+          {
+          options->interpolator = vtkImageRegistration::Cubic;
+          }
+        else if (strcmp(arg, "WindowedSinc") == 0 ||
+                 strcmp(arg, "WS") == 0)
+          {
+          options->interpolator = vtkImageRegistration::Sinc;
           }
         }
       else if (strcmp(arg, "-C") == 0 ||
@@ -1390,7 +1435,7 @@ int main(int argc, char *argv[])
   // -------------------------------------------------------
   // parameters for registration
 
-  int interpolatorType = vtkImageRegistration::Linear;
+  int interpolatorType = options.interpolator;
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
   double initialBlurFactor = 4.0;
@@ -1620,7 +1665,8 @@ int main(int argc, char *argv[])
   sourceBlur->SetInput(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
-  sourceBlur->InterpolateOn();
+  sourceBlur->SetInterpolate(
+    interpolatorType != vtkImageRegistration::Nearest);
 
   // blur target with Blackman-windowed sinc
   vtkSmartPointer<vtkImageSincInterpolator> targetBlurKernel =
@@ -1633,7 +1679,8 @@ int main(int argc, char *argv[])
   targetBlur->SetInput(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
-  targetBlur->InterpolateOn();
+  targetBlur->SetInterpolate(
+    interpolatorType != vtkImageRegistration::Nearest);
 
   // get the initial transformation
   matrix->DeepCopy(targetMatrix);
@@ -1787,12 +1834,15 @@ int main(int argc, char *argv[])
       }
 
     // prepare for next iteration
-    if (stage == 1)
+    if (stage == 1 || interpolatorType == vtkImageRegistration::Nearest)
       {
       level++;
       blurFactor /= 2.0;
       }
-    stage = (stage + 1) % 2;
+    if (interpolatorType != vtkImageRegistration::Nearest)
+      {
+      stage = (stage + 1) % 2;
+      }
     }
 
   if (!options.silent)
@@ -1836,11 +1886,29 @@ int main(int argc, char *argv[])
       cout << "Writing transformed image: " << imagefile << endl;
       }
 
+    vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
+      vtkSmartPointer<vtkImageSincInterpolator>::New();
+    sourceBlurKernel->SetWindowFunctionToBlackman();
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(sourceImage);
     reslice->SetInput(targetImage);
-    reslice->SetInterpolationModeToLinear();
+    switch (options.interpolator)
+      {
+      case vtkImageRegistration::Nearest:
+        reslice->SetInterpolationModeToNearestNeighbor();
+        break;
+      case vtkImageRegistration::Linear:
+        reslice->SetInterpolationModeToLinear();
+        break;
+      case vtkImageRegistration::Cubic:
+        reslice->SetInterpolationModeToCubic();
+        break;
+      case vtkImageRegistration::Sinc:
+        reslice->SetInterpolator(sincInterpolator);
+        break;
+      }
     reslice->SetInformationInput(sourceImage);
     reslice->SetResliceTransform(
       registration->GetTransform());

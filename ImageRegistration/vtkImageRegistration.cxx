@@ -57,6 +57,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkAmoebaMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
+#include "vtkImageSincInterpolator.h"
 
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
@@ -679,6 +680,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   reslice->SetStencil(this->GetSourceImageStencil());
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
+  reslice->SetInterpolator(0);
   switch (this->InterpolatorType)
     {
     case vtkImageRegistration::Nearest:
@@ -689,6 +691,14 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       break;
     case vtkImageRegistration::Cubic:
       reslice->SetInterpolationModeToCubic();
+      break;
+    case vtkImageRegistration::Sinc:
+      {
+      vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
+      interp->SetWindowFunctionToBlackman();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
       break;
     }
 
