@@ -82,8 +82,9 @@ void usage(FILE *file, const char *command_name)
   fprintf(file,
     "%s version %s\n"
     "Convert Zeiss .lsm files into NIfTI .nii files.\n"
-    "usage: %s [options] input2.lsm [output.nii[.gz]]\n",
-    command_name, LSMTONIFTI_VERSION, command_name);
+    "usage: %s [options] input2.lsm [output.nii[.gz]]\n"
+    "%s --help for more information.\n",
+    command_name, LSMTONIFTI_VERSION, command_name, command_name);
 }
 
 // Print the version
