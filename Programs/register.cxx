@@ -73,6 +73,9 @@ Module:    register.cxx
 #include <vtkGlobFileNames.h>
 #endif
 
+#include <vector>
+#include <string>
+
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
 
@@ -907,6 +910,16 @@ void ComputeRange(vtkImageData *image, double range[2])
 
 };
 
+class TransformArg
+{
+public:
+  TransformArg(const char *t, bool i) :
+    filename(t), invert(i) {}
+
+  const char *filename;
+  bool invert;
+};
+
 struct register_options
 {
   int dimensionality;  // -D --dimensionality
@@ -917,13 +930,12 @@ struct register_options
   int maxiter[3];      // -M --maxiter
   int display;         // -d --display
   int silent;          // -s --silent
-  int invert;          // -i --invert (input transform)
   const char *outxfm;  // -o (output transform)
   const char *output;  // -o (output image)
   const char *screenshot; // -j (output screenshot)
   const char *source;
   const char *target;
-  const char *initial;
+  std::vector<TransformArg> transforms;
 };
 
 void register_initialize_options(register_options *options)
@@ -933,7 +945,6 @@ void register_initialize_options(register_options *options)
   options->transform = vtkImageRegistration::Rigid;
   options->interpolator = vtkImageRegistration::Linear;
   options->coords = NativeCoords;
-  options->invert = 0;
   options->maxiter[0] = 500;
   options->maxiter[1] = 500;
   options->maxiter[2] = 500;
@@ -944,7 +955,7 @@ void register_initialize_options(register_options *options)
   options->outxfm = NULL;
   options->source = NULL;
   options->target = NULL;
-  options->initial = NULL;
+  options->transforms.clear();
 }
 
 const char *check_next_arg(
@@ -1006,7 +1017,7 @@ void register_show_help(FILE *fp, const char *command)
     "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.3.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.4.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
@@ -1033,6 +1044,11 @@ void register_show_help(FILE *fp, const char *command)
     "the transform file can be provided as an input to the program, and the\n"
     "number of registration iterations can be set to zero (-N 0) in order\n"
     "to apply the transform directly without performing another registration.\n"
+    "Multiple transforms can be specified this way, they will be concatenated\n"
+    "before they are applied to the image.  For instance, if \'A.tfm B.tfm\'\n"
+    "are specified on the command line, then transform BA will be used as the\n"
+    "initial source-to-target transformation.  The \'-i\' option can be placed\n"
+    "before any transform to invert that transform.\n"
     "\n");
   fprintf(fp,
     " -D --dimensionality   (default: 3)\n"
@@ -1185,15 +1201,7 @@ int register_read_options(
         }
       else if (t <= LastTransformType)
         {
-        if (options->initial == 0)
-          {
-          options->initial = arg;
-          }
-        else
-          {
-          fprintf(stderr, "Too many input transforms listed on command line\n");
-          exit(1);
-          }
+        options->transforms.push_back(TransformArg(arg, false));
         }
       }
     else
@@ -1350,17 +1358,7 @@ int register_read_options(
 
         if (t > LastImageType && t <= LastTransformType)
           {
-          if (options->initial == 0)
-            {
-            options->initial = arg;
-            options->invert = 1;
-            }
-          else
-            {
-            fprintf(stderr,
-                    "Too many input transforms listed on command line\n");
-            exit(1);
-            }
+          options->transforms.push_back(TransformArg(arg, true));
           }
         else
           {
@@ -1418,7 +1416,7 @@ int main(int argc, char *argv[])
 
   // -------------------------------------------------------
   // the files
-  const char *xfminput = options.initial;
+  std::vector<TransformArg> *xfminputs = &options.transforms;
   const char *xfmfile = options.outxfm;
   const char *imagefile = options.output;
   const char *sourcefile = options.source;
@@ -1441,25 +1439,30 @@ int main(int argc, char *argv[])
   double initialBlurFactor = 4.0;
 
   // -------------------------------------------------------
-  // load the initial matrix
+  // load and concatenate the initial matrix transforms
   vtkSmartPointer<vtkMatrix4x4> initialMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
-  if (xfminput)
+  vtkSmartPointer<vtkMatrix4x4> tempMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  for (size_t ti = 0; ti < xfminputs->size(); ti++)
     {
+    TransformArg trans = xfminputs->at(ti);
     if (!options.silent)
       {
-      cout << "Reading initial transform: " << sourcefile << endl;
-      if (options.invert)
+      cout << "Reading initial transform: " << trans.filename << endl;
+      if (trans.invert)
         {
         cout << "Using inverse of transform." << endl;
         }
       }
 
-    ReadMatrix(initialMatrix, xfminput);
-    if (options.invert)
+    ReadMatrix(tempMatrix, trans.filename);
+    if (trans.invert)
       {
-      initialMatrix->Invert();
+      tempMatrix->Invert();
       }
+
+    vtkMatrix4x4::Multiply4x4(tempMatrix, initialMatrix, initialMatrix);
     }
 
   // -------------------------------------------------------
@@ -1701,7 +1704,7 @@ int main(int argc, char *argv[])
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
-  if (xfminput)
+  if (xfminputs->size() > 0)
     {
     registration->SetInitializerTypeToNone();
     }
