@@ -1,77 +1,73 @@
 /*=========================================================================
+  Program:   Atamai Image Registration and Segmentation
+  Module:    vtkLabelInterpolator.h
 
-  Program:   Visualization Toolkit
-  Module:    vtkGaussianInterpolator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2014 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
 
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
 
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+  * Neither the name of the Calgary Image Processing and Analysis Centre
+    (CIPAC), the University of Calgary, nor the names of any authors nor
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =========================================================================*/
-// .NAME vtkGaussianInterpolator - interpolate with Gaussian kernel
+// .NAME vtkLabelInterpolator - interpolator for label images
 // .SECTION Description
-// vtkGaussianInterpolator performs image interpolation with various
-// kernels that are derived from the Gaussian function.  The simplest
-// kernel is simply the Gaussian itself.  Higher-order kernels use a
-// linear combination of the Gaussian and its derivatives to approximate
-// a sinc kernel.  These kernels have very favorable filtering
-// characteristics (i.e. smooth roll-off in both image space and
-// frequency space).  Increasing the order of the kernel allows a better
-// approximation of a sinc function, and hence a sharper frequency cutoff.
-// These kernels are described in the following publication:
-// [1] C. Robert Appledorn, "A New Approach to the Interpolation of Sampled
-//     Data," IEEE Transactions on Medical Imaging, 15(3):369-376, 1996.
+// vtkLabelInterpolator is an image interpolator for label images, that is,
+// it is meant to be used on images that consist of discrete label values
+// rather than continuous intensity values.  It works by computing, for each
+// voxel in the output image, the label value that is most probable at that
+// voxel location.  It assumes that each input voxel has a Gaussian
+// probability distribution.  That is, for each output voxel, the probability
+// of the voxel having a specific label value is the sum of the Gaussian
+// distributions of all nearby input voxels with that label value.
 // .SECTION Thanks
-// Thanks to David Gobbi, Department of Radiology, University of Calgary
-// for providing this class.
+// This class was written by David Gobbi, Calgary Image Procesing and
+// Analysis Centre, University of Calgary.
 // .SECTION See also
 // vtkImageReslice, vtkImageResize
 
 
-#ifndef __vtkGaussianInterpolator_h
-#define __vtkGaussianInterpolator_h
+#ifndef __vtkLabelInterpolator_h
+#define __vtkLabelInterpolator_h
 
 #include "vtkAbstractImageInterpolator.h"
 
-#define VTK_GAUSSIAN_INTERPOLATION 0
-#define VTK_APPLEDORN2_INTERPOLATION 1
-#define VTK_APPLEDORN6_INTERPOLATION 2
-#define VTK_APPLEDORN10_INTERPOLATION 3
-#define VTK_GAUSS_KERNEL_SIZE_MAX 32
+#define VTK_LABEL_KERNEL_SIZE_MAX 32
+#define VTK_LABEL_KERNEL_LABELS_MAX 32
 
 class vtkImageData;
 struct vtkInterpolationInfo;
 
-class VTK_EXPORT vtkGaussianInterpolator :
+class VTK_EXPORT vtkLabelInterpolator :
   public vtkAbstractImageInterpolator
 {
 public:
-  static vtkGaussianInterpolator *New();
-  vtkTypeMacro(vtkGaussianInterpolator, vtkAbstractImageInterpolator);
+  static vtkLabelInterpolator *New();
+  vtkTypeMacro(vtkLabelInterpolator, vtkAbstractImageInterpolator);
   virtual void PrintSelf(ostream& os, vtkIndent indent);
-
-  // Description:
-  // Choose the interpolation kernel.  The default is a simple Gaussian
-  // kernel with a standard deviation of 0.399 voxel widths, or exactly
-  // 1/sqrt(2*pi).  The other kernels use a linear combination of the
-  // derivatives of the Gaussian function to approximate the shape of a
-  // sinc kernel.  When the Appledorn10 is used, the RadiusFactors should
-  // be set to 4 to properly truncate the kernel.
-  virtual void SetKernelType(int itype);
-  void SetKernelTypeToGaussian() {
-    this->SetKernelType(VTK_GAUSSIAN_INTERPOLATION); }
-  void SetKernelTypeToAppledorn2() {
-    this->SetKernelType(VTK_APPLEDORN2_INTERPOLATION); }
-  void SetKernelTypeToAppledorn6() {
-    this->SetKernelType(VTK_APPLEDORN6_INTERPOLATION); }
-  void SetKernelTypeToAppledorn10() {
-    this->SetKernelType(VTK_APPLEDORN10_INTERPOLATION); }
-  int GetKernelType() { return this->KernelType; }
-  virtual const char *GetKernelTypeAsString();
 
   // Description:
   // The radius of the Gaussian kernel will be equal to the product
@@ -132,16 +128,6 @@ public:
   virtual void ComputeSupportSize(const double matrix[16], int support[3]);
 
   // Description:
-  // Turn on renormalization (default: off).  Renormalization ensures that
-  // the weights computed from the kernel always sum to one, which is usually
-  // desirable.  However, for the Gaussian kernel, renormalization creates
-  // large negative side-lobes in the frequency response.
-  void SetRenormalization(int antialiasing);
-  void RenormalizationOn() { this->SetRenormalization(1); }
-  void RenormalizationOff() { this->SetRenormalization(0); }
-  int GetRenormalization() { return this->Renormalization; }
-
-  // Description:
   // Returns true if the interpolator supports weight precomputation.
   // This will always return true for this interpolator.
   virtual bool IsSeparable();
@@ -167,8 +153,8 @@ public:
   virtual void FreePrecomputedWeights(vtkInterpolationWeights *&weights);
 
 protected:
-  vtkGaussianInterpolator();
-  ~vtkGaussianInterpolator();
+  vtkLabelInterpolator();
+  ~vtkLabelInterpolator();
 
   // Description:
   // Update the interpolator.
@@ -204,18 +190,16 @@ protected:
   // Free the kernel lookup tables.
   virtual void FreeKernelLookupTable();
 
-  int KernelType;
   float *KernelLookupTable[3];
   int KernelSize[3];
   int Antialiasing;
-  int Renormalization;
   double RadiusFactors[3];
   double BlurFactors[3];
   double LastBlurFactors[3];
 
 private:
-  vtkGaussianInterpolator(const vtkGaussianInterpolator&);  // Not implemented.
-  void operator=(const vtkGaussianInterpolator&);  // Not implemented.
+  vtkLabelInterpolator(const vtkLabelInterpolator&);  // Not implemented.
+  void operator=(const vtkLabelInterpolator&);  // Not implemented.
 };
 
 #endif

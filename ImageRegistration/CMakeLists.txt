@@ -18,6 +18,7 @@ vtkImageSingleMutualInformation.cxx
 vtkImageSquaredDifference.cxx
 vtkCalcCrossCorrelation.cxx
 vtkImageAmoebaGrid.cxx
+vtkLabelInterpolator.cxx
 vtkGaussianInterpolator.cxx
 vtkImageGridStatistics.cxx
 vtkFunctionMinimizer.cxx
