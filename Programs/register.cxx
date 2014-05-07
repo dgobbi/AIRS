@@ -930,6 +930,9 @@ struct register_options
   int maxiter[3];      // -M --maxiter
   int display;         // -d --display
   int silent;          // -s --silent
+#ifdef VTK_HAS_SLAB_SPACING
+  int mip;             // --mip
+#endif
   const char *outxfm;  // -o (output transform)
   const char *output;  // -o (output image)
   const char *screenshot; // -j (output screenshot)
@@ -950,6 +953,7 @@ void register_initialize_options(register_options *options)
   options->maxiter[2] = 500;
   options->display = 0;
   options->silent = 0;
+  options->mip = 0;
   options->screenshot = NULL;
   options->output = NULL;
   options->outxfm = NULL;
@@ -1093,7 +1097,7 @@ void register_show_help(FILE *fp, const char *command)
     "                 WS        WindowedSinc\n"
     "\n"
     "    Linear interpolation is usually the best choice, it provides\n"
-    "    a good balance between efficience and quality.  NearestNeighbor\n"
+    "    a good balance between efficiency and quality.  NearestNeighbor\n"
     "    is required if one of the images is a label image.  The Windowed\n"
     "    Sinc interpolator uses a five-lobe Blackman-windowed sinc kernel\n"
     "    and offers the highest overall quality.\n"
@@ -1114,6 +1118,14 @@ void register_show_help(FILE *fp, const char *command)
     "\n"
     "    Set the maximum number of iterations per stage.  Set this to zero\n"
     "    if you want to use the initial transform as-is.\n"
+#ifdef VTK_HAS_SLAB_SPACING
+    "\n"
+    " --mip             (default: off)\n"
+    "\n"
+    "    Do a maximum intensity projection for each output slice.  This is\n"
+    "    useful for angiography, since it ensures that vessels will not be\n"
+    "    lost.\n"
+#endif
     "\n"
     " -d --display      (default: off)\n"
     "\n"
@@ -1121,7 +1133,7 @@ void register_show_help(FILE *fp, const char *command)
     "\n"
     " -s --silent       (default: off)\n"
     "\n"
-    "    Do not print information to the console during the resistration.\n"
+    "    Do not print information to the console during the registration.\n"
     "    This is useful when running in batch mode.  Error messages will\n"
     "    still be printed.\n"
     "\n"
@@ -1345,6 +1357,12 @@ int register_read_options(
         {
         options->display = 1;
         }
+#ifdef VTK_HAS_SLAB_SPACING
+      else if (strcmp(arg, "--mip") == 0)
+        {
+        options->mip = 1;
+        }
+#endif
       else if (strcmp(arg, "-s") == 0 ||
                strcmp(arg, "--silent") == 0)
         {
@@ -1585,6 +1603,14 @@ int main(int argc, char *argv[])
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
+#ifdef VTK_HAS_SLAB_SPACING
+  if (options.mip)
+    {
+    targetMapper->SetSlabTypeToMax();
+    targetMapper->SetSlabSampleFactor(2);
+    targetMapper->SetSlabThickness(sourceImage->GetSpacing()[2]);
+    }
+#endif
 
   double targetRange[2];
   ComputeRange(targetImage, targetRange);
@@ -1912,6 +1938,23 @@ int main(int argc, char *argv[])
         reslice->SetInterpolator(sincInterpolator);
         break;
       }
+#ifdef VTK_HAS_SLAB_SPACING
+    if (options.mip)
+      {
+      double ss[3];
+      double st[3];
+      sourceImage->GetSpacing(ss);
+      targetImage->GetSpacing(st);
+      int sn = vtkMath::Ceil(ss[2]/st[2])*2 + 1;
+      reslice->SetSlabModeToMax();
+      reslice->SetSlabNumberOfSlices(sn);
+      reslice->SetSlabSliceSpacingFraction(1.0/sn);
+      if (!options.silent)
+        {
+        cout << "Wrote MIP slabs that are " << ss[2] << " mm thick." << endl;
+        }
+      }
+#endif
     reslice->SetInformationInput(sourceImage);
     reslice->SetResliceTransform(
       registration->GetTransform());
@@ -1919,6 +1962,11 @@ int main(int argc, char *argv[])
 
     WriteImage(sourceReader, targetReader,
       reslice->GetOutput(), sourceMatrix, imagefile, options.coords);
+    }
+
+  if (!options.silent)
+    {
+    cout << "Done!" << endl;
     }
 
   // -------------------------------------------------------
