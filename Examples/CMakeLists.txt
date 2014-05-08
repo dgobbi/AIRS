@@ -63,15 +63,3 @@ TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
 TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
-
-IF(AIRS_USE_DICOM)
-# actually requires NIFTI, which is in DICOM code repository
-  ADD_EXECUTABLE(lsmtonifti lsmtonifti.cxx)
-  TARGET_LINK_LIBRARIES(lsmtonifti vtkImageRegistration vtkIO ${DICOM_LIBRARIES})
-  ADD_EXECUTABLE(ComputeStrain ComputeStrain.cxx)
-  TARGET_LINK_LIBRARIES(ComputeStrain vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
-  ADD_EXECUTABLE(WarpImage WarpImage.cxx)
-  TARGET_LINK_LIBRARIES(WarpImage vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
-  ADD_EXECUTABLE(StrainGlyph StrainGlyph.cxx)
-  TARGET_LINK_LIBRARIES(StrainGlyph vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
-ENDIF(AIRS_USE_DICOM)

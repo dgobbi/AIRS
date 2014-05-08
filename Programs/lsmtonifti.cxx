@@ -504,9 +504,9 @@ int main(int argc, char *argv[])
       }
 
     extent[0] += cropGeometry[2];
-    extent[1] = extent[0] + cropGeometry[0] + 1;
+    extent[1] = extent[0] + cropGeometry[0] - 1;
     extent[2] += cropGeometry[3];
-    extent[3] = extent[2] + cropGeometry[1] + 1;
+    extent[3] = extent[2] + cropGeometry[1] - 1;
 
     // crop the image
     cropper->SetInputConnection(port);
