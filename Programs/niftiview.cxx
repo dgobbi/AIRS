@@ -80,6 +80,10 @@ int main(int argc, char *argv[])
   style->SetInteractionModeToImageSlicing();
   vtkSmartPointer<vtkRenderWindow> renWin =
     vtkSmartPointer<vtkRenderWindow>::New();
+  vtkSmartPointer<vtkRenderer> ren =
+    vtkSmartPointer<vtkRenderer>::New();
+  ren->SetBackground(0.0, 0.0, 0.0);
+  renWin->AddRenderer(ren);
   iren->SetRenderWindow(renWin);
   iren->SetInteractorStyle(style);
 
@@ -127,14 +131,26 @@ int main(int argc, char *argv[])
 
   double range[2];
   int extent[6];
+  double spacing[3], origin[3], bounds[6], dims[3];
   reslice->GetOutput()->GetScalarRange(range);
   reslice->GetOutput()->GetExtent(extent);
+  reslice->GetOutput()->GetSpacing(spacing);
+  reslice->GetOutput()->GetOrigin(origin);
+  for (int kk = 0; kk < 3; kk++)
+    {
+    bounds[2*kk] = extent[2*kk]*spacing[kk] + origin[kk];
+    bounds[2*kk+1] = extent[2*kk+1]*spacing[kk] + origin[kk];
+    dims[kk] = bounds[2*kk+1] - bounds[2*kk] + spacing[kk];
+    }
 
-  static double viewport[3][4] = {
-    { 0.5, 0.0, 1.0, 0.5 },
-    { 0.5, 0.5, 1.0, 1.0 },
-    { 0.0, 0.0, 0.5, 1.0 },
-  };
+  vtkSmartPointer<vtkImageProperty> property =
+    vtkSmartPointer<vtkImageProperty>::New();
+  property->SetColorWindow(range[1] - range[0]);
+  property->SetColorLevel(0.5*(range[0] + range[1]));
+  if (!interp)
+    {
+    property->SetInterpolationTypeToNearest();
+    }
 
   // check if image is 2D
   bool imageIs3D = (extent[5] > extent[4]);
@@ -162,13 +178,7 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageSlice> image =
       vtkSmartPointer<vtkImageSlice>::New();
     image->SetMapper(imageMapper);
-
-    image->GetProperty()->SetColorWindow(range[1] - range[0]);
-    image->GetProperty()->SetColorLevel(0.5*(range[0] + range[1]));
-    if (!interp)
-      {
-      image->GetProperty()->SetInterpolationTypeToNearest();
-      }
+    image->SetProperty(property);
 
     vtkSmartPointer<vtkRenderer> renderer =
       vtkSmartPointer<vtkRenderer>::New();
@@ -176,31 +186,40 @@ int main(int argc, char *argv[])
     renderer->SetBackground(0.0, 0.0, 0.0);
     if (imageIs3D)
       {
-      renderer->SetViewport(viewport[i]);
+      if (i == 2)
+        {
+        renderer->SetViewport(
+          0.0, dims[2]/(dims[0] + dims[2]),
+          dims[1]/(dims[1] + dims[2]), 1.0);
+        }
+      else if (i == 1)
+        {
+        renderer->SetViewport(
+          0.0, 0.0,
+          dims[1]/(dims[1] + dims[2]), dims[2]/(dims[1] + dims[2]));
+        }
+      else if (i == 0)
+        {
+        renderer->SetViewport(
+          dims[0]/(dims[0] + dims[2]), dims[2]/(dims[1] + dims[2]),
+          1.0, 1.0);
+        }
       }
 
     renWin->AddRenderer(renderer);
 
     // use center point to set camera
-    double *bounds = imageMapper->GetBounds();
     double point[3];
     point[0] = 0.5*(bounds[0] + bounds[1]);
     point[1] = 0.5*(bounds[2] + bounds[3]);
     point[2] = 0.5*(bounds[4] + bounds[5]);
-    double maxdim = 0.0;
-    for (int j = 0; j < 3; j++)
-      {
-      double s = 0.5*(bounds[2*j+1] - bounds[2*j]);
-      maxdim = (s > maxdim ? s : maxdim);
-      }
 
     vtkCamera *camera = renderer->GetActiveCamera();
     camera->SetFocalPoint(point);
     if (i == 2)
       {
-      point[2] -= 500.0;
       camera->SetViewUp(0.0, -1.0, 0.0);
-      camera->SetParallelScale(maxdim);
+      camera->SetParallelScale(0.5*dims[1]);
       camera->AddObserver(vtkCommand::ModifiedEvent, sliceObserver);
       sliceObserver->Image = reslice->GetOutput();
       }
@@ -209,7 +228,7 @@ int main(int argc, char *argv[])
       vtkSmartPointer<vtkLineSource> lineSource =
         vtkSmartPointer<vtkLineSource>::New();
       double p[3] = { point[0], point[1], point[2] };
-      p[i] += 10;
+      p[i] -= 10;
       p[1 - i] = bounds[2*(1 - i)];
       lineSource->SetPoint1(p);
       p[1 - i] = bounds[2*(1 - i) + 1];
@@ -228,20 +247,29 @@ int main(int argc, char *argv[])
 
       sliceObserver->Line[i] = lineSource;
 
-      point[i] += 500.0;
-      camera->SetViewUp(0.0, 0.0, +1.0);
-      camera->SetParallelScale(maxdim/2);
+      if (i == 0)
+        {
+        camera->SetViewUp(0.0, -1.0, 0.0);
+        camera->SetParallelScale(0.5*dims[1]);
+        }
+      else
+        {
+        camera->SetViewUp(0.0, 0.0, +1.0);
+        camera->SetParallelScale(0.5*dims[2]);
+        }
       }
+    point[i] -= 500.0;
     camera->SetPosition(point);
     camera->ParallelProjectionOn();
     }
 
   int width = extent[1] - extent[0] + 1;
-  int height = extent[3] - extent[2] + 1;
+  int height = static_cast<int>(width*dims[1]/dims[0] + 0.5);
+  int depth = static_cast<int>(width*dims[2]/dims[0] + 0.5);
 
   if (imageIs3D)
     {
-    renWin->SetSize(2*width, height);
+    renWin->SetSize(width + depth, height + depth);
     }
   else
     {
