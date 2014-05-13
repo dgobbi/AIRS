@@ -36,6 +36,7 @@
 
 #include "vtkNIIReader.h"
 #include "vtkNIIWriter.h"
+#include "vtkNIIHeader.h"
 #include "vtkITKXFMReader.h"
 #include "vtkTransformToStrain.h"
 
@@ -566,7 +567,7 @@ int main(int argc, char *argv[])
 
   double spacing[3], origin[3];
   int extent[6];
-  vtkInformation *info = reader->GetOutputPortInformation(0);
+  vtkInformation *info = reader->GetExecutive()->GetOutputInformation(0);
   info->Get(vtkDataObject::SPACING(), spacing);
   info->Get(vtkDataObject::ORIGIN(), origin);
   info->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), extent);
