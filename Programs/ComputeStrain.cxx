@@ -88,7 +88,7 @@ void strain_usage(FILE *file, const char *command_name)
     "  --deformation-gradient  Output the deformation gradient tensor.\n"
     "  --greens-strain-tensor  Output Green's strain tensor (the default).\n"
     "  --principal-directions  Output the principal directions of Green's strain.\n"
-    "  --principal-components  Output the principal components of Green's straing.\n"
+    "  --principal-components  Output the principal components of Green's strain.\n"
     "  --principal-component   Output just the largest principal component.\n"
     "  --help                  Print a short help document.\n"
   );
@@ -379,7 +379,7 @@ int strain_read_transform(
 // Parse a geometry option in the format "WxHxD"
 void dimensions(char *argv[], int argc, int argi, int g[3])
 {
-  const char *option = argv[argi++];
+  const char *option = argv[argi-1];
 
   if (argi == argc || argv[argi][0] == '-')
     {
@@ -393,7 +393,7 @@ void dimensions(char *argv[], int argc, int argi, int g[3])
   for (int i = 0; i < 3; i++)
     {
     g[i] = static_cast<int>(strtoul(arg, &arg, 10));
-    if (*arg == 'x')
+    if (i < 2 && *arg == 'x')
       {
       arg++;
       }
@@ -402,11 +402,11 @@ void dimensions(char *argv[], int argc, int argi, int g[3])
       g[2] = -1;
       break;
       }
-    else
+    else if (!(i == 2 && *arg == '\0'))
       {
       fprintf(stderr,
-              "\nError: option %s must be followed by valid dimensions.\n",
-              option);
+              "\nError: option %s requires valid dimensions, was given %s.\n",
+              option, argv[argi]);
       strain_usage(stderr, argv[0]);
       exit(1);
       }
