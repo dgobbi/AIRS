@@ -34,8 +34,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =========================================================================*/
 
-#include "vtkNIFTIReader.h"
-#include "vtkNIFTIWriter.h"
+#include "vtkNIIReader.h"
+#include "vtkNIIWriter.h"
 #include "vtkITKXFMReader.h"
 
 #include <vtkImageData.h>
@@ -103,8 +103,8 @@ void help(FILE *file, const char *command_name)
 // Print error
 void check_error(vtkObject *o)
 {
-  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(o);
-  vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
+  vtkNIIReader *reader = vtkNIIReader::SafeDownCast(o);
+  vtkNIIWriter *writer = vtkNIIWriter::SafeDownCast(o);
   vtkMNITransformReader *xfmreader = vtkMNITransformReader::SafeDownCast(o);
   vtkITKXFMReader *itkreader = vtkITKXFMReader::SafeDownCast(o);
   const char *filename = 0;
@@ -215,8 +215,8 @@ int read_transform(
   else if (strcmp(ext, ".nii") == 0 ||
            strcmp(ext, ".nii.gz") == 0)
     {
-    vtkSmartPointer<vtkNIFTIReader> reader =
-      vtkSmartPointer<vtkNIFTIReader>::New();
+    vtkSmartPointer<vtkNIIReader> reader =
+      vtkSmartPointer<vtkNIIReader>::New();
     reader->SetFileName(file);
     reader->Update();
     check_error(reader);
@@ -369,14 +369,14 @@ int main(int argc, char *argv[])
     exit(1);
     }
 
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> reader =
+    vtkSmartPointer<vtkNIIReader>::New();
   reader->SetFileName(infile);
   reader->Update();
   check_error(reader);
 
-  vtkSmartPointer<vtkNIFTIReader> rreader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> rreader =
+    vtkSmartPointer<vtkNIIReader>::New();
   if (targetfile)
     {
     rreader->SetFileName(targetfile);
@@ -441,8 +441,8 @@ int main(int argc, char *argv[])
   reslice->SetInterpolationModeToLinear();
   reslice->Update();
 
-  vtkSmartPointer<vtkNIFTIWriter> writer =
-    vtkSmartPointer<vtkNIFTIWriter>::New();
+  vtkSmartPointer<vtkNIIWriter> writer =
+    vtkSmartPointer<vtkNIIWriter>::New();
   writer->SetInputConnection(reslice->GetOutputPort());
   writer->SetFileName(outfile);
   writer->SetSFormMatrix(rreader->GetSFormMatrix());

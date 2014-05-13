@@ -23,6 +23,9 @@ vtkImageNeighborhoodCorrelation.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
 vtkLSMReader.cxx
+vtkNIIHeader.cxx
+vtkNIIReader.cxx
+vtkNIIWriter.cxx
 vtkPowellMinimizer.cxx
 vtkTransformToStrain.cxx
 )
