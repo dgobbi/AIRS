@@ -82,8 +82,7 @@
 
 void printUsage(const char *cmdname)
 {
-    cout << "Usage: " << cmdname << " image.nii tensors.nii"
-         << endl;
+  fprintf(stdout, "Usage: %s image.nii tensors.nii\n", cmdname);
 }
 
 // Print error
@@ -562,8 +561,6 @@ int main (int argc, char *argv[])
       vtkSmartPointer<vtkFloatArray>::New();
     tensorArray->SetNumberOfComponents(9);
     tensorArray->InsertNextTuple(*tensor);
-
-    cerr << tensor[0][0] << "\n";
 
     vtkSmartPointer<vtkPoints> tensorPoints =
       vtkSmartPointer<vtkPoints>::New();
