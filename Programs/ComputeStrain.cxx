@@ -85,6 +85,7 @@ void strain_usage(FILE *file, const char *command_name)
     "  -R <file.nii[.gz]>      A file with the desired output size and spacing.\n"
     "  -i Affine.txt           Invert the affine transformation that follows.\n"
     "  --size WxH[xD]          Specify the desired size of the output file.\n"
+    "  --smoothing X[xYxZ]     Apply Gaussian smoothing with the given sigmas.\n"
     "  --deformation-gradient  Output the deformation gradient tensor.\n"
     "  --greens-strain-tensor  Output Green's strain tensor (the default).\n"
     "  --principal-directions  Output the principal directions of Green's strain.\n"
@@ -106,69 +107,114 @@ void strain_help(FILE *file, const char *command_name)
     "This program computes strain tensors from a series of deformations.\n"
     "\n");
   fprintf(file,
-    "The deformations are described in two ways: as an affine transformation\n"
-    "stored as a 3x3 matrix and an offset vector, or as a displacement vector\n"
-    "field stored in a nifti (.nii) file.  When the displacement vector field is\n"
-    "loaded into this program from the nifti file, a three-dimensional cubic\n"
-    "B-spline is computed for the x, y, and z components of the displacement\n"
-    "in order to create a smooth, differentiable vector field.\n"
+    "Each deformation is stored as two files: a displacement vector field stored\n"
+    "in a nifti (.nii) file, plus an affine transformation stored in a text file.\n"
+    "Because the displacement vector field is discretely sampled, it is smoothed\n"
+    "and converted to a three-dimensional cubic B-spline before any operations\n"
+    "are applied to it.\n"
     "\n");
   fprintf(file,
-    "In general, the full deformation of an image is composed of a displacement\n"
-    "vector field that describes the fine structure of the deformation,\n"
-    "followed by an affine transformation that provides the global initial\n"
-    "estimate of the deformation.  This order is used, rather than the reverse,\n"
-    "because it allows the samples in the vector field to be aligned with the\n"
-    "image that is being deformed.\n"
+    "The file containing the displacement vector field always precedes the\n"
+    "file containing the affine transformation.  This ordering is used by\n"
+    "ANTS because it aligns the vector field with the image whose deformation\n"
+    "is being described.\n"
     "\n");
   fprintf(file,
-    "It is also possible to describe a deformation as a concatenation of\n"
-    "multiple affine transformations and deformation vector fields.  To do\n"
-    "this, simply supply all the transformation files to be concatenated on\n"
-    "the command line.  The strain tensor will be computed from the total\n"
-    "deformation that results from applying each sub-deformation in turn.\n"
+    "It is also possible to describe a deformation as a concatenation of multiple\n"
+    "deformation transformations, each with its own displacement vector field and\n"
+    "affine tranformation.  These must be given in the correct order:\n"
+    "  Warp1.nii Affine1.txt Warp2.nii Affine2.txt Warp3.nii Affine3.txt ...\n"
+    "The strain tensor will be computed from the total deformation that results\n"
+    "from the combined deformations.\n"
     "\n");
   fprintf(file,
-    "The --size option sets the size of the output image to WxHxD.  If the\n"
-    "depth (xD) is omitted, then the number of slices in the output tensor image\n"
-    "will be the same as the number of slices in the original image stack.  If\n"
-    "the requested resolution is coarser (i.e. the WxHxD size is smaller) than\n"
-    "a loaded displacement field files, then a guassian smoothing will be applied\n"
-    "to the displacement field before it is used to compute the tensors.  The\n"
-    "sigma_x, sigma_y, and sigma_z of the Gaussian used for the smoothing will\n"
-    "equal to 0.399 times the ratio of the output sample spacing (tensor spacing)\n"
-    "to the input sample spacing (displacement vector spacing).  This smoothing\n"
-    "eliminates the aliasing that would otherwise result from undersampling the\n"
-    "displacement vector field while computing the tensors.\n"
+    "Options in detail:\n"
     "\n");
   fprintf(file,
-    "If an image file is supplied with the -R option, then the strain will be\n"
-    "computed at every pixel in this supplied image.  For example, if you supply\n"
-    "one of the original microscope image stacks with -R, then the output tensor\n"
-    "image will have the same geometry as that file.\n"
+    "  -o <output.nii.gz>   or   -o <output.img>\n"
     "\n");
   fprintf(file,
-    "Four output options are available:\n\n");
-  fprintf(file,
-    "--deformation-gradient computes a 3x3 matrix containing the partial\n"
-    "derivatives of the deformed coordinates (x\',y\',z\') with respect to\n"
-    "the original, undeformed coordinates (x,y,z).\n\n");
-  fprintf(file,
-    "--greens-strain-tensor computes Green\'s strain tensor via the\n"
-    "deformation gradient: E = 0.5*(F\'F - I) where F is the deformation\n"
-    "gradient tensor and I is the 3x3 identity matrix.\n\n");
-  fprintf(file,
-    "--principal-directions computes the principal directions of Green\'s\n"
-    "strain tensor via the Jacobi algorithm.\n\n");
-  fprintf(file,
-    "--principal-components computes the principal components of Green\'s\n"
-    "strain tensor, and outputs them in order from largest to smallest.\n"
-    "The order will match the principal directions/\n\n");
-  fprintf(file,
-    "--principal-component will output only the largest principal component.\n"
+    "  Specify an output file in nifti format (include a .gz extension to write\n"
+    "  a compressed file).  Alternatively, you can use <output.img> instead,\n"
+    "  which will write a raw file instead, and produce a .hdr file with the\n"
+    "  header information.\n"
     "\n");
   fprintf(file,
-    "The name of the desired output file must be preceded by \"-o\".\n"
+    "  -R <stack.nii.gz>\n"
+    "\n");
+  fprintf(file,
+    "  Specify an image stack that has the dimensions (in micrometers) that you\n"
+    "  want to use for the tensor file that will be written.\n"
+    "\n");
+  fprintf(file,
+    "  --size WxH    or   --size WxHxD\n"
+    "\n");
+  fprintf(file,
+    "  Specify the size of the output file, in number of pixels and slices,\n"
+    "  where the number of slices is option.  If this option is not used, then\n"
+    "  the size of the \"-R\" file will be used.  The usual purpose of this option\n"
+    "  is to reduce the resolution of the output as compared to the \"-R\" file.\n"
+    "\n");
+  fprintf(file,
+    "  --smoothing <sigma>   or   --smoothing <sigma_x>x<sigma_y>x<sigma_z>\n"
+    "\n");
+  fprintf(file,
+    "  Specify the smoothing, as the sigma of a Gaussian in micrometers, to apply\n"
+    "  to the displacement vector field before it is splined and differentiated.\n"
+    "  If only one sigma is given, it will be used in all three dimensions.  If\n"
+    "  this option is not used, then the vector field will automatically be\n"
+    "  smoothed in each direction by a Gaussian that has a sigma of 0.399*delta\n"
+    "  where \"delta\" is the sample spacing in that direction (the value of 0.399\n"
+    "  gives the special Gaussian exp(-pi*(x/delta)^2) ).\n"
+    "\n");
+  fprintf(file,
+    "  -i <affine.txt>\n"
+    "\n");
+  fprintf(file,
+    "  If the \"-i\" option precedes an affine transformation file, then the affine\n"
+    "  transformation will be inverted before it is used.\n"
+    "\n");
+  fprintf(file,
+    "\n");
+  fprintf(file,
+    "  Only one of the following output options can be chosen:\n"
+    "\n");
+  fprintf(file,
+    "  --deformation-gradient\n"
+    "\n");
+  fprintf(file,
+    "  For each output value, compute a 3x3 matrix containing the partial\n"
+    "  derivatives of the deformed coordinates (x\',y\',z\') with respect to the\n"
+    "  original, undeformed coordinates (x,y,z).\n"
+    "\n");
+  fprintf(file,
+    "  --greens-strain-tensor\n"
+    "\n");
+  fprintf(file,
+    "  For each output value, compute Green's strain tensor via the\n"
+    "  deformation gradient: E = 0.5*(F\'F - I) where F is the deformation\n"
+    "  gradient tensor and I is the 3x3 identity matrix.\n"
+    "\n");
+  fprintf(file,
+    "  --principal-directions\n"
+    "\n");
+  fprintf(file,
+    "  For each output value, compute the principal directions of Green's\n"
+    "  strain tensor via the Jacobi algorithm.\n"
+    "\n");
+  fprintf(file,
+    "  --principal-components\n"
+    "\n");
+  fprintf(file,
+    "  For each output value, compute the principal components of Green's\n"
+    "  strain tensor, and produce them in order from largest to smallest.\n"
+    "  The order will match the output from --principal-directions.\n"
+    "\n");
+  fprintf(file,
+    "  --principal-component\n"
+    "\n");
+  fprintf(file,
+    "  For each output value, produce only the largest principal component.\n"
     "\n");
 }
 
@@ -241,7 +287,7 @@ void strain_check_error(vtkObject *o)
 
 int strain_read_transform(
   vtkGeneralTransform *transform, const char *file, bool invert,
-  const double outputSpacing[3])
+  const double outputSpacing[3], const double smoothing[3])
 {
   int n = strlen(file);
   while (n) { if (file[--n] == '.') { break; } }
@@ -303,12 +349,25 @@ int strain_read_transform(
     blurFactors[1] = outputSpacing[1]/spacing[1];
     blurFactors[2] = outputSpacing[2]/spacing[2];
 
+    double sigma[3] = {
+      0.399*blurFactors[0],
+      0.399*blurFactors[1],
+      0.399*blurFactors[2]
+    };
+
+    if (smoothing[0] >= 0)
+      {
+      sigma[0] = smoothing[0]/spacing[0];
+      sigma[1] = smoothing[1]/spacing[1];
+      sigma[2] = smoothing[2]/spacing[2];
+      }
+
     vtkSmartPointer<vtkImageGaussianSmooth> smooth =
       vtkSmartPointer<vtkImageGaussianSmooth>::New();
     smooth->SetInputConnection(reader->GetOutputPort());
     smooth->SetRadiusFactors(4.5, 4.5, 4.5);
-    smooth->SetStandardDeviation(
-      0.399*blurFactors[0], 0.399*blurFactors[1], 0.399*blurFactors[2]);
+    smooth->SetStandardDeviations(sigma);
+    smooth->SetDimensionality((sigma[2] > 0 ? 3 : 2));
     smooth->Update();
 
     // compute the b-spline coefficients
@@ -413,6 +472,49 @@ void dimensions(char *argv[], int argc, int argi, int g[3])
     }
 }
 
+// Parse a geometry option in the format "WxHxD"
+void sigmas(char *argv[], int argc, int argi, double g[3])
+{
+  const char *option = argv[argi-1];
+
+  if (argi == argc || argv[argi][0] == '-')
+    {
+    fprintf(stderr, "\nError: option %s must be followed by a value.\n",
+            option);
+    strain_usage(stderr, argv[0]);
+    exit(1);
+    }
+
+  char *arg = argv[argi];
+  for (int i = 0; i < 3; i++)
+    {
+    g[i] = strtod(arg, &arg);
+    if (i < 2 && *arg == 'x')
+      {
+      arg++;
+      }
+    else if (i == 0 && *arg == '\0')
+      {
+      g[1] = g[0];
+      g[2] = g[0];
+      break;
+      }
+    else if (i == 1 && *arg == '\0')
+      {
+      g[2] = -1;
+      break;
+      }
+    else if (!(i == 2 && *arg == '\0'))
+      {
+      fprintf(stderr,
+              "\nError: option %s requires valid values, was given %s.\n",
+              option, argv[argi]);
+      strain_usage(stderr, argv[0]);
+      exit(1);
+      }
+    }
+}
+
 int main(int argc, char *argv[])
 {
   // this is used to join all the transforms
@@ -430,6 +532,7 @@ int main(int argc, char *argv[])
   const char *deffile = 0;
   const char *targetfile = 0;
   int outputSize[3] = { -1, -1, -1 };
+  double smoothing[3] = { -1.0, -1.0, -1.0 };
 
   enum OutputType {
     DeformationGradient,
@@ -473,6 +576,10 @@ int main(int argc, char *argv[])
     else if (strcmp(arg, "--size") == 0)
       {
       dimensions(argv, argc, argi++, outputSize);
+      }
+    else if (strcmp(arg, "--smoothing") == 0)
+      {
+      sigmas(argv, argc, argi++, smoothing);
       }
     else if (strcmp(arg, "-o") == 0)
       {
@@ -590,7 +697,8 @@ int main(int argc, char *argv[])
     {
     std::string tfile = transformFiles->GetValue(i);
     int invert = transformInvert->GetValue(i);
-    if (!strain_read_transform(transform, tfile.c_str(), invert, spacing))
+    if (!strain_read_transform(
+          transform, tfile.c_str(), invert, spacing, smoothing))
       {
       exit(1);
       }
