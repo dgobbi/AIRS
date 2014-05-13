@@ -1612,8 +1612,6 @@ int main(int argc, char *argv[])
   renderer->AddViewProp(imageStack);
   renderer->SetBackground(0,0,0);
 
-  renderWindow->SetSize(512,512);
-
   double bounds[6], center[4], tspacing[3];
   int extent[6];
   sourceImage->GetBounds(bounds);
@@ -1624,6 +1622,9 @@ int main(int argc, char *argv[])
   center[2] = 0.5*(bounds[4] + bounds[5]);
   center[3] = 1.0;
   sourceMatrix->MultiplyPoint(center, center);
+
+  renderWindow->SetSize(
+    extent[1] - extent[0] + 1, extent[3] - extent[2] + 1);
 
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
