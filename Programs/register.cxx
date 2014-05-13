@@ -106,12 +106,12 @@ int GuessFileType(const char *filename)
     {
     return MNITransform;
     }
-  if (n > 4 && strcmp(&filename[n-4], ".tfm") == 0)
+  if ((n > 4 && strcmp(&filename[n-4], ".txt") == 0) ||
+      (n > 4 && strcmp(&filename[n-4], ".tfm") == 0))
     {
     return ITKTransform;
     }
-  if ((n > 4 && strcmp(&filename[n-4], ".txt") == 0) ||
-      (n > 4 && strcmp(&filename[n-4], ".mat") == 0))
+  if (n > 4 && strcmp(&filename[n-4], ".mat") == 0)
     {
     return TXTTransform;
     }
