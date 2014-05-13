@@ -36,8 +36,8 @@
 
 #include "vtkITKXFMReader.h"
 #include "vtkMNITransformReader.h"
-#include "vtkNIFTIReader.h"
-#include "vtkNIFTIWriter.h"
+#include "vtkNIIReader.h"
+#include "vtkNIIWriter.h"
 
 #include <vtkSmartPointer.h>
 
@@ -89,8 +89,8 @@ void printUsage(const char *cmdname)
 // Print error
 void strain_check_error(vtkObject *o)
 {
-  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(o);
-  vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
+  vtkNIIReader *reader = vtkNIIReader::SafeDownCast(o);
+  vtkNIIWriter *writer = vtkNIIWriter::SafeDownCast(o);
   vtkMNITransformReader *xfmreader = vtkMNITransformReader::SafeDownCast(o);
   vtkITKXFMReader *itkreader = vtkITKXFMReader::SafeDownCast(o);
   const char *filename = 0;
@@ -202,8 +202,8 @@ int strain_read_transform(
   else if (strcmp(ext, ".nii") == 0 ||
            strcmp(ext, ".nii.gz") == 0)
     {
-    vtkSmartPointer<vtkNIFTIReader> reader =
-      vtkSmartPointer<vtkNIFTIReader>::New();
+    vtkSmartPointer<vtkNIIReader> reader =
+      vtkSmartPointer<vtkNIIReader>::New();
     reader->SetFileName(file);
     reader->Update();
     strain_check_error(reader);
@@ -370,14 +370,14 @@ int main (int argc, char *argv[])
   imagefile = argv[argi++];
   tensorfile = argv[argi++];
 
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> reader =
+    vtkSmartPointer<vtkNIIReader>::New();
   reader->SetFileName(imagefile);
   reader->Update();
   vtkImageData *image = reader->GetOutput();
 
-  vtkSmartPointer<vtkNIFTIReader> tensorReader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> tensorReader =
+    vtkSmartPointer<vtkNIIReader>::New();
   tensorReader->SetFileName(tensorfile);
   tensorReader->Update();
   vtkImageData *tensorImage = reader->GetOutput();

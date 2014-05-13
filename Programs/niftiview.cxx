@@ -1,4 +1,4 @@
-#include "vtkNIFTIReader.h"
+#include "vtkNIIReader.h"
 
 #include "vtkRenderWindowInteractor.h"
 #include "vtkInteractorStyleImage.h"
@@ -104,8 +104,8 @@ int main(int argc, char *argv[])
     return 0;
     }
 
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> reader =
+    vtkSmartPointer<vtkNIIReader>::New();
   reader->SetFileName(filename);
   reader->Update();
 

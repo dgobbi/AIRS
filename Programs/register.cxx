@@ -71,6 +71,14 @@ Module:    register.cxx
 #include <vtkDICOMWriter.h>
 #include <vtkDICOMMetaData.h>
 #include <vtkGlobFileNames.h>
+#else
+#define AIRS_USE_NIFTI
+#include <vtkNIIReader.h>
+#include <vtkNIIWriter.h>
+#include <vtkNIIHeader.h>
+typedef vtkNIIReader vtkNIFTIReader;
+typedef vtkNIIWriter vtkNIFTIWriter;
+typedef vtkNIIHeader vtkNIFTIHeader;
 #endif
 
 #include <vector>

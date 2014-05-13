@@ -35,7 +35,7 @@
 =========================================================================*/
 
 
-#include "vtkNIFTIWriter.h"
+#include "vtkNIIWriter.h"
 #include "vtkLSMReader.h"
 
 #include <vtkTIFFReader.h>
@@ -186,7 +186,7 @@ void check_error(vtkObject *o)
 {
   vtkTIFFReader *treader = vtkTIFFReader::SafeDownCast(o);
   vtkLSMReader *reader = vtkLSMReader::SafeDownCast(o);
-  vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
+  vtkNIIWriter *writer = vtkNIIWriter::SafeDownCast(o);
   const char *filename = 0;
   unsigned long errorcode = 0;
 
@@ -686,8 +686,8 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
 
   // write the nifti file
-  vtkSmartPointer<vtkNIFTIWriter> writer =
-    vtkSmartPointer<vtkNIFTIWriter>::New();
+  vtkSmartPointer<vtkNIIWriter> writer =
+    vtkSmartPointer<vtkNIIWriter>::New();
   writer->SetInputConnection(port);
   writer->SetFileName(outfile);
   writer->SetSFormMatrix(matrix);

@@ -34,8 +34,8 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =========================================================================*/
 
-#include "vtkNIFTIReader.h"
-#include "vtkNIFTIWriter.h"
+#include "vtkNIIReader.h"
+#include "vtkNIIWriter.h"
 #include "vtkITKXFMReader.h"
 #include "vtkTransformToStrain.h"
 
@@ -174,8 +174,8 @@ void strain_help(FILE *file, const char *command_name)
 // Print error
 void strain_check_error(vtkObject *o)
 {
-  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(o);
-  vtkNIFTIWriter *writer = vtkNIFTIWriter::SafeDownCast(o);
+  vtkNIIReader *reader = vtkNIIReader::SafeDownCast(o);
+  vtkNIIWriter *writer = vtkNIIWriter::SafeDownCast(o);
   vtkMNITransformReader *xfmreader = vtkMNITransformReader::SafeDownCast(o);
   vtkITKXFMReader *itkreader = vtkITKXFMReader::SafeDownCast(o);
   const char *filename = 0;
@@ -287,8 +287,8 @@ int strain_read_transform(
   else if (strcmp(ext, ".nii") == 0 ||
            strcmp(ext, ".nii.gz") == 0)
     {
-    vtkSmartPointer<vtkNIFTIReader> reader =
-      vtkSmartPointer<vtkNIFTIReader>::New();
+    vtkSmartPointer<vtkNIIReader> reader =
+      vtkSmartPointer<vtkNIIReader>::New();
     reader->SetFileName(file);
     reader->Update();
     strain_check_error(reader);
@@ -558,8 +558,8 @@ int main(int argc, char *argv[])
       }
     }
 
-  vtkSmartPointer<vtkNIFTIReader> reader =
-    vtkSmartPointer<vtkNIFTIReader>::New();
+  vtkSmartPointer<vtkNIIReader> reader =
+    vtkSmartPointer<vtkNIIReader>::New();
   reader->SetFileName(targetfile);
   reader->UpdateInformation();
   strain_check_error(reader);
@@ -632,8 +632,8 @@ int main(int argc, char *argv[])
     extractor->SetComponents(0);
     }
 
-  vtkSmartPointer<vtkNIFTIWriter> writer =
-    vtkSmartPointer<vtkNIFTIWriter>::New();
+  vtkSmartPointer<vtkNIIWriter> writer =
+    vtkSmartPointer<vtkNIIWriter>::New();
   if (outputType == PrincipalComponents ||
       outputType == PrincipalComponent)
     {

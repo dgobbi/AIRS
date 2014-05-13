@@ -30,6 +30,9 @@ vtkITKXFMWriter.cxx
 vtkLSMReader.cxx
 vtkMNIXFMReader.cxx
 vtkMNIXFMWriter.cxx
+vtkNIIHeader.cxx
+vtkNIIReader.cxx
+vtkNIIWriter.cxx
 vtkPowellMinimizer.cxx
 vtkTransformToStrain.cxx
 )
