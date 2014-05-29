@@ -25,6 +25,7 @@
 #include "vtkMultiThreader.h"
 #include "vtkTemplateAliasMacro.h"
 #include "vtkPointData.h"
+#include "vtkVersion.h"
 
 #include <math.h>
 
@@ -77,9 +78,13 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkImageMutualInformation::SetStencil(vtkImageStencilData *stencil)
+void vtkImageMutualInformation::SetStencilData(vtkImageStencilData *stencil)
 {
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputData(2, stencil);
+#else
   this->SetInput(2, stencil);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -435,7 +440,11 @@ int vtkImageMutualInformation::RequestData(
         int updateExtent[6];
         info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                   updateExtent);
+#if VTK_MAJOR_VERSION >= 6
+        this->AllocateOutputData(outData, info, updateExtent);
+#else
         this->AllocateOutputData(outData, updateExtent);
+#endif
         }
       }
     }

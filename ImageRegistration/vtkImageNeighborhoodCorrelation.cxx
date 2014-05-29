@@ -22,6 +22,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkMultiThreader.h"
 #include "vtkTemplateAliasMacro.h"
+#include "vtkVersion.h"
 
 // turn off 64-bit ints when templating over all types
 # undef VTK_USE_INT64
@@ -62,9 +63,14 @@ void vtkImageNeighborhoodCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkImageNeighborhoodCorrelation::SetStencil(vtkImageStencilData *stencil)
+void vtkImageNeighborhoodCorrelation::SetStencilData(
+  vtkImageStencilData *stencil)
 {
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputData(2, stencil);
+#else
   this->SetInput(2, stencil);
+#endif
 }
 
 //----------------------------------------------------------------------------

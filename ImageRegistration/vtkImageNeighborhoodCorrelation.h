@@ -38,7 +38,9 @@ public:
 
   // Description:
   // Use a stencil to limit the metric to a region of the images.
-  void SetStencil(vtkImageStencilData *stencil);
+  void SetStencilData(vtkImageStencilData *stencil);
+  void SetStencil(vtkImageStencilData *stencil) {
+    this->SetStencilData(stencil); }
   vtkImageStencilData *GetStencil();
 
   // Description:

@@ -58,6 +58,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkAmoebaMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageSincInterpolator.h"
+#include "vtkVersion.h"
 
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
@@ -67,6 +68,15 @@ POSSIBILITY OF SUCH DAMAGES.
 
 // C header files
 #include <math.h>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#define SET_STENCIL_DATA SetStencilData
+#else
+#define SET_INPUT_DATA SetInput
+#define SET_STENCIL_DATA SetStencil
+#endif
 
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
@@ -232,7 +242,11 @@ int vtkImageRegistration::GetNumberOfEvaluations()
 void vtkImageRegistration::SetTargetImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(1, input);
+#else
   this->SetNthInputConnection(1, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -249,7 +263,11 @@ vtkImageData* vtkImageRegistration::GetTargetImage()
 void vtkImageRegistration::SetSourceImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(0, input);
+#else
   this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -266,8 +284,12 @@ vtkImageData* vtkImageRegistration::GetSourceImage()
 void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
 {
   // if stencil is null, then set the input port to null
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(2, stencil);
+#else
   this->SetNthInputConnection(2, 0,
     (stencil ? stencil->GetProducerPort() : 0));
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -496,8 +518,8 @@ void vtkImageRegistration::ComputeImageRange(
 {
   vtkImageHistogramStatistics *hist =
     vtkImageHistogramStatistics::New();
-  hist->SetStencil(stencil);
-  hist->SetInput(data);
+  hist->SET_STENCIL_DATA(stencil);
+  hist->SET_INPUT_DATA(data);
   hist->SetActiveComponent(0);
   hist->Update();
 
@@ -509,7 +531,7 @@ void vtkImageRegistration::ComputeImageRange(
     range[1] = range[0] + 1.0;
     }
 
-  hist->SetInput(NULL);
+  hist->SET_INPUT_DATA(NULL);
   hist->Delete();
 }
 
@@ -645,7 +667,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
 
       vtkImageShiftScale *sourceQuantizer = this->SourceImageQuantizer;
-      sourceQuantizer->SetInput(sourceImage);
+      sourceQuantizer->SET_INPUT_DATA(sourceImage);
       sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
       sourceQuantizer->ClampOverflowOn();
       sourceQuantizer->SetShift(sourceShift);
@@ -658,7 +680,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       double targetShift = (-targetImageRange[0] + 0.5/targetScale);
 
       vtkImageShiftScale *targetQuantizer = this->TargetImageQuantizer;
-      targetQuantizer->SetInput(targetImage);
+      targetQuantizer->SET_INPUT_DATA(targetImage);
       targetQuantizer->SetOutputScalarTypeToUnsignedChar();
       targetQuantizer->ClampOverflowOn();
       targetQuantizer->SetShift(targetShift);
@@ -675,9 +697,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     }
 
   vtkImageReslice *reslice = this->ImageReslice;
-  reslice->SetInput(targetImage);
   reslice->SetInformationInput(sourceImage);
-  reslice->SetStencil(this->GetSourceImageStencil());
+  reslice->SET_INPUT_DATA(targetImage);
+  reslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
   reslice->SetInterpolator(0);
@@ -715,7 +737,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageSquaredDifference *metric = vtkImageSquaredDifference::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -727,7 +749,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -739,7 +761,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
         vtkImageNeighborhoodCorrelation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
@@ -751,7 +773,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
-      metric->SetInput(sourceImage);
+      metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       metric->SetNumberOfBins(this->JointHistogramSize);
