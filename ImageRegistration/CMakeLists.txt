@@ -8,11 +8,9 @@ SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 
 SET ( Kit_SRCS
 vtkCalcCentroid.cxx
-vtkCenteredTransform.cxx
 vtkFrameFinder.cxx
 vtkImage3DNoiseSource.cxx
 vtkImageDataStatistics.cxx
-vtkImageFastBlur.cxx
 vtkImageMutualInformation.cxx
 vtkImageSingleMutualInformation.cxx
 vtkImageSquaredDifference.cxx
