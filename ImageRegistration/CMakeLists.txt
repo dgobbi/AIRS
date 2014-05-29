@@ -2,7 +2,7 @@
 
 SET(KIT ImageRegistration)
 SET(UKIT ImageRegistration)
-SET(KIT_LIBS vtkHybrid vtkImaging vtkImageAnalysis)
+SET(KIT_LIBS vtkHybrid vtkImaging)
 
 SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 

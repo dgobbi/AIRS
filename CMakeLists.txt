@@ -103,16 +103,6 @@ INCLUDE(${AIRS_SOURCE_DIR}/CMake/AIRSThirdParty.cmake)
 # ---------------------------------------------------------------
 # Start listing the AIRS kits
 
-# ImageAnalysis
-OPTION (AIRS_USE_IMAGEANALYSIS "Build the ImageAnalysis module" ON)
-IF (AIRS_USE_IMAGEANALYSIS)
-  SET(AIRS_INCLUDE_DIRS ${AIRS_INCLUDE_DIRS}
-      "${AIRS_BINARY_DIR}/ImageAnalysis"
-      "${AIRS_SOURCE_DIR}/ImageAnalysis")
-  ADD_SUBDIRECTORY(ImageAnalysis)
-  SET(AIRS_LIBRARIES ${AIRS_LIBRARIES} ImageAnalysis)
-ENDIF (AIRS_USE_IMAGEANALYSIS)
-
 # ImageRegistration
 OPTION (AIRS_USE_IMAGEREGISTRATION "Build the ImageRegistration module" ON)
 IF (AIRS_USE_IMAGEREGISTRATION)
