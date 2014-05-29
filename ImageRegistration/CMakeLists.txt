@@ -7,22 +7,13 @@ SET(KIT_LIBS vtkHybrid vtkImaging)
 SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 
 SET ( Kit_SRCS
-vtkCalcCentroid.cxx
 vtkFrameFinder.cxx
-vtkImage3DNoiseSource.cxx
-vtkImageDataStatistics.cxx
 vtkImageMutualInformation.cxx
-vtkImageSingleMutualInformation.cxx
 vtkImageSquaredDifference.cxx
-vtkCalcCrossCorrelation.cxx
-vtkImageAmoebaGrid.cxx
 vtkLabelInterpolator.cxx
 vtkGaussianInterpolator.cxx
-vtkImageGridStatistics.cxx
-vtkFunctionMinimizer.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
-vtkImageMean3D.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
 vtkMNIXFMReader.cxx
