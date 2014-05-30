@@ -16,8 +16,6 @@ vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
-vtkMNIXFMReader.cxx
-vtkMNIXFMWriter.cxx
 vtkPowellMinimizer.cxx
 )
 
