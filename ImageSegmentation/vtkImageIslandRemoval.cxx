@@ -44,7 +44,11 @@ vtkImageIslandRemoval::vtkImageIslandRemoval()
   this->InValue = 0.0;
   this->ReplaceOut = 0;
   this->OutValue = 0.0;
+#if VTK_MAJOR_VERSION >= 6
   this->LargestIsland = VTK_ID_MAX;
+#else
+  this->LargestIsland = VTK_LARGE_ID;
+#endif
   this->SmallestIsland = 0;
   this->IslandsSortedBySize = 0;
 
