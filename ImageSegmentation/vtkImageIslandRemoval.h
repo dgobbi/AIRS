@@ -66,7 +66,7 @@ public:
 
   // Description:
   // Set the maximum island size to keep.  Size is in voxels.
-  // Default value is VTK_LARGE_ID.
+  // Default value is VTK_ID_MAX.
   vtkSetMacro(LargestIsland, vtkIdType);
   vtkGetMacro(LargestIsland, vtkIdType);
 
@@ -118,7 +118,9 @@ public:
   // Description:
   // Specify a stencil that will be used to limit the flood fill to
   // an arbitrarily-shaped region of the image.
-  virtual void SetStencil(vtkImageStencilData *stencil);
+  void SetStencilData(vtkImageStencilData *stencil);
+  void SetStencil(vtkImageStencilData *stencil) {
+    this->SetStencilData(stencil); }
   vtkImageStencilData *GetStencil();
 
   // Description:

@@ -45,16 +45,16 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkImageMRIBrainExtractor_h
 #define __vtkImageMRIBrainExtractor_h
 
-#include "vtkImageToImageFilter.h"
+#include "vtkImageAlgorithm.h"
 
 class vtkPolyData;
 class vtkPoints;
 
-class VTK_EXPORT vtkImageMRIBrainExtractor : public vtkImageToImageFilter
+class VTK_EXPORT vtkImageMRIBrainExtractor : public vtkImageAlgorithm
 {
 public:
   static vtkImageMRIBrainExtractor* New();
-  vtkTypeMacro(vtkImageMRIBrainExtractor, vtkImageToImageFilter);
+  vtkTypeMacro(vtkImageMRIBrainExtractor, vtkImageAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
@@ -117,7 +117,10 @@ protected:
   vtkImageMRIBrainExtractor();
   ~vtkImageMRIBrainExtractor();
 
-  void ExecuteData(vtkDataObject *out);
+  virtual int RequestData(vtkInformation *,
+			  vtkInformationVector **,
+			  vtkInformationVector *);
+
   static void ComputeMeshCentroid(vtkPolyData *data, double cen[3]);
 
   int BrainExtent[6];
