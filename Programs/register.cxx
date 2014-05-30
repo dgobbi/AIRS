@@ -51,6 +51,7 @@ Module:    register.cxx
 #include <vtkJPEGWriter.h>
 
 #include <vtkTimerLog.h>
+#include <vtkVersion.h>
 
 #include <vtksys/SystemTools.hxx>
 
@@ -75,6 +76,15 @@ Module:    register.cxx
 
 #include <vector>
 #include <string>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#define SET_STENCIL_DATA SetStencilData
+#else
+#define SET_INPUT_DATA SetInput
+#define SET_STENCIL_DATA SetStencil
+#endif
 
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
@@ -299,7 +309,7 @@ void WriteDICOMImage(
       }
     writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
     }
-  writer->SetInput(data);
+  writer->SET_INPUT_DATA(data);
   writer->SetPatientMatrix(matrix);
   writer->Write();
 }
@@ -467,7 +477,7 @@ void WriteMINCImage(
   vtkSmartPointer<vtkMINCImageWriter> writer =
     vtkSmartPointer<vtkMINCImageWriter>::New();
   writer->SetFileName(fileName);
-  writer->SetInput(data);
+  writer->SET_INPUT_DATA(data);
   // the input matrix must be converted
   //writer->SetDirectionCosines(matrix);
   writer->Write();
@@ -568,7 +578,7 @@ void WriteNIFTIImage(
       writer->SetQFac(-1.0);
       }
     }
-  writer->SetInput(data);
+  writer->SET_INPUT_DATA(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
   writer->SetFileName(fileName);
@@ -870,7 +880,7 @@ void ComputeRange(vtkImageData *image, double range[2])
   double bounds[6];
   image->GetSpacing(spacing);
   image->GetOrigin(origin);
-  image->GetWholeExtent(extent);
+  image->GetExtent(extent);
   for (int i = 0; i < 3; ++i)
     {
     double b1 = extent[2*i]*spacing[i] + origin[i];
@@ -892,17 +902,15 @@ void ComputeRange(vtkImageData *image, double range[2])
     vtkSmartPointer<vtkROIStencilSource>::New();
 
   cylinder->SetShapeToCylinderZ();
-  cylinder->SetOutputSpacing(spacing);
-  cylinder->SetOutputOrigin(origin);
-  cylinder->SetOutputWholeExtent(extent);
+  cylinder->SetInformationInput(image);
   cylinder->SetBounds(bounds);
 
   // get the range within the cylinder
   vtkSmartPointer<vtkImageHistogramStatistics> rangeFinder =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
-  rangeFinder->SetInput(image);
-  rangeFinder->SetStencil(cylinder->GetOutput());
+  rangeFinder->SET_INPUT_DATA(image);
+  rangeFinder->SET_STENCIL_DATA(cylinder->GetOutput());
   rangeFinder->Update();
 
   rangeFinder->GetAutoRange(range);
@@ -953,7 +961,9 @@ void register_initialize_options(register_options *options)
   options->maxiter[2] = 500;
   options->display = 0;
   options->silent = 0;
+#if VTK_HAS_SLAB_SPACING
   options->mip = 0;
+#endif
   options->screenshot = NULL;
   options->output = NULL;
   options->outxfm = NULL;
@@ -1576,7 +1586,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SetInput(sourceImage);
+  sourceMapper->SET_INPUT_DATA(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -1599,7 +1609,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> targetProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  targetMapper->SetInput(targetImage);
+  targetMapper->SET_INPUT_DATA(targetImage);
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
@@ -1691,7 +1701,7 @@ int main(int argc, char *argv[])
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SetInput(sourceImage);
+  sourceBlur->SET_INPUT_DATA(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->SetInterpolate(
@@ -1705,7 +1715,7 @@ int main(int argc, char *argv[])
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SetInput(targetImage);
+  targetBlur->SET_INPUT_DATA(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->SetInterpolate(
@@ -1922,7 +1932,7 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(sourceImage);
-    reslice->SetInput(targetImage);
+    reslice->SET_INPUT_DATA(targetImage);
     switch (options.interpolator)
       {
       case vtkImageRegistration::Nearest:
