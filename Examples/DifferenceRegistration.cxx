@@ -48,8 +48,16 @@ Module:    DifferenceRegistration.cxx
 #include <vtkImageShiftScale.h>
 
 #include <vtkTimerLog.h>
+#include <vtkVersion.h>
 
 #include <vtkImageRegistration.h>
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#else
+#define SET_INPUT_DATA SetInput
+#endif
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
@@ -362,7 +370,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SetInput(sourceImage);
+  sourceMapper->SET_INPUT_DATA(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -370,7 +378,7 @@ int main (int argc, char *argv[])
   double sourceRange[2];
   vtkSmartPointer<vtkImageHistogramStatistics> autoRange =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
-  autoRange->SetInput(sourceImage);
+  autoRange->SET_INPUT_DATA(sourceImage);
   autoRange->Update();
   autoRange->GetAutoRange(sourceRange);
 
@@ -391,13 +399,13 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> targetProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  targetMapper->SetInput(targetImage);
+  targetMapper->SET_INPUT_DATA(targetImage);
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
 
   double targetRange[2];
-  autoRange->SetInput(targetImage);
+  autoRange->SET_INPUT_DATA(targetImage);
   autoRange->Update();
   autoRange->GetAutoRange(targetRange);
 
@@ -472,7 +480,7 @@ int main (int argc, char *argv[])
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SetInput(sourceImage);
+  sourceBlur->SET_INPUT_DATA(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->InterpolateOn();
@@ -485,7 +493,7 @@ int main (int argc, char *argv[])
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SetInput(targetImage);
+  targetBlur->SET_INPUT_DATA(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->InterpolateOn();
@@ -653,7 +661,7 @@ int main (int argc, char *argv[])
 
   vtkSmartPointer<vtkImageReslice> resample =
     vtkSmartPointer<vtkImageReslice>::New();
-  resample->SetInput(sourceImage);
+  resample->SET_INPUT_DATA(sourceImage);
   resample->SetInformationInput(targetImage);
   resample->SetInterpolator(sincInterpolator);
   resample->SetResliceTransform(registration->GetTransform()->GetInverse());
@@ -663,21 +671,21 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkImageShiftScale>::New();
   shiftScale->SetShift(iShift);
   shiftScale->SetScale(iScale);
-  shiftScale->SetInput(resample->GetOutput());
+  shiftScale->SET_INPUT_DATA(resample->GetOutput());
   shiftScale->ClampOverflowOn();
   shiftScale->Update();
 
   vtkSmartPointer<vtkImageMathematics> difference =
     vtkSmartPointer<vtkImageMathematics>::New();
   difference->SetOperationToSubtract();
-  difference->SetInput(0, shiftScale->GetOutput());
-  difference->SetInput(1, targetImage);
+  difference->SET_INPUT_DATA(0, shiftScale->GetOutput());
+  difference->SET_INPUT_DATA(1, targetImage);
   difference->Update();
 
-  sourceMapper->SetInput(difference->GetOutput());
+  sourceMapper->SET_INPUT_DATA(difference->GetOutput());
 
   double differenceRange[2];
-  autoRange->SetInput(difference->GetOutput());
+  autoRange->SET_INPUT_DATA(difference->GetOutput());
   autoRange->Update();
   autoRange->GetAutoRange(differenceRange);
   differenceRange[0] = 0.0;

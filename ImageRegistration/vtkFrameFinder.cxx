@@ -134,7 +134,7 @@ int vtkFrameFinder::FillOutputPortInformation(
 }
 
 //----------------------------------------------------------------------------
-void vtkFrameFinder::SetInput(vtkDataObject* input)
+void vtkFrameFinder::SetInputData(vtkDataObject* input)
 {
 #if VTK_MAJOR_VERSION <= 5
   if (input)

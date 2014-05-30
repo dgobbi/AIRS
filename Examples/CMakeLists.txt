@@ -33,10 +33,23 @@ ELSE (NOT AIRS_BINARY_DIR)
   SET(AIRS_EXAMPLES_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
 ENDIF (NOT AIRS_BINARY_DIR)
 
+IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(VTK_LIBS vtkRendering vtkIO)
+ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
+      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL vtkIOImage vtkIOMINC
+      vtkImagingStencil vtkImagingMath vtksys)
+  # If vtkIOMPIImage is present, it has factories for vtkIOImage
+  LIST(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
+  IF(TMP_INDEX GREATER -1)
+    SET(VTK_LIBS ${VTK_LIBS} vtkIOMPIImage)
+  ENDIF(TMP_INDEX GREATER -1)
+ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)
-TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
+TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
-TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration vtkRendering vtkIO ${DICOM_LIBRARIES})
+TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
-TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration vtkRendering vtkIO)
+TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS})

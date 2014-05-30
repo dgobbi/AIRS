@@ -49,6 +49,7 @@ Module:    RigidImageRegistration.cxx
 #include <vtkImageProperty.h>
 
 #include <vtkTimerLog.h>
+#include <vtkVersion.h>
 
 #include "AIRSConfig.h"
 #include "vtkITKXFMWriter.h"
@@ -59,6 +60,13 @@ Module:    RigidImageRegistration.cxx
 #define AIRS_USE_NIFTI
 #include <vtkNIFTIReader.h>
 #include <vtkDICOMReader.h>
+#endif
+
+// A macro to assist VTK 5 backwards compatibility
+#if VTK_MAJOR_VERSION >= 6
+#define SET_INPUT_DATA SetInputData
+#else
+#define SET_INPUT_DATA SetInput
 #endif
 
 // internal methods for reading images, these methods read the image
@@ -373,7 +381,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SetInput(sourceImage);
+  sourceMapper->SET_INPUT_DATA(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -397,7 +405,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> targetProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  targetMapper->SetInput(targetImage);
+  targetMapper->SET_INPUT_DATA(targetImage);
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
@@ -475,7 +483,7 @@ int main (int argc, char *argv[])
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SetInput(sourceImage);
+  sourceBlur->SET_INPUT_DATA(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->InterpolateOn();
@@ -488,7 +496,7 @@ int main (int argc, char *argv[])
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SetInput(targetImage);
+  targetBlur->SET_INPUT_DATA(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->InterpolateOn();

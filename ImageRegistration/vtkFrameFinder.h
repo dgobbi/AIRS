@@ -59,7 +59,8 @@ public:
   // The input to this filter should be an image of a head with a
   // stereotactic frame.  Axial images are required.  Call Update()
   // in order to compute the registration matrix.
-  void SetInput(vtkDataObject *);
+  void SetInputData(vtkDataObject *);
+  void SetInput(vtkDataObject *o) { this->SetInputData(o); }
   vtkDataObject *GetInput();
 
   // Description:
@@ -73,7 +74,7 @@ public:
   vtkPolyData *GetOutput() { return this->GetOutput(0); }
 
   // Description:
-  // Get a boolean value that indicates whether 
+  // Get a boolean value that indicates whether
   bool GetSuccess() { return this->Success; }
 
   // Description:
@@ -97,7 +98,7 @@ public:
 
   // Description:
   // After this filter has been updated, this provides the transformation
-  // from image data coordinates to frame coordinates. 
+  // from image data coordinates to frame coordinates.
   vtkMatrix4x4 *GetImageToFrameMatrix() {
     return this->ImageToFrameMatrix; }
 
