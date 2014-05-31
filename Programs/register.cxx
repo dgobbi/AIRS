@@ -881,12 +881,11 @@ void ComputeRange(vtkImageData *image, double range[2])
   image->GetSpacing(spacing);
   image->GetOrigin(origin);
   image->GetExtent(extent);
+
   for (int i = 0; i < 3; ++i)
     {
     double b1 = extent[2*i]*spacing[i] + origin[i];
     double b2 = extent[2*i+1]*spacing[i] + origin[i];
-    b1 = (i == 2 ? b1 : -b1); // flip if not Z
-    b2 = (i == 2 ? b2 : -b2); // flip if not Z
     bounds[2*i] = (b1 < b2 ? b1 : b2);
     bounds[2*i+1] = (b1 < b2 ? b2 : b1);
     spacing[i] = fabs(spacing[i]);
@@ -904,11 +903,13 @@ void ComputeRange(vtkImageData *image, double range[2])
   cylinder->SetShapeToCylinderZ();
   cylinder->SetInformationInput(image);
   cylinder->SetBounds(bounds);
+  cylinder->Update();
 
   // get the range within the cylinder
   vtkSmartPointer<vtkImageHistogramStatistics> rangeFinder =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
+  rangeFinder->GetAutoRangePercentiles(range);
   rangeFinder->SET_INPUT_DATA(image);
   rangeFinder->SET_STENCIL_DATA(cylinder->GetOutput());
   rangeFinder->Update();
@@ -1592,7 +1593,9 @@ int main(int argc, char *argv[])
   sourceMapper->ResampleToScreenPixelsOff();
 
   double sourceRange[2];
+  sourceImage->GetScalarRange(sourceRange);
   ComputeRange(sourceImage, sourceRange);
+
   sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
@@ -1624,6 +1627,7 @@ int main(int argc, char *argv[])
 
   double targetRange[2];
   ComputeRange(targetImage, targetRange);
+
   targetProperty->SetInterpolationTypeToLinear();
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
   targetProperty->SetColorLevel(0.5*(targetRange[0]+targetRange[1]));
@@ -1788,12 +1792,20 @@ int main(int argc, char *argv[])
       sourceBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
       sourceBlur->SetOutputSpacing(sourceSpacing);
+#if VTK_MAJOR_VERSION >= 6
+      sourceBlur->UpdateWholeExtent();
+#else
       sourceBlur->Update();
+#endif
 
       targetBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
       targetBlur->SetOutputSpacing(targetSpacing);
+#if VTK_MAJOR_VERSION >= 6
+      targetBlur->UpdateWholeExtent();
+#else
       targetBlur->Update();
+#endif
       }
     else
       {
@@ -1814,14 +1826,22 @@ int main(int argc, char *argv[])
         spacing[2]/sourceSpacing[2]);
 
       sourceBlur->SetOutputSpacing(spacing);
+#if VTK_MAJOR_VERSION >= 6
+      sourceBlur->UpdateWholeExtent();
+#else
       sourceBlur->Update();
+#endif
 
       targetBlurKernel->SetBlurFactors(
         blurFactor*minSpacing/targetSpacing[0],
         blurFactor*minSpacing/targetSpacing[1],
         blurFactor*minSpacing/targetSpacing[2]);
 
+#if VTK_MAJOR_VERSION >= 6
+      targetBlur->UpdateWholeExtent();
+#else
       targetBlur->Update();
+#endif
       }
 
     if (initialized)
