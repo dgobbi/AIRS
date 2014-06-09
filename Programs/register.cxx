@@ -1795,6 +1795,7 @@ int main(int argc, char *argv[])
 #if VTK_MAJOR_VERSION >= 6
       sourceBlur->UpdateWholeExtent();
 #else
+      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       sourceBlur->Update();
 #endif
 
@@ -1804,6 +1805,7 @@ int main(int argc, char *argv[])
 #if VTK_MAJOR_VERSION >= 6
       targetBlur->UpdateWholeExtent();
 #else
+      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       targetBlur->Update();
 #endif
       }
@@ -1829,6 +1831,7 @@ int main(int argc, char *argv[])
 #if VTK_MAJOR_VERSION >= 6
       sourceBlur->UpdateWholeExtent();
 #else
+      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       sourceBlur->Update();
 #endif
 
@@ -1840,6 +1843,7 @@ int main(int argc, char *argv[])
 #if VTK_MAJOR_VERSION >= 6
       targetBlur->UpdateWholeExtent();
 #else
+      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       targetBlur->Update();
 #endif
       }
