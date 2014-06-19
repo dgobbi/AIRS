@@ -606,7 +606,7 @@ void UpdateBlobs(
   // threshold at half of the 98th percentile within the box
   const double fthresh = 0.5;
   const double fraction = 0.98;
-  double thresh98; // to be computed by ComputePercentile
+  double thresh98 = 0.0; // to be computed by ComputePercentile
 
   // find the 98th percentile threshold
   switch (dataType)

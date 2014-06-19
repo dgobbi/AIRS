@@ -283,9 +283,9 @@ int main (int argc, char *argv[])
     argi += 2;
     size_t m = strlen(xfmfile);
     if (m < 4 ||
-        (strcmp(&xfmfile[m-4], ".xfm") != 0) &&
-        (strcmp(&xfmfile[m-4], ".tfm") != 0) &&
-        (strcmp(&xfmfile[m-4], ".txt") != 0))
+        ((strcmp(&xfmfile[m-4], ".xfm") != 0) &&
+         (strcmp(&xfmfile[m-4], ".tfm") != 0) &&
+         (strcmp(&xfmfile[m-4], ".txt") != 0)))
       {
       cerr << argv[0] << " : transform file must end in .xfm, .tfm, or .txt\n";
       return EXIT_FAILURE;
