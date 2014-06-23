@@ -1288,15 +1288,7 @@ int main(int argc, char *argv[])
   brainTable->SetSaturationRange(1.0, 1.0);
   brainTable->SetValueRange(0.0, 1.0);
   brainTable->Build();
-
-  vtkIdType lowIdx = brainTable->GetIndex(sourceRange[0]);
-  vtkIdType maxIdx = brainTable->GetNumberOfColors() - 1;
-  lowIdx = (lowIdx < 0 ? 0 : lowIdx);
-  lowIdx = (lowIdx > maxIdx ? maxIdx : lowIdx);
-  for (vtkIdType colorIdx = 0; colorIdx <= lowIdx; colorIdx++)
-    {
-    brainTable->SetTableValue(colorIdx, 0.0, 0.0, 0.0, 0.0);
-    }
+  brainTable->SetTableValue(0, 0.0, 0.0, 0.0, 0.0);
 
   brainProperty->SetInterpolationTypeToLinear();
   brainProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
@@ -1309,7 +1301,7 @@ int main(int argc, char *argv[])
 
   vtkSmartPointer<vtkImageStack> imageStack =
     vtkSmartPointer<vtkImageStack>::New();
-  imageStack->AddImage(sourceActor);
+  //imageStack->AddImage(sourceActor);
   imageStack->AddImage(brainActor);
 
   renderer->AddViewProp(imageStack);
