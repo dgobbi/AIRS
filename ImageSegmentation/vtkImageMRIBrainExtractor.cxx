@@ -940,6 +940,7 @@ void vtkImageMRIBrainExtractorExecute(
 
   theStencil->SET_INPUT_DATA(self->GetBrainMesh());
   theStencil->SetInformationInput(inData);
+  theStencil->Update();
 
   imageStencil->SET_STENCIL_DATA(theStencil->GetOutput());
   imageStencil->SET_INPUT_DATA(inData);
