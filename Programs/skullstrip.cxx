@@ -1212,6 +1212,45 @@ int main(int argc, char *argv[])
   double startTime = timer->GetUniversalTime();
 
   // -------------------------------------------------------
+  // find the direction that is "superior"
+  double maxval = 0;
+  int maxidx = 0;
+  for (int idx = 0; idx < 3; idx++)
+    {
+    double vec[4] = { 0.0, 0.0, 0.0, 0.0 };
+    vec[idx] = 1.0;
+    sourceMatrix->MultiplyPoint(vec, vec);
+    if (fabs(vec[2]) > fabs(maxval))
+      {
+      maxval = vec[2];
+      maxidx = idx;
+      }
+    }
+
+  // set the Z extent to a set fraction of the other extents
+  int brainExtent[6];
+  sourceImage->GetExtent(brainExtent);
+  int idx1 = (maxidx + 1) % 3;
+  int idx2 = (idx1 + 1) % 3;
+  int size1 = brainExtent[2*idx1 + 1] - brainExtent[2*idx1] + 1;
+  int size2 = brainExtent[2*idx2 + 1] - brainExtent[2*idx2] + 1;
+  int maxsize = brainExtent[2*maxidx + 1] - brainExtent[2*maxidx] + 1;
+  int size3 = vtkMath::Floor(sqrt(0.7*0.7*size1*size2));
+  // make sure computed size is not more than full image size
+  if (size3 > maxsize)
+    {
+    size3 = maxsize;
+    }
+  if (maxval < 0)
+    {
+    brainExtent[2*maxidx + 1] -= (maxsize - size3);
+    }
+  else
+    {
+    brainExtent[2*maxidx] += (maxsize - size3);
+    }
+
+  // -------------------------------------------------------
   // strip the image
 
   vtkSmartPointer<vtkImageMRIBrainExtractor> stripper =
@@ -1224,6 +1263,7 @@ int main(int argc, char *argv[])
   stripper->SetBT(options.bt);
   stripper->SetNumberOfIterations(options.n);
   stripper->SetNumberOfTessellations(options.t);
+  stripper->SetBrainExtent(brainExtent);
   stripper->Update();
 
   double lastTime = timer->GetUniversalTime();
