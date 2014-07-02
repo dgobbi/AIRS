@@ -1301,7 +1301,7 @@ int main(int argc, char *argv[])
 
   vtkSmartPointer<vtkImageStack> imageStack =
     vtkSmartPointer<vtkImageStack>::New();
-  //imageStack->AddImage(sourceActor);
+  imageStack->AddImage(sourceActor);
   imageStack->AddImage(brainActor);
 
   renderer->AddViewProp(imageStack);
