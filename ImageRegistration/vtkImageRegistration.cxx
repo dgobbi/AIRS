@@ -58,6 +58,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkAmoebaMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageSincInterpolator.h"
+#include "vtkLabelInterpolator.h"
 #include "vtkVersion.h"
 
 // Image metric header files
@@ -718,6 +719,12 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
       interp->SetWindowFunctionToBlackman();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
+    case vtkImageRegistration::Label:
+      {
+      vtkLabelInterpolator *interp = vtkLabelInterpolator::New();
       reslice->SetInterpolator(interp);
       interp->Delete();
       }

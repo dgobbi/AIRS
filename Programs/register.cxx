@@ -59,6 +59,7 @@ Module:    register.cxx
 #include "vtkITKXFMReader.h"
 #include "vtkITKXFMWriter.h"
 #include "vtkImageRegistration.h"
+#include "vtkLabelInterpolator.h"
 
 // optional readers
 #ifdef AIRS_USE_DICOM
@@ -1032,7 +1033,7 @@ void register_show_help(FILE *fp, const char *command)
     "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.4.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.5.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
@@ -1106,12 +1107,13 @@ void register_show_help(FILE *fp, const char *command)
     "                 LI        Linear\n"
     "                 CU        Cubic\n"
     "                 WS        WindowedSinc\n"
+    "                 LA        Label\n"
     "\n"
     "    Linear interpolation is usually the best choice, it provides\n"
-    "    a good balance between efficiency and quality.  NearestNeighbor\n"
-    "    is required if one of the images is a label image.  The Windowed\n"
-    "    Sinc interpolator uses a five-lobe Blackman-windowed sinc kernel\n"
-    "    and offers the highest overall quality.\n"
+    "    a good balance between efficiency and quality.  Either Label or\n"
+    "    NearestNeighbor is required if one of the images is a label image.\n"
+    "    The Windowed Sinc interpolator uses a five-lobe Blackman-windowed\n"
+    "    sinc kernel and offers the highest overall quality.\n"
     "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
@@ -1192,6 +1194,7 @@ int register_read_options(
     "Linear", "LI",
     "Cubic", "CU",
     "WindowedSinc", "WS",
+    "Label", "LA",
     0 };
   static const char *coords_args[] = {
     "DICOM", "LPS",
@@ -1334,6 +1337,11 @@ int register_read_options(
                  strcmp(arg, "WS") == 0)
           {
           options->interpolator = vtkImageRegistration::Sinc;
+          }
+        else if (strcmp(arg, "Label") == 0 ||
+                 strcmp(arg, "LA") == 0)
+          {
+          options->interpolator = vtkImageRegistration::Label;
           }
         }
       else if (strcmp(arg, "-C") == 0 ||
@@ -1596,7 +1604,6 @@ int main(int argc, char *argv[])
   sourceImage->GetScalarRange(sourceRange);
   ComputeRange(sourceImage, sourceRange);
 
-  sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
   sourceProperty->CheckerboardOn();
@@ -1953,6 +1960,9 @@ int main(int argc, char *argv[])
       vtkSmartPointer<vtkImageSincInterpolator>::New();
     sourceBlurKernel->SetWindowFunctionToBlackman();
 
+    vtkSmartPointer<vtkLabelInterpolator> labelInterpolator =
+      vtkSmartPointer<vtkLabelInterpolator>::New();
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(sourceImage);
@@ -1970,6 +1980,9 @@ int main(int argc, char *argv[])
         break;
       case vtkImageRegistration::Sinc:
         reslice->SetInterpolator(sincInterpolator);
+        break;
+      case vtkImageRegistration::Label:
+        reslice->SetInterpolator(labelInterpolator);
         break;
       }
 #ifdef VTK_HAS_SLAB_SPACING

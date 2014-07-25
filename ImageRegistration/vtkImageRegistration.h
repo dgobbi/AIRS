@@ -115,7 +115,8 @@ public:
     Nearest,
     Linear,
     Cubic,
-    Sinc
+    Sinc,
+    Label
   };
 
   // Transform types
@@ -170,6 +171,10 @@ public:
     this->SetInterpolatorType(Linear); }
   void SetInterpolatorTypeToCubic() {
     this->SetInterpolatorType(Cubic); }
+  void SetInterpolatorTypeToSinc() {
+    this->SetInterpolatorType(Sinc); }
+  void SetInterpolatorTypeToLabel() {
+    this->SetInterpolatorType(Label); }
   vtkGetMacro(InterpolatorType, int);
 
   // Description:
