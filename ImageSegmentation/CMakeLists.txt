@@ -11,6 +11,7 @@ ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 # Set your list of sources here.  Do not change the name of the
 # Kit_SRCS variable.
 SET(Kit_SRCS
+  vtkImageConnectivityFilter.cxx
   vtkImageIslandRemoval.cxx
   vtkImageMRIBrainExtractor.cxx
   vtkImageRegionIterator.cxx
