@@ -194,8 +194,22 @@ vtkDICOMReader *ReadDICOMImage(
   vtkIdType n = fileArray->GetNumberOfTuples();
   for (vtkIdType i = 0; i < n; i++)
     {
-    fileNames->InsertNextValue(
-      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
+    std::string newFileName =
+      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
+    bool alreadyThere = false;
+    vtkIdType m = fileNames->GetNumberOfTuples();
+    for (vtkIdType j = 0; j < m; j++)
+      {
+      if (newFileName == fileNames->GetValue(j))
+        {
+        alreadyThere = true;
+        break;
+        }
+      }
+    if (!alreadyThere)
+      {
+      fileNames->InsertNextValue(newFileName);
+      }
     }
   reader->SetDesiredTimeIndex(0);
   reader->SetFileNames(fileNames);
