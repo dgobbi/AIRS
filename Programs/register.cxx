@@ -289,11 +289,15 @@ void WriteDICOMImage(
     {
     std::string SOPClass =
       meta->GetAttributeValue(DC::SOPClassUID).AsString();
-    if (SOPClass == "1.2.840.10008.5.1.4.1.1.2")
+    if (SOPClass == "1.2.840.10008.5.1.4.1.1.2" ||
+        SOPClass == "1.2.840.10008.5.1.4.1.1.2.1" ||
+        SOPClass == "1.2.840.10008.5.1.4.1.1.2.2")
       {
       generator = ctgenerator;
       }
-    else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4")
+    else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4" ||
+             SOPClass == "1.2.840.10008.5.1.4.1.1.4.1" ||
+             SOPClass == "1.2.840.10008.5.1.4.1.1.4.4")
       {
       generator = mrgenerator;
       }
