@@ -928,7 +928,6 @@ void ComputeRange(vtkImageData *image, double range[2])
   vtkSmartPointer<vtkImageHistogramStatistics> rangeFinder =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
-  rangeFinder->GetAutoRangePercentiles(range);
   rangeFinder->SET_INPUT_DATA(image);
   rangeFinder->SET_STENCIL_DATA(cylinder->GetOutput());
   rangeFinder->Update();
@@ -1619,7 +1618,6 @@ int main(int argc, char *argv[])
   sourceMapper->ResampleToScreenPixelsOff();
 
   double sourceRange[2];
-  sourceImage->GetScalarRange(sourceRange);
   ComputeRange(sourceImage, sourceRange);
 
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
