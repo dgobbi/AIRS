@@ -1761,7 +1761,7 @@ int vtkFrameFinder::FindFrame(
 
     // activate this to see all the blobs, not just frame blobs
     // (for debugging purposes only)
-#if 0
+#if 1
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)

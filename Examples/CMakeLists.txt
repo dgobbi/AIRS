@@ -52,4 +52,4 @@ ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
-TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS})
+TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
