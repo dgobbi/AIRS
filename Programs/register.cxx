@@ -692,10 +692,21 @@ vtkImageReader2 *ReadImage(
   // if shear is not insignificant, resample on an orthogonal grid
   if (fabs(shear) > 1e-3)
     {
+    double origin[3], spacing[3];
+    int extent[6];
+    image->GetOrigin(origin);
+    image->GetSpacing(spacing);
+    image->GetExtent(extent);
+    // adjust the origin to centre the new volume on the old trapezoid
+    origin[1] -= shear*0.5*spacing[2]*(extent[5] - extent[4]);
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetResliceAxes(rmat);
     reslice->SET_INPUT_DATA(image);
+    reslice->SetOutputOrigin(origin);
+    reslice->SetOutputSpacing(spacing);
+    reslice->SetOutputExtent(extent);
     SetInterpolator(reslice, interpolator);
     reslice->Update();
 
