@@ -1657,6 +1657,11 @@ int main(int argc, char *argv[])
     }
 
   // -------------------------------------------------------
+  // save the original source matrix
+  vtkSmartPointer<vtkMatrix4x4> originalSourceMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  originalSourceMatrix->DeepCopy(sourceMatrix);
+
   // save the original target matrix
   vtkSmartPointer<vtkMatrix4x4> originalTargetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
@@ -1744,23 +1749,34 @@ int main(int argc, char *argv[])
 
   renderWindow->SetSize(512,512);
 
+  // this variable says which image to move around
+  bool moveTarget = true;
+
+  vtkMatrix4x4 *cameraMatrix = originalTargetMatrix;
+  vtkImageData *cameraImage = targetImage;
+  if (moveTarget)
+    {
+    cameraMatrix = originalSourceMatrix;
+    cameraImage = sourceImage;
+    }
+
   double bounds[6], center[4], tspacing[3];
   int extent[6];
-  sourceImage->GetBounds(bounds);
-  sourceImage->GetExtent(extent);
-  sourceImage->GetSpacing(tspacing);
+  cameraImage->GetBounds(bounds);
+  cameraImage->GetExtent(extent);
+  cameraImage->GetSpacing(tspacing);
   center[0] = 0.5*(bounds[0] + bounds[1]);
   center[1] = 0.5*(bounds[2] + bounds[3]);
   center[2] = 0.5*(bounds[4] + bounds[5]);
   center[3] = 1.0;
-  sourceMatrix->MultiplyPoint(center, center);
+  cameraMatrix->MultiplyPoint(center, center);
 
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
   camera->SetFocalPoint(center);
   camera->ParallelProjectionOn();
   camera->SetParallelScale(0.5*(bounds[3] - bounds[2]));
-  SetViewFromMatrix(renderer, istyle, sourceMatrix, options.coords);
+  SetViewFromMatrix(renderer, istyle, cameraMatrix, options.coords);
   renderer->ResetCameraClippingRange();
 
   double checkSpacing = (extent[3] - extent[2] + 7)/7*tspacing[1];
@@ -1962,11 +1978,22 @@ int main(int argc, char *argv[])
       // registration->UpdateRegistration();
       // will iterate until convergence or failure
 
-      targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
-      targetMatrix->Invert();
-      vtkMatrix4x4::Multiply4x4(
-        sourceMatrix, targetMatrix, targetMatrix);
-      targetMatrix->Modified();
+      if (moveTarget)
+        {
+        targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
+        targetMatrix->Invert();
+        vtkMatrix4x4::Multiply4x4(
+          originalSourceMatrix, targetMatrix, targetMatrix);
+        targetMatrix->Modified();
+        }
+      else
+        {
+        sourceMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
+        vtkMatrix4x4::Multiply4x4(
+          originalTargetMatrix, sourceMatrix, sourceMatrix);
+        sourceMatrix->Modified();
+        }
+
       if (display)
         {
         interactor->Render();
@@ -2023,7 +2050,7 @@ int main(int argc, char *argv[])
     vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
     vtkSmartPointer<vtkMatrix4x4> wmatrix =
       vtkSmartPointer<vtkMatrix4x4>::New();
-    wmatrix->DeepCopy(sourceMatrix);
+    wmatrix->DeepCopy(originalSourceMatrix);
     wmatrix->Invert();
     vtkMatrix4x4::Multiply4x4(rmatrix, wmatrix, wmatrix);
     vtkMatrix4x4::Multiply4x4(originalTargetMatrix, wmatrix, wmatrix);
@@ -2076,7 +2103,7 @@ int main(int argc, char *argv[])
     reslice->Update();
 
     WriteImage(sourceReader, targetReader,
-      reslice->GetOutput(), sourceMatrix, imagefile, options.coords);
+      reslice->GetOutput(), originalSourceMatrix, imagefile, options.coords);
     }
 
   if (!options.silent)
