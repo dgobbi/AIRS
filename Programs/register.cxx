@@ -103,6 +103,37 @@ namespace {
 
 void ComputeRange(vtkImageData *image, double range[2]);
 
+// set the interpolator as requested
+void SetInterpolator(vtkImageReslice *reslice, int interpolator)
+{
+  vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
+    vtkSmartPointer<vtkImageSincInterpolator>::New();
+  sincInterpolator->SetWindowFunctionToBlackman();
+
+  vtkSmartPointer<vtkLabelInterpolator> labelInterpolator =
+    vtkSmartPointer<vtkLabelInterpolator>::New();
+
+  switch (interpolator)
+    {
+    case vtkImageRegistration::Nearest:
+      reslice->SetInterpolationModeToNearestNeighbor();
+      break;
+    case vtkImageRegistration::Linear:
+      reslice->SetInterpolationModeToLinear();
+      break;
+    case vtkImageRegistration::Cubic:
+      reslice->SetInterpolationModeToCubic();
+      break;
+    case vtkImageRegistration::Sinc:
+      reslice->SetInterpolator(sincInterpolator);
+      break;
+    case vtkImageRegistration::Label:
+      reslice->SetInterpolator(labelInterpolator);
+      break;
+    }
+}
+
+// use file extension to guess file type
 int GuessFileType(const char *filename)
 {
   size_t n = strlen(filename);
@@ -1980,35 +2011,12 @@ int main(int argc, char *argv[])
       cout << "Writing transformed image: " << imagefile << endl;
       }
 
-    vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
-      vtkSmartPointer<vtkImageSincInterpolator>::New();
-    sourceBlurKernel->SetWindowFunctionToBlackman();
-
-    vtkSmartPointer<vtkLabelInterpolator> labelInterpolator =
-      vtkSmartPointer<vtkLabelInterpolator>::New();
-
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(sourceImage);
     reslice->SET_INPUT_DATA(targetImage);
-    switch (options.interpolator)
-      {
-      case vtkImageRegistration::Nearest:
-        reslice->SetInterpolationModeToNearestNeighbor();
-        break;
-      case vtkImageRegistration::Linear:
-        reslice->SetInterpolationModeToLinear();
-        break;
-      case vtkImageRegistration::Cubic:
-        reslice->SetInterpolationModeToCubic();
-        break;
-      case vtkImageRegistration::Sinc:
-        reslice->SetInterpolator(sincInterpolator);
-        break;
-      case vtkImageRegistration::Label:
-        reslice->SetInterpolator(labelInterpolator);
-        break;
-      }
+    SetInterpolator(reslice, options.interpolator);
+
 #ifdef VTK_HAS_SLAB_SPACING
     if (options.mip)
       {
