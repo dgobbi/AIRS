@@ -641,7 +641,7 @@ void WriteNIFTIImage(
 
 vtkImageReader2 *ReadImage(
   vtkImageData *image, vtkMatrix4x4 *matrix, double vrange[2],
-  const char *filename, int coordSystem)
+  const char *filename, int coordSystem, int interpolator)
 {
   int t = GuessFileType(filename);
   vtkImageReader2 *reader = 0;
@@ -666,6 +666,42 @@ vtkImageReader2 *ReadImage(
 
   // compute the range of values present (between 1st and 99th percentile)
   ComputeRange(image, vrange);
+
+  // use vtkImageReslice to eliminate any shear caused by CT tilted gantry
+  vtkSmartPointer<vtkMatrix4x4> pmat =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  pmat->DeepCopy(matrix);
+  double xvec[4] = { 1.0, 0.0, 0.0, 0.0 };
+  double yvec[4] = { 0.0, 1.0, 0.0, 0.0 };
+  double zvec[4] = { 0.0, 0.0, 1.0, 0.0 };
+  pmat->MultiplyPoint(xvec, xvec);
+  pmat->MultiplyPoint(yvec, yvec);
+  pmat->Invert();
+  vtkMath::Cross(xvec, yvec, zvec);
+  matrix->SetElement(0, 2, zvec[0]);
+  matrix->SetElement(1, 2, zvec[1]);
+  matrix->SetElement(2, 2, zvec[2]);
+  vtkSmartPointer<vtkMatrix4x4> rmat =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  vtkMatrix4x4::Multiply4x4(pmat, matrix, rmat);
+  // pure shear matrix will have only one element that is different
+  // from the identity matrix:
+  double shear = rmat->GetElement(1, 2);
+  rmat->Identity();
+  rmat->SetElement(1, 2, shear);
+  // if shear is not insignificant, resample on an orthogonal grid
+  if (fabs(shear) > 1e-3)
+    {
+    vtkSmartPointer<vtkImageReslice> reslice =
+      vtkSmartPointer<vtkImageReslice>::New();
+    reslice->SetResliceAxes(rmat);
+    reslice->SET_INPUT_DATA(image);
+    SetInterpolator(reslice, interpolator);
+    reslice->Update();
+
+    image->CopyStructure(reslice->GetOutput());
+    image->GetPointData()->PassData(reslice->GetOutput()->GetPointData());
+    }
 
   return reader;
 }
@@ -1590,7 +1626,7 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkSmartPointer<vtkImageReader2> sourceReader =
     ReadImage(sourceImage, sourceMatrix, sourceRange,
-              sourcefile, options.coords);
+              sourcefile, options.coords, options.interpolator);
   sourceReader->Delete();
 
   if (!options.silent)
@@ -1605,7 +1641,7 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkSmartPointer<vtkImageReader2> targetReader =
     ReadImage(targetImage, targetMatrix, targetRange,
-              targetfile, options.coords);
+              targetfile, options.coords, options.interpolator);
   targetReader->Delete();
 
   if (!options.silent)
