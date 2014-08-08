@@ -101,6 +101,8 @@ enum { DICOMImage, NIFTIImage, MINCImage,
 // the data coordinates into patient coordinates.
 namespace {
 
+void ComputeRange(vtkImageData *image, double range[2]);
+
 int GuessFileType(const char *filename)
 {
   size_t n = strlen(filename);
@@ -607,26 +609,34 @@ void WriteNIFTIImage(
 #endif /* AIRS_USE_NIFTI */
 
 vtkImageReader2 *ReadImage(
-  vtkImageData *image, vtkMatrix4x4 *matrix,
+  vtkImageData *image, vtkMatrix4x4 *matrix, double vrange[2],
   const char *filename, int coordSystem)
 {
   int t = GuessFileType(filename);
+  vtkImageReader2 *reader = 0;
 
   if (t == MINCImage)
     {
-    return ReadMINCImage(image, matrix, filename, coordSystem);
+    reader = ReadMINCImage(image, matrix, filename, coordSystem);
     }
   else if (t == NIFTIImage)
     {
 #ifdef AIRS_USE_NIFTI
-    return ReadNIFTIImage(image, matrix, filename, coordSystem);
+    reader = ReadNIFTIImage(image, matrix, filename, coordSystem);
 #else
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
     }
+  else
+    {
+    reader = ReadDICOMImage(image, matrix, filename, coordSystem);
+    }
 
-  return ReadDICOMImage(image, matrix, filename, coordSystem);
+  // compute the range of values present (between 1st and 99th percentile)
+  ComputeRange(image, vrange);
+
+  return reader;
 }
 
 int CoordSystem(const char *filename)
@@ -1542,12 +1552,14 @@ int main(int argc, char *argv[])
     cout << "Reading source image: " << sourcefile << endl;
     }
 
+  double sourceRange[2] = { 0.0, 1.0 };
   vtkSmartPointer<vtkImageData> sourceImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> sourceMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkSmartPointer<vtkImageReader2> sourceReader =
-    ReadImage(sourceImage, sourceMatrix, sourcefile, options.coords);
+    ReadImage(sourceImage, sourceMatrix, sourceRange,
+              sourcefile, options.coords);
   sourceReader->Delete();
 
   if (!options.silent)
@@ -1555,12 +1567,14 @@ int main(int argc, char *argv[])
     cout << "Reading target image: " << targetfile << endl;
     }
 
+  double targetRange[2] = { 0.0, 1.0 };
   vtkSmartPointer<vtkImageData> targetImage =
     vtkSmartPointer<vtkImageData>::New();
   vtkSmartPointer<vtkMatrix4x4> targetMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkSmartPointer<vtkImageReader2> targetReader =
-    ReadImage(targetImage, targetMatrix, targetfile, options.coords);
+    ReadImage(targetImage, targetMatrix, targetRange,
+              targetfile, options.coords);
   targetReader->Delete();
 
   if (!options.silent)
@@ -1617,9 +1631,6 @@ int main(int argc, char *argv[])
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
 
-  double sourceRange[2];
-  ComputeRange(sourceImage, sourceRange);
-
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
   sourceProperty->CheckerboardOn();
@@ -1647,9 +1658,6 @@ int main(int argc, char *argv[])
     targetMapper->SetSlabThickness(sourceImage->GetSpacing()[2]);
     }
 #endif
-
-  double targetRange[2];
-  ComputeRange(targetImage, targetRange);
 
   targetProperty->SetInterpolationTypeToLinear();
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
