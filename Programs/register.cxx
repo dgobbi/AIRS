@@ -1840,11 +1840,11 @@ int main(int argc, char *argv[])
   renderWindow->SetSize(512,512);
 
   // this variable says which image to move around
-  bool moveTarget = true;
+  bool showTargetMoving = true;
 
   vtkMatrix4x4 *cameraMatrix = originalTargetMatrix;
   vtkImageData *cameraImage = targetImage;
-  if (moveTarget)
+  if (showTargetMoving)
     {
     cameraMatrix = originalSourceMatrix;
     cameraImage = sourceImage;
@@ -2068,7 +2068,7 @@ int main(int argc, char *argv[])
       // registration->UpdateRegistration();
       // will iterate until convergence or failure
 
-      if (moveTarget)
+      if (showTargetMoving)
         {
         targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
         targetMatrix->Invert();
