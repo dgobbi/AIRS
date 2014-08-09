@@ -692,7 +692,9 @@ vtkImageReader2 *ReadImage(
     image->GetPointData()->PassData(thresh->GetOutput()->GetPointData());
     }
 
+  // ---------
   // use vtkImageReslice to eliminate any shear caused by CT tilted gantry
+
   vtkSmartPointer<vtkMatrix4x4> pmat =
     vtkSmartPointer<vtkMatrix4x4>::New();
   pmat->DeepCopy(matrix);
@@ -701,29 +703,50 @@ vtkImageReader2 *ReadImage(
   double zvec[4] = { 0.0, 0.0, 1.0, 0.0 };
   pmat->MultiplyPoint(xvec, xvec);
   pmat->MultiplyPoint(yvec, yvec);
-  pmat->Invert();
-  vtkMath::Cross(xvec, yvec, zvec);
-  matrix->SetElement(0, 2, zvec[0]);
-  matrix->SetElement(1, 2, zvec[1]);
-  matrix->SetElement(2, 2, zvec[2]);
+  pmat->MultiplyPoint(zvec, zvec);
+
+  // create a matrix with z orthogonal to x and y
+  double normal[3];
+  vtkMath::Cross(xvec, yvec, normal);
+  matrix->SetElement(0, 2, normal[0]);
+  matrix->SetElement(1, 2, normal[1]);
+  matrix->SetElement(2, 2, normal[2]);
+
+  // compute the shear matrix
   vtkSmartPointer<vtkMatrix4x4> rmat =
     vtkSmartPointer<vtkMatrix4x4>::New();
+  pmat->Invert();
   vtkMatrix4x4::Multiply4x4(pmat, matrix, rmat);
-  // pure shear matrix will have only one element that is different
-  // from the identity matrix:
-  double shear = rmat->GetElement(1, 2);
-  rmat->Identity();
-  rmat->SetElement(1, 2, shear);
+
+  // get the parameters that characterize the shear
+  double xshear = rmat->GetElement(0, 2)/rmat->GetElement(2, 2);
+  double yshear = rmat->GetElement(1, 2)/rmat->GetElement(2, 2);
+  double zdn = vtkMath::Dot(zvec, normal);
+
+  if (fabs(zdn - 1.0) < 1e-3 && fabs(xshear) < 1e-3)
+    {
+    // pure gantry tilt shear matrix will have only one element that
+    // is different from the identity matrix, so enforce this exactly:
+    xshear = 0;
+    zdn = 1.0;
+    rmat->Identity();
+    rmat->SetElement(1, 2, yshear);
+    }
+
   // if shear is not insignificant, resample on an orthogonal grid
-  if (fabs(shear) > 1e-3)
+  if (fabs(xshear) > 1e-3 || fabs(yshear) > 1e-3)
     {
     double origin[3], spacing[3];
     int extent[6];
     image->GetOrigin(origin);
     image->GetSpacing(spacing);
     image->GetExtent(extent);
+    // adjust the spacing according to dot(zvec,normal)
+    spacing[2] *= zdn;
+    origin[2] *= zdn;
     // adjust the origin to centre the new volume on the old trapezoid
-    origin[1] -= shear*0.5*spacing[2]*(extent[5] - extent[4]);
+    origin[0] -= xshear*0.5*spacing[2]*(extent[5] - extent[4]);
+    origin[1] -= yshear*0.5*spacing[2]*(extent[5] - extent[4]);
 
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
@@ -1046,7 +1069,6 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
   rangeFinder->Update();
 
   rangeFinder->GetAutoRange(range);
-  cerr << "range : " << rangeFinder->GetMinimum() << " " << rangeFinder->GetMaximum() << "\n";
 
   // run again, with no cylinder stencil
   rangeFinder->SET_STENCIL_DATA(0);
