@@ -20,12 +20,14 @@ Module:    register.cxx
 #include <vtkImageResize.h>
 #include <vtkImageSincInterpolator.h>
 #include <vtkImageHistogramStatistics.h>
+#include <vtkImageThreshold.h>
 #include <vtkROIStencilSource.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
 #include <vtkIntArray.h>
+#include <vtkIdTypeArray.h>
 #include <vtkStringArray.h>
 #include <vtkMath.h>
 #include <vtkCommand.h>
@@ -101,7 +103,7 @@ enum { DICOMImage, NIFTIImage, MINCImage,
 // the data coordinates into patient coordinates.
 namespace {
 
-void ComputeRange(vtkImageData *image, double range[2]);
+void ComputeRange(vtkImageData *image, double range[2], double fill[2]);
 
 // set the interpolator as requested
 void SetInterpolator(vtkImageReslice *reslice, int interpolator)
@@ -665,7 +667,30 @@ vtkImageReader2 *ReadImage(
     }
 
   // compute the range of values present (between 1st and 99th percentile)
-  ComputeRange(image, vrange);
+  double fill[2];
+  ComputeRange(image, vrange, fill);
+
+  // if a pad value was detected, threshold to get rid of it
+  if (fill[1] != 0)
+    {
+    vtkSmartPointer<vtkImageThreshold> thresh =
+      vtkSmartPointer<vtkImageThreshold>::New();
+    thresh->SET_INPUT_DATA(image);
+    thresh->ReplaceInOff();
+    thresh->ReplaceOutOn();
+    thresh->SetOutValue(vrange[0]);
+    if (fill[0] > vrange[1])
+      {
+      thresh->ThresholdByLower(fill[0] - fill[1]);
+      }
+    else
+      {
+      thresh->ThresholdByUpper(fill[0] + fill[1]);
+      }
+    thresh->Update();
+    image->CopyStructure(thresh->GetOutput());
+    image->GetPointData()->PassData(thresh->GetOutput()->GetPointData());
+    }
 
   // use vtkImageReslice to eliminate any shear caused by CT tilted gantry
   vtkSmartPointer<vtkMatrix4x4> pmat =
@@ -976,7 +1001,7 @@ void WriteScreenshot(vtkWindow *window, const char *filename)
     }
 }
 
-void ComputeRange(vtkImageData *image, double range[2])
+void ComputeRange(vtkImageData *image, double range[2], double fill[2])
 {
   // compute the range within a cylinder that is slightly smaller than
   // the image bounds (the idea is to capture only the reconstructed
@@ -1021,6 +1046,60 @@ void ComputeRange(vtkImageData *image, double range[2])
   rangeFinder->Update();
 
   rangeFinder->GetAutoRange(range);
+  cerr << "range : " << rangeFinder->GetMinimum() << " " << rangeFinder->GetMaximum() << "\n";
+
+  // run again, with no cylinder stencil
+  rangeFinder->SET_STENCIL_DATA(0);
+  rangeFinder->SetMaximumNumberOfBins(65536);
+  rangeFinder->Modified();
+  rangeFinder->Update();
+
+  // get the histogram and find the bin with highest frequency that
+  // is not within the range of values that we just found
+  vtkIdTypeArray *histogram = rangeFinder->GetHistogram();
+  double binSpacing = rangeFinder->GetBinSpacing();
+  double binOrigin = rangeFinder->GetBinOrigin();
+  vtkIdType numBins = histogram->GetMaxId() + 1;
+  vtkIdType maxBin = -1;
+  vtkIdType maxCount = 0;
+  vtkIdType brange[2];
+  brange[0] = static_cast<vtkIdType>((range[0] - binOrigin)/binSpacing + 0.5);
+  brange[1] = static_cast<vtkIdType>((range[1] - binOrigin)/binSpacing + 0.5);
+  if (brange[0] < 0) { brange[0] = 0; }
+  if (brange[1] > numBins-1) { brange[1] = numBins-1; }
+  vtkIdType total = 0;
+  for (vtkIdType bin = 0; bin < brange[0]; bin++)
+    {
+    vtkIdType count = histogram->GetValue(bin);
+    total += count;
+    if (count > maxCount)
+      {
+      maxCount = count;
+      maxBin = bin;
+      }
+    }
+  for (vtkIdType bin = brange[1]+1; bin < numBins; bin++)
+    {
+    vtkIdType count = histogram->GetValue(bin);
+    total += count;
+    if (count > maxCount)
+      {
+      maxCount = count;
+      maxBin = bin;
+      }
+    }
+  // if one bin accounts for most of the out-of-range values,
+  // then that bin must be a fill value rather than real data
+  if (maxCount > total/2 && maxCount > rangeFinder->GetTotal()/10)
+    {
+    fill[0] = maxBin*binSpacing + binOrigin;
+    fill[1] = binSpacing;
+    }
+  else
+    {
+    fill[0] = 0;
+    fill[1] = 0;
+    }
 }
 
 };
