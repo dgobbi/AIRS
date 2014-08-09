@@ -1149,6 +1149,7 @@ struct register_options
 #ifdef VTK_HAS_SLAB_SPACING
   int mip;             // --mip
 #endif
+  int source_to_target; // --source-to-target
   const char *outxfm;  // -o (output transform)
   const char *output;  // -o (output image)
   const char *screenshot; // -j (output screenshot)
@@ -1172,6 +1173,7 @@ void register_initialize_options(register_options *options)
 #ifdef VTK_HAS_SLAB_SPACING
   options->mip = 0;
 #endif
+  options->source_to_target = 0;
   options->screenshot = NULL;
   options->output = NULL;
   options->outxfm = NULL;
@@ -1345,6 +1347,15 @@ void register_show_help(FILE *fp, const char *command)
     "    useful for angiography, since it ensures that vessels will not be\n"
     "    lost.\n"
 #endif
+    "\n"
+    " --source-to-target (default: off)\n"
+    "\n"
+    "    After the registration matrix is computed, bring the source image\n"
+    "    to the target image.  This is the opposite of the usual behaviour,\n"
+    "    which brings the target image to the source image.  This option\n"
+    "    does not change anything about how the registration is perfomed,\n"
+    "    nor does it change the registration matrix that is computed.  It\n"
+    "    simply changes which of the two images is written as output.\n"
     "\n"
     " -d --display      (default: off)\n"
     "\n"
@@ -1588,6 +1599,10 @@ int register_read_options(
         options->mip = 1;
         }
 #endif
+      else if (strcmp(arg, "--source-to-target") == 0)
+        {
+        options->source_to_target = 1;
+        }
       else if (strcmp(arg, "-s") == 0 ||
                strcmp(arg, "--silent") == 0)
         {
@@ -1868,7 +1883,7 @@ int main(int argc, char *argv[])
     }
 
   // this variable says which image to move around
-  bool showTargetMoving = true;
+  bool showTargetMoving = (options.source_to_target == 0);
 
   vtkMatrix4x4 *cameraMatrix = originalTargetMatrix;
   vtkImageData *cameraImage = targetImage;
@@ -2192,10 +2207,19 @@ int main(int argc, char *argv[])
       cout << "Writing transformed image: " << imagefile << endl;
       }
 
+    // check which image is to be written
+    vtkImageData *resliceImage = targetImage;
+    vtkImageData *templateImage = sourceImage;
+    if (options.source_to_target)
+      {
+      resliceImage = sourceImage;
+      templateImage = targetImage;
+      }
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
-    reslice->SetInformationInput(sourceImage);
-    reslice->SET_INPUT_DATA(targetImage);
+    reslice->SetInformationInput(templateImage);
+    reslice->SET_INPUT_DATA(resliceImage);
     SetInterpolator(reslice, options.interpolator);
 
 #ifdef VTK_HAS_SLAB_SPACING
@@ -2203,8 +2227,8 @@ int main(int argc, char *argv[])
       {
       double ss[3];
       double st[3];
-      sourceImage->GetSpacing(ss);
-      targetImage->GetSpacing(st);
+      templateImage->GetSpacing(ss);
+      resliceImage->GetSpacing(st);
       int sn = vtkMath::Ceil(ss[2]/st[2])*2 + 1;
       reslice->SetSlabModeToMax();
       reslice->SetSlabNumberOfSlices(sn);
@@ -2215,13 +2239,22 @@ int main(int argc, char *argv[])
         }
       }
 #endif
-    reslice->SetInformationInput(sourceImage);
-    reslice->SetResliceTransform(
-      registration->GetTransform());
-    reslice->Update();
-
-    WriteImage(sourceReader, targetReader,
-      reslice->GetOutput(), originalSourceMatrix, imagefile, options.coords);
+    if (options.source_to_target)
+      {
+      reslice->SetResliceTransform(
+        registration->GetTransform()->GetInverse());
+      reslice->Update();
+      WriteImage(targetReader, sourceReader,
+        reslice->GetOutput(), originalTargetMatrix, imagefile, options.coords);
+      }
+    else
+      {
+      reslice->SetResliceTransform(
+        registration->GetTransform());
+      reslice->Update();
+      WriteImage(sourceReader, targetReader,
+        reslice->GetOutput(), originalSourceMatrix, imagefile, options.coords);
+      }
     }
 
   if (!options.silent)
