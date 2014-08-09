@@ -1843,7 +1843,6 @@ int main(int argc, char *argv[])
     }
 #endif
 
-  targetProperty->SetInterpolationTypeToLinear();
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
   targetProperty->SetColorLevel(0.5*(targetRange[0]+targetRange[1]));
 
@@ -1860,6 +1859,13 @@ int main(int argc, char *argv[])
   renderer->SetBackground(0,0,0);
 
   renderWindow->SetSize(512,512);
+
+  if (interpolatorType == vtkImageRegistration::Nearest ||
+      interpolatorType == vtkImageRegistration::Label)
+    {
+    targetProperty->SetInterpolationTypeToNearest();
+    sourceProperty->SetInterpolationTypeToNearest();
+    }
 
   // this variable says which image to move around
   bool showTargetMoving = true;
