@@ -708,10 +708,8 @@ vtkImageReader2 *ReadImage(
   pmat->DeepCopy(matrix);
   double xvec[4] = { 1.0, 0.0, 0.0, 0.0 };
   double yvec[4] = { 0.0, 1.0, 0.0, 0.0 };
-  double zvec[4] = { 0.0, 0.0, 1.0, 0.0 };
   pmat->MultiplyPoint(xvec, xvec);
   pmat->MultiplyPoint(yvec, yvec);
-  pmat->MultiplyPoint(zvec, zvec);
 
   // create a matrix with z orthogonal to x and y
   double normal[3];
@@ -727,9 +725,9 @@ vtkImageReader2 *ReadImage(
   vtkMatrix4x4::Multiply4x4(pmat, matrix, rmat);
 
   // get the parameters that characterize the shear
-  double xshear = rmat->GetElement(0, 2)/rmat->GetElement(2, 2);
-  double yshear = rmat->GetElement(1, 2)/rmat->GetElement(2, 2);
-  double zdn = vtkMath::Dot(zvec, normal);
+  double zdn = rmat->GetElement(2, 2);
+  double xshear = rmat->GetElement(0, 2)/zdn;
+  double yshear = rmat->GetElement(1, 2)/zdn;
 
   if (fabs(zdn - 1.0) < 1e-3 && fabs(xshear) < 1e-3)
     {
@@ -749,7 +747,7 @@ vtkImageReader2 *ReadImage(
     image->GetOrigin(origin);
     image->GetSpacing(spacing);
     image->GetExtent(extent);
-    // adjust the spacing according to dot(zvec,normal)
+    // adjust the spacing if necessary
     spacing[2] *= zdn;
     origin[2] *= zdn;
     // adjust the origin to centre the new volume on the old trapezoid
@@ -788,8 +786,79 @@ int CoordSystem(const char *filename)
 void WriteImage(
   vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
   vtkImageData *image, vtkMatrix4x4 *matrix,
-  const char *filename, int coordSystem)
+  const char *filename, int coordSystem, int interpolator)
 {
+#ifdef AIRS_USE_DICOM
+  // check if tilted-gantry images must be produced
+  vtkSmartPointer<vtkImageReslice> reslice =
+    vtkSmartPointer<vtkImageReslice>::New();
+
+  // use sinc interpolation here unless NN or LA requested
+  if (interpolator != vtkImageRegistration::Nearest &&
+      interpolator != vtkImageRegistration::Label)
+    {
+    interpolator = vtkImageRegistration::Sinc;
+    }
+
+  vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(sourceReader);
+  if (reader)
+    {
+    // get the directions from the patient matrix
+    vtkSmartPointer<vtkMatrix4x4> pmat =
+      vtkSmartPointer<vtkMatrix4x4>::New();
+    pmat->DeepCopy(reader->GetPatientMatrix());
+
+    // compute the shear matrix
+    vtkSmartPointer<vtkMatrix4x4> rmat =
+      vtkSmartPointer<vtkMatrix4x4>::New();
+    rmat->DeepCopy(matrix);
+    rmat->Invert();
+    vtkMatrix4x4::Multiply4x4(rmat, pmat, rmat);
+
+    // get the parameters that characterize the shear
+    double zdn = rmat->GetElement(2, 2);
+    double xshear = rmat->GetElement(0, 2)/zdn;
+    double yshear = rmat->GetElement(1, 2)/zdn;
+
+    if (fabs(zdn - 1.0) < 1e-3 && fabs(xshear) < 1e-3)
+      {
+      // pure gantry tilt shear matrix will have only one element that
+      // is different from the identity matrix, so enforce this exactly:
+      xshear = 0;
+      zdn = 1.0;
+      rmat->Identity();
+      rmat->SetElement(1, 2, yshear);
+      }
+
+    // if shear is not insignificant, resample on an orthogonal grid
+    if (fabs(xshear) > 1e-3 || fabs(yshear) > 1e-3)
+      {
+      double origin[3], spacing[3];
+      int extent[6];
+      image->GetOrigin(origin);
+      image->GetSpacing(spacing);
+      image->GetExtent(extent);
+      // adjust the spacing if necessary
+      spacing[2] *= zdn;
+      origin[2] *= zdn;
+      // adjust the origin to keep everything centered
+      origin[0] -= xshear*0.5*spacing[2]*(extent[5] - extent[4]);
+      origin[1] -= yshear*0.5*spacing[2]*(extent[5] - extent[4]);
+
+      reslice->SetResliceAxes(rmat);
+      reslice->SET_INPUT_DATA(image);
+      reslice->SetOutputOrigin(origin);
+      reslice->SetOutputSpacing(spacing);
+      reslice->SetOutputExtent(extent);
+      SetInterpolator(reslice, interpolator);
+      reslice->Update();
+
+      image = reslice->GetOutput();
+      matrix = reader->GetPatientMatrix();
+      }
+    }
+#endif
+
   int t = GuessFileType(filename);
 
   if (t == MINCImage)
@@ -2253,7 +2322,8 @@ int main(int argc, char *argv[])
         registration->GetTransform()->GetInverse());
       reslice->Update();
       WriteImage(targetReader, sourceReader,
-        reslice->GetOutput(), originalTargetMatrix, imagefile, options.coords);
+        reslice->GetOutput(), originalTargetMatrix, imagefile,
+        options.coords, options.interpolator);
       }
     else
       {
@@ -2261,7 +2331,8 @@ int main(int argc, char *argv[])
         registration->GetTransform());
       reslice->Update();
       WriteImage(sourceReader, targetReader,
-        reslice->GetOutput(), originalSourceMatrix, imagefile, options.coords);
+        reslice->GetOutput(), originalSourceMatrix, imagefile,
+        options.coords, options.interpolator);
       }
     }
 
