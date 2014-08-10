@@ -695,6 +695,14 @@ vtkImageReader2 *ReadImage(
   // ---------
   // use vtkImageReslice to eliminate any shear caused by CT tilted gantry
 
+  // use sinc interpolation here unless NN or LA requested
+  if (interpolator != vtkImageRegistration::Nearest &&
+      interpolator != vtkImageRegistration::Label)
+    {
+    interpolator = vtkImageRegistration::Sinc;
+    }
+
+  // get the directions from the patient matrix
   vtkSmartPointer<vtkMatrix4x4> pmat =
     vtkSmartPointer<vtkMatrix4x4>::New();
   pmat->DeepCopy(matrix);
