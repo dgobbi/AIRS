@@ -1196,9 +1196,11 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
   brange[0] = static_cast<vtkIdType>((range[0] - binOrigin)/binSpacing + 0.5);
   brange[1] = static_cast<vtkIdType>((range[1] - binOrigin)/binSpacing + 0.5);
   if (brange[0] < 0) { brange[0] = 0; }
+  if (brange[1] < brange[0]) { brange[1] = brange[0]; }
   if (brange[1] > numBins-1) { brange[1] = numBins-1; }
+
   vtkIdType total = 0;
-  for (vtkIdType bin = 0; bin < brange[0]; bin++)
+  for (vtkIdType bin = 0; bin <= brange[0]; bin++)
     {
     vtkIdType count = histogram->GetValue(bin);
     total += count;
@@ -1208,7 +1210,7 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
       maxBin = bin;
       }
     }
-  for (vtkIdType bin = brange[1]+1; bin < numBins; bin++)
+  for (vtkIdType bin = brange[1]; bin < numBins; bin++)
     {
     vtkIdType count = histogram->GetValue(bin);
     total += count;
@@ -1224,6 +1226,32 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
     {
     fill[0] = maxBin*binSpacing + binOrigin;
     fill[1] = binSpacing;
+    // finally, need to re-check the original range, maybe it actually did
+    // include the fill value!
+    if (maxBin == brange[0])
+      {
+      vtkIdType bin;
+      for (bin = brange[0]+1; bin < brange[1]; bin++)
+        {
+        if (histogram->GetValue(bin) != 0) { break; }
+        }
+      if (bin < brange[1] && bin - brange[0] > 4)
+        {
+        range[0] = bin*binSpacing + binOrigin;
+        }
+      }
+    else if (maxBin == brange[1])
+      {
+      vtkIdType bin;
+      for (bin = brange[1]-1; bin > brange[0]; bin--)
+        {
+        if (histogram->GetValue(bin) != 0) { break; }
+        }
+      if (bin > brange[0] && brange[1] - bin > 4)
+        {
+        range[1] = bin*binSpacing + binOrigin;
+        }
+      }
     }
   else
     {
