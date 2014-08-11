@@ -51,9 +51,6 @@ Module:    register.cxx
 #include <vtkPNGWriter.h>
 #include <vtkTIFFWriter.h>
 #include <vtkJPEGWriter.h>
-#ifdef __APPLE__
-#include <vtkCocoaRenderWindow.h>
-#endif
 
 #include <vtkTimerLog.h>
 #include <vtkVersion.h>
@@ -105,34 +102,6 @@ enum { DICOMImage, NIFTIImage, MINCImage,
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
 namespace {
-
-#if defined(__APPLE__) && VTK_MAJOR_VERSION >= 6
-// an observer to check when the window is closed
-class TimerObserver
-{
-public:
-  void Execute(vtkObject *obj, unsigned long e, void *);
-
-private:
-  int Dummy;
-};
-
-void TimerObserver::Execute(vtkObject *obj, unsigned long, void *)
-{
-  vtkRenderWindowInteractor *iren =
-    vtkRenderWindowInteractor::SafeDownCast(obj);
-  if (iren && iren->GetRenderWindow())
-    {
-    vtkCocoaRenderWindow *win =
-      vtkCocoaRenderWindow::SafeDownCast(iren->GetRenderWindow());
-    // the RootWindow is set to zero when the window is closed
-    if (win->GetRootWindow() == 0)
-      {
-      exit(0);
-      }
-    }
-}
-#endif
 
 void ComputeRange(vtkImageData *image, double range[2], double fill[2]);
 
@@ -1948,14 +1917,6 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkRenderWindowInteractor>::New();
   vtkSmartPointer<vtkInteractorStyleImage> istyle =
     vtkSmartPointer<vtkInteractorStyleImage>::New();
-
-#if defined(__APPLE__) && VTK_MAJOR_VERSION >= 6
-  // in VTK 6 with Cocoa, closing the window doesn't cause Start() to return
-  interactor->CreateRepeatingTimer(100);
-  TimerObserver obs;
-  interactor->AddObserver(
-    vtkCommand::TimerEvent, &obs, &TimerObserver::Execute);
-#endif
 
   istyle->SetInteractionModeToImageSlicing();
   interactor->SetInteractorStyle(istyle);
