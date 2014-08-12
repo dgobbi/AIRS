@@ -761,6 +761,7 @@ vtkImageReader2 *ReadImage(
     reslice->SetOutputOrigin(origin);
     reslice->SetOutputSpacing(spacing);
     reslice->SetOutputExtent(extent);
+    reslice->SetBackgroundLevel(vrange[0]);
     SetInterpolator(reslice, interpolator);
     reslice->Update();
 
