@@ -1043,17 +1043,49 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
 
   // only used for tracking progress
   vtkAlgorithm *progress = (threadId == 0 ? this : 0);
-  // specifies the type to use for computing sums
-  double workVal = 0;
 
-  switch (inData0->GetScalarType())
+  int scalarType = inData0->GetScalarType();
+
+  if (scalarType == VTK_FLOAT || scalarType == VTK_DOUBLE)
     {
-    vtkTemplateAliasMacro(
+    // use a floating-point type for computing sums
+    double workVal = 0;
+
+    if (scalarType == VTK_FLOAT)
+      {
       vtkImageNeighborhoodCorrelation3D(
-        static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
+        static_cast<float *>(inPtr0), static_cast<float *>(inPtr1),
         inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
-        &workVal, &this->ThreadOutput[threadId], progress));
-    default:
-      vtkErrorMacro(<< "Execute: Unknown ScalarType");
+        &workVal, &this->ThreadOutput[threadId], progress);
+      }
+    else
+      {
+      vtkImageNeighborhoodCorrelation3D(
+        static_cast<double *>(inPtr0), static_cast<double *>(inPtr1),
+        inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
+        &workVal, &this->ThreadOutput[threadId], progress);
+      }
+    }
+  else
+    {
+    // use an integer type for computing sums
+    vtkTypeInt64 workVal = 0;
+
+    // turn off floats in the vtkTemplateAliasMacro
+#undef VTK_USE_FLOAT64
+#define VTK_USE_FLOAT64 0
+#undef VTK_USE_FLOAT32
+#define VTK_USE_FLOAT32 0
+
+    switch (scalarType)
+      {
+      vtkTemplateAliasMacro(
+        vtkImageNeighborhoodCorrelation3D(
+          static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
+          inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
+          &workVal, &this->ThreadOutput[threadId], progress));
+      default:
+        vtkErrorMacro(<< "Execute: Unknown ScalarType");
+      }
     }
 }
