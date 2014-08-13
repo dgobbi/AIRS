@@ -561,6 +561,12 @@ void vtkImageNeighborhoodCorrelation2D(
       }
     }
 
+  // if workPtr was never incremented, we're done
+  if (workPtr == lastWorkPtr)
+    {
+    return;
+    }
+
   // finish up the final bit
   for (int i = 0; i < radiusZ; i++)
     {
