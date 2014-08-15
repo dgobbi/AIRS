@@ -191,6 +191,24 @@ void vtkImageSquaredDifferenceExecute(
   output[1] = count;
 }
 
+//----------------------------------------------------------------------------
+template<class T1>
+void vtkImageSquaredDifferenceExecute1(
+  vtkImageSquaredDifference *self,
+  vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
+  T1 *inPtr, void *inPtr1, int extent[6], double output[6], int threadId)
+{
+  switch (inData1->GetScalarType())
+    {
+    vtkTemplateAliasMacro(
+      vtkImageSquaredDifferenceExecute(
+        self, inData0, inData1, stencil,
+        inPtr, static_cast<VTK_TT *>(inPtr1), extent, output, threadId));
+    default:
+      vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
+    }
+}
+
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
@@ -288,10 +306,9 @@ void vtkImageSquaredDifference::ThreadedRequestData(
   switch (inData0->GetScalarType())
     {
     vtkTemplateAliasMacro(
-      vtkImageSquaredDifferenceExecute(
+      vtkImageSquaredDifferenceExecute1(
         this, inData0, inData1, stencil,
-        static_cast<VTK_TT *>(inPtr0),
-        static_cast<VTK_TT *>(inPtr1), extent,
+        static_cast<VTK_TT *>(inPtr0), inPtr1, extent,
         this->ThreadOutput[threadId], threadId));
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
