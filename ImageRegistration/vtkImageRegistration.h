@@ -334,8 +334,8 @@ protected:
 
   vtkMatrix4x4                    *InitialTransformMatrix;
   vtkImageReslice                 *ImageReslice;
-  vtkImageShiftScale              *SourceImageQuantizer;
-  vtkImageShiftScale              *TargetImageQuantizer;
+  vtkImageShiftScale              *SourceImageTypecast;
+  vtkImageShiftScale              *TargetImageTypecast;
 
   vtkImageRegistrationInfo        *RegistrationInfo;
 

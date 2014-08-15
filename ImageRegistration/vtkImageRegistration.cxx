@@ -148,8 +148,8 @@ vtkImageRegistration::vtkImageRegistration()
 
   this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
-  this->TargetImageQuantizer = vtkImageShiftScale::New();
-  this->SourceImageQuantizer = vtkImageShiftScale::New();
+  this->TargetImageTypecast = vtkImageShiftScale::New();
+  this->SourceImageTypecast = vtkImageShiftScale::New();
 
   this->MetricValue = 0.0;
 
@@ -196,13 +196,13 @@ vtkImageRegistration::~vtkImageRegistration()
     {
     this->ImageReslice->Delete();
     }
-  if (this->SourceImageQuantizer)
+  if (this->SourceImageTypecast)
     {
-    this->SourceImageQuantizer->Delete();
+    this->SourceImageTypecast->Delete();
     }
-  if (this->TargetImageQuantizer)
+  if (this->TargetImageTypecast)
     {
-    this->TargetImageQuantizer->Delete();
+    this->TargetImageTypecast->Delete();
     }
 }
 
@@ -667,7 +667,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       // round the value, instead of truncating it.
       double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
 
-      vtkImageShiftScale *sourceQuantizer = this->SourceImageQuantizer;
+      vtkImageShiftScale *sourceQuantizer = this->SourceImageTypecast;
       sourceQuantizer->SET_INPUT_DATA(sourceImage);
       sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
       sourceQuantizer->ClampOverflowOn();
@@ -680,7 +680,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
         (targetImageRange[1] - targetImageRange[0]));
       double targetShift = (-targetImageRange[0] + 0.5/targetScale);
 
-      vtkImageShiftScale *targetQuantizer = this->TargetImageQuantizer;
+      vtkImageShiftScale *targetQuantizer = this->TargetImageTypecast;
       targetQuantizer->SET_INPUT_DATA(targetImage);
       targetQuantizer->SetOutputScalarTypeToUnsignedChar();
       targetQuantizer->ClampOverflowOn();
@@ -694,6 +694,53 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       targetImageRange[1] = this->JointHistogramSize[0] - 1;
       sourceImageRange[0] = 0;
       sourceImageRange[1] = this->JointHistogramSize[1] - 1;
+      }
+    }
+  else if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
+           this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
+    {
+    // coerce the types to make them compatible
+    int sourceType = sourceImage->GetScalarType();
+    int targetType = targetImage->GetScalarType();
+    int sourceSize = sourceImage->GetScalarSize();
+    int targetSize = targetImage->GetScalarSize();
+    int coercedType = VTK_DOUBLE;
+
+    if (sourceSize < targetSize)
+      {
+      coercedType = targetType;
+      }
+    else if (sourceSize > targetSize)
+      {
+      coercedType = sourceType;
+      }
+    else if (sourceSize < 8 && targetSize < 8)
+      {
+      coercedType = VTK_FLOAT;
+      } 
+
+    if (sourceType != coercedType)
+      {
+      vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
+      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetOutputScalarTypeToUnsignedChar();
+      sourceCast->ClampOverflowOn();
+      sourceCast->SetShift(0.0);
+      sourceCast->SetScale(1.0);
+      sourceCast->Update();
+      sourceImage = sourceCast->GetOutput();
+      }
+
+    if (targetType != coercedType)
+      {
+      vtkImageShiftScale *targetCast = this->TargetImageTypecast;
+      targetCast->SET_INPUT_DATA(targetImage);
+      targetCast->SetOutputScalarTypeToUnsignedChar();
+      targetCast->ClampOverflowOn();
+      targetCast->SetShift(0.0);
+      targetCast->SetScale(1.0);
+      targetCast->Update();
+      targetImage = targetCast->GetOutput();
       }
     }
 
