@@ -176,33 +176,42 @@ vtkDICOMReader *ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName,
   int coordSystem)
 {
-  // get the files
-  vtkSmartPointer<vtkGlobFileNames> glob =
-    vtkSmartPointer<vtkGlobFileNames>::New();
-  glob->SetDirectory(directoryName);
-  glob->AddFileNames("*");
-
-  // sort the files
-  vtkSmartPointer<vtkDICOMSorter> sorter =
-    vtkSmartPointer<vtkDICOMSorter>::New();
-  sorter->SetInputFileNames(glob->GetFileNames());
-  sorter->Update();
-
-  if (sorter->GetNumberOfSeries() == 0)
-    {
-    fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
-    exit(1);
-    }
-  else if (sorter->GetNumberOfSeries() > 1)
-    {
-    fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
-            directoryName);
-    exit(1);
-    }
-
-  // read the image
   vtkDICOMReader *reader = vtkDICOMReader::New();
-  reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+
+  bool singleFile = true;
+  if (vtksys::SystemTools::FileIsDirectory(directoryName))
+    {
+    // get all the DICOM files in the directory
+    singleFile = false;
+    vtkSmartPointer<vtkGlobFileNames> glob =
+      vtkSmartPointer<vtkGlobFileNames>::New();
+    glob->SetDirectory(directoryName);
+    glob->AddFileNames("*");
+
+    // sort the files
+    vtkSmartPointer<vtkDICOMSorter> sorter =
+      vtkSmartPointer<vtkDICOMSorter>::New();
+    sorter->SetInputFileNames(glob->GetFileNames());
+    sorter->Update();
+
+    if (sorter->GetNumberOfSeries() == 0)
+      {
+      fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
+      exit(1);
+      }
+    else if (sorter->GetNumberOfSeries() > 1)
+      {
+      fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
+              directoryName);
+      exit(1);
+      }
+    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+    }
+  else
+    {
+    // was given a single file instead of a directory
+    reader->SetFileName(directoryName);
+    }
 
   if (coordSystem == NIFTICoords)
     {
@@ -219,35 +228,38 @@ vtkDICOMReader *ReadDICOMImage(
     exit(1);
     }
 
-  // when reading images, only read 1st component if the
-  // image has multiple components or multiple time points
-  vtkIntArray *fileArray = reader->GetFileIndexArray();
-
-  // create a filtered list of files
-  vtkSmartPointer<vtkStringArray> fileNames =
-    vtkSmartPointer<vtkStringArray>::New();
-  vtkIdType n = fileArray->GetNumberOfTuples();
-  for (vtkIdType i = 0; i < n; i++)
+  if (!singleFile)
     {
-    std::string newFileName =
-      reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
-    bool alreadyThere = false;
-    vtkIdType m = fileNames->GetNumberOfTuples();
-    for (vtkIdType j = 0; j < m; j++)
+    // when reading images, only read 1st component if the
+    // image has multiple components or multiple time points
+    vtkIntArray *fileArray = reader->GetFileIndexArray();
+
+    // create a filtered list of files
+    vtkSmartPointer<vtkStringArray> fileNames =
+      vtkSmartPointer<vtkStringArray>::New();
+    vtkIdType n = fileArray->GetNumberOfTuples();
+    for (vtkIdType i = 0; i < n; i++)
       {
-      if (newFileName == fileNames->GetValue(j))
+      std::string newFileName =
+        reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
+      bool alreadyThere = false;
+      vtkIdType m = fileNames->GetNumberOfTuples();
+      for (vtkIdType j = 0; j < m; j++)
         {
-        alreadyThere = true;
-        break;
+        if (newFileName == fileNames->GetValue(j))
+          {
+          alreadyThere = true;
+          break;
+          }
+        }
+      if (!alreadyThere)
+        {
+        fileNames->InsertNextValue(newFileName);
         }
       }
-    if (!alreadyThere)
-      {
-      fileNames->InsertNextValue(newFileName);
-      }
+    reader->SetFileNames(fileNames);
     }
   reader->SetDesiredTimeIndex(0);
-  reader->SetFileNames(fileNames);
 
   reader->Update();
   if (reader->GetErrorCode())
