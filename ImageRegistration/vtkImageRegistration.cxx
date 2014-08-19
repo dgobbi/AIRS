@@ -769,6 +769,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       reslice->SetInterpolator(interp);
       interp->Delete();
       }
+      break;
     case vtkImageRegistration::Label:
       {
       vtkLabelInterpolator *interp = vtkLabelInterpolator::New();
