@@ -57,6 +57,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkAmoebaMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
+#include "vtkImageBSplineCoefficients.h"
+#include "vtkImageBSplineInterpolator.h"
 #include "vtkImageSincInterpolator.h"
 #include "vtkLabelInterpolator.h"
 #include "vtkVersion.h"
@@ -148,6 +150,7 @@ vtkImageRegistration::vtkImageRegistration()
 
   this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
+  this->ImageBSpline = vtkImageBSplineCoefficients::New();
   this->TargetImageTypecast = vtkImageShiftScale::New();
   this->SourceImageTypecast = vtkImageShiftScale::New();
 
@@ -203,6 +206,10 @@ vtkImageRegistration::~vtkImageRegistration()
   if (this->TargetImageTypecast)
     {
     this->TargetImageTypecast->Delete();
+    }
+  if (this->ImageBSpline)
+    {
+    this->ImageBSpline->Delete();
     }
 }
 
@@ -696,6 +703,33 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       sourceImageRange[1] = this->JointHistogramSize[1] - 1;
       }
     }
+  else if (this->InterpolatorType == vtkImageRegistration::BSpline)
+    {
+    int scalarType = VTK_FLOAT;
+    if (targetImage->GetScalarType() == VTK_DOUBLE ||
+        sourceImage->GetScalarType() == VTK_DOUBLE)
+      {
+      scalarType = VTK_DOUBLE;
+      }
+
+    vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
+    bspline->SET_INPUT_DATA(sourceImage);
+    bspline->SetOutputScalarType(scalarType);
+    bspline->Update();
+    sourceImage = bspline->GetOutput();
+
+    if (targetImage->GetScalarType() != scalarType)
+      {
+      vtkImageShiftScale *targetCast = this->TargetImageTypecast;
+      targetCast->SET_INPUT_DATA(targetImage);
+      targetCast->SetOutputScalarType(scalarType);
+      targetCast->ClampOverflowOff();
+      targetCast->SetShift(0.0);
+      targetCast->SetScale(1.0);
+      targetCast->Update();
+      targetImage = targetCast->GetOutput();
+      }
+    }
   else if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
            this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
     {
@@ -761,6 +795,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       break;
     case vtkImageRegistration::Cubic:
       reslice->SetInterpolationModeToCubic();
+      break;
+    case vtkImageRegistration::BSpline:
+      {
+      vtkImageBSplineInterpolator *interp = vtkImageBSplineInterpolator::New();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
       break;
     case vtkImageRegistration::Sinc:
       {

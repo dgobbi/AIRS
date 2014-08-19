@@ -18,9 +18,12 @@ Module:    register.cxx
 
 #include <vtkImageReslice.h>
 #include <vtkImageResize.h>
+#include <vtkImageBSplineCoefficients.h>
+#include <vtkImageBSplineInterpolator.h>
 #include <vtkImageSincInterpolator.h>
 #include <vtkImageHistogramStatistics.h>
 #include <vtkImageThreshold.h>
+#include <vtkImageCast.h>
 #include <vtkROIStencilSource.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -89,6 +92,11 @@ Module:    register.cxx
 #define SET_STENCIL_DATA SetStencil
 #endif
 
+// Check for vtkImageReslice::SetOutputScalarType()
+#if VTK_MAJOR_VERSION >= 6 || (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 2)
+#define VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
+#endif
+
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
 
@@ -108,6 +116,9 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2]);
 // set the interpolator as requested
 void SetInterpolator(vtkImageReslice *reslice, int interpolator)
 {
+  vtkSmartPointer<vtkImageBSplineInterpolator> bsplineInterpolator =
+    vtkSmartPointer<vtkImageBSplineInterpolator>::New();
+
   vtkSmartPointer<vtkImageSincInterpolator> sincInterpolator =
     vtkSmartPointer<vtkImageSincInterpolator>::New();
   sincInterpolator->SetWindowFunctionToBlackman();
@@ -125,6 +136,9 @@ void SetInterpolator(vtkImageReslice *reslice, int interpolator)
       break;
     case vtkImageRegistration::Cubic:
       reslice->SetInterpolationModeToCubic();
+      break;
+    case vtkImageRegistration::BSpline:
+      reslice->SetInterpolator(bsplineInterpolator);
       break;
     case vtkImageRegistration::Sinc:
       reslice->SetInterpolator(sincInterpolator);
@@ -1433,6 +1447,7 @@ void register_show_help(FILE *fp, const char *command)
     "                 NN        NearestNeighbor\n"
     "                 LI        Linear\n"
     "                 CU        Cubic\n"
+    "                 BS        BSpline\n"
     "                 WS        WindowedSinc\n"
     "                 LA        Label\n"
     "\n"
@@ -1525,6 +1540,7 @@ int register_read_options(
     "NearestNeighbor", "NN",
     "Linear", "LI",
     "Cubic", "CU",
+    "BSpline", "BS",
     "WindowedSinc", "WS",
     "Label", "LA",
     0 };
@@ -1664,6 +1680,11 @@ int register_read_options(
                  strcmp(arg, "CU") == 0)
           {
           options->interpolator = vtkImageRegistration::Cubic;
+          }
+        else if (strcmp(arg, "BSpline") == 0 ||
+                 strcmp(arg, "BS") == 0)
+          {
+          options->interpolator = vtkImageRegistration::BSpline;
           }
         else if (strcmp(arg, "WindowedSinc") == 0 ||
                  strcmp(arg, "WS") == 0)
@@ -2331,11 +2352,41 @@ int main(int argc, char *argv[])
       templateImage = targetImage;
       }
 
+    int outputScalarType = resliceImage->GetScalarType();
+
+    vtkSmartPointer<vtkImageBSplineCoefficients> bspline =
+      vtkSmartPointer<vtkImageBSplineCoefficients>::New();
+    // if bspline, need to filter the image first
+    if (options.interpolator == vtkImageRegistration::BSpline)
+      {
+      bspline->SET_INPUT_DATA(resliceImage);
+      bspline->Update();
+      resliceImage = bspline->GetOutput();
+      }
+
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(templateImage);
     reslice->SET_INPUT_DATA(resliceImage);
     SetInterpolator(reslice, options.interpolator);
+
+#ifdef VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
+    if (outputScalarType != resliceImage->GetScalarType())
+      {
+      reslice->SetOutputScalarType(outputScalarType);
+      }
+#endif
+
+    if (options.source_to_target)
+      {
+      reslice->SetResliceTransform(
+        registration->GetTransform()->GetInverse());
+      }
+    else
+      {
+      reslice->SetResliceTransform(
+        registration->GetTransform());
+      }
 
 #ifdef VTK_HAS_SLAB_SPACING
     if (options.mip)
@@ -2354,22 +2405,33 @@ int main(int argc, char *argv[])
         }
       }
 #endif
+
+    reslice->Update();
+    resliceImage = reslice->GetOutput();
+
+#ifndef VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
+    vtkSmartPointer<vtkImageCast> imageCast =
+      vtkSmartPointer<vtkImageCast>::New();
+    if (outputScalarType != resliceImage->GetScalarType())
+      {
+      imageCast->SET_INPUT_DATA(resliceImage);
+      imageCast->SetOutputScalarType(outputScalarType);
+      imageCast->ClampOverflowOn();
+      imageCast->Update();
+      resliceImage = imageCast->GetOutput();
+      }
+#endif
+
     if (options.source_to_target)
       {
-      reslice->SetResliceTransform(
-        registration->GetTransform()->GetInverse());
-      reslice->Update();
       WriteImage(targetReader, sourceReader,
-        reslice->GetOutput(), originalTargetMatrix, imagefile,
+        resliceImage, originalTargetMatrix, imagefile,
         options.coords, options.interpolator);
       }
     else
       {
-      reslice->SetResliceTransform(
-        registration->GetTransform());
-      reslice->Update();
       WriteImage(sourceReader, targetReader,
-        reslice->GetOutput(), originalSourceMatrix, imagefile,
+        resliceImage, originalSourceMatrix, imagefile,
         options.coords, options.interpolator);
       }
     }

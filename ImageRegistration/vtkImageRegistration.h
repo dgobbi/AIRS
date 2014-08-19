@@ -51,6 +51,7 @@ class vtkLinearTransform;
 class vtkMatrix4x4;
 class vtkImageReslice;
 class vtkImageShiftScale;
+class vtkImageBSplineCoefficients;
 
 struct vtkImageRegistrationInfo;
 
@@ -115,6 +116,7 @@ public:
     Nearest,
     Linear,
     Cubic,
+    BSpline,
     Sinc,
     Label
   };
@@ -171,6 +173,8 @@ public:
     this->SetInterpolatorType(Linear); }
   void SetInterpolatorTypeToCubic() {
     this->SetInterpolatorType(Cubic); }
+  void SetInterpolatorTypeToBSpline() {
+    this->SetInterpolatorType(BSpline); }
   void SetInterpolatorTypeToSinc() {
     this->SetInterpolatorType(Sinc); }
   void SetInterpolatorTypeToLabel() {
@@ -334,6 +338,7 @@ protected:
 
   vtkMatrix4x4                    *InitialTransformMatrix;
   vtkImageReslice                 *ImageReslice;
+  vtkImageBSplineCoefficients     *ImageBSpline;
   vtkImageShiftScale              *SourceImageTypecast;
   vtkImageShiftScale              *TargetImageTypecast;
 
