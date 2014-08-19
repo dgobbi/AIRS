@@ -723,8 +723,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
       sourceCast->SET_INPUT_DATA(sourceImage);
-      sourceCast->SetOutputScalarTypeToUnsignedChar();
-      sourceCast->ClampOverflowOn();
+      sourceCast->SetOutputScalarType(coercedType);
+      sourceCast->ClampOverflowOff();
       sourceCast->SetShift(0.0);
       sourceCast->SetScale(1.0);
       sourceCast->Update();
@@ -735,8 +735,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageShiftScale *targetCast = this->TargetImageTypecast;
       targetCast->SET_INPUT_DATA(targetImage);
-      targetCast->SetOutputScalarTypeToUnsignedChar();
-      targetCast->ClampOverflowOn();
+      targetCast->SetOutputScalarType(coercedType);
+      targetCast->ClampOverflowOff();
       targetCast->SetShift(0.0);
       targetCast->SetScale(1.0);
       targetCast->Update();
