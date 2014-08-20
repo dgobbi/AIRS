@@ -453,19 +453,19 @@ void vtkImageNeighborhoodCorrelation2D(
     {
     // use the row buffer
     headPtr = rowPtr;
-    if (idZMin == idZMax)
-      {
-      // or, if only one row, set headPtr to that row
-      headPtr = workPtr;
-      }
     }
 
   // filter in both X and Z directions
   for (int idZ = idZMin; idZ <= idZMax; idZ++)
     {
-    // use the row buffer if beyond the end of the main buffer
-    if (headPtr == endPtr || headPtr == checkPtr)
+    if (idZMin == idZMax)
       {
+      // if only one row, set headPtr to that row
+      headPtr = workPtr;
+      }
+    else if (headPtr == endPtr || headPtr == checkPtr)
+      {
+      // use the row buffer when beyond the end of the main buffer
       headPtr = rowPtr;
       }
 
@@ -474,15 +474,16 @@ void vtkImageNeighborhoodCorrelation2D(
       inPtr1, inPtr2, inInc1, inInc2, extent, stencil,
       radiusX, idY, idZ, headPtr);
 
-    inPtr1 += inInc1[2];
-    inPtr2 += inInc2[2];
-
     if (idZMin == idZMax)
       {
       // only one row needed
       return;
       }
-    else if (idZ == idZMin)
+
+    inPtr1 += inInc1[2];
+    inPtr2 += inInc2[2];
+
+    if (idZ == idZMin)
       {
       // initialize first row
       U *tmpPtr = workPtr;
