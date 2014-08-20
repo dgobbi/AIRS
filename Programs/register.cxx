@@ -1373,7 +1373,7 @@ void register_show_help(FILE *fp, const char *command)
     "Usage: %s [options] -o <output> <source image> <target image>\n", cp);
   fprintf(fp,
     "\n"
-    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.5.\n"
+    "Written by David Gobbi <dgobbi@ucalgary.ca> at CIPAC.  Version 0.2.6.\n"
     "\n"
     "This program performs 3D image registration on DICOM, MINC, or NIFTI\n"
     "image volumes.  It reads the image header (or the DICOM meta data) in\n"
