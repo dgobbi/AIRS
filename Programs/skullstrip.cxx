@@ -131,9 +131,11 @@ vtkDICOMReader *ReadDICOMImage(
   int coordSystem)
 {
   // get the files
+  std::string dirString = directoryName;
+  vtksys::SystemTools::ConvertToUnixSlashes(dirString);
   vtkSmartPointer<vtkGlobFileNames> glob =
     vtkSmartPointer<vtkGlobFileNames>::New();
-  glob->SetDirectory(directoryName);
+  glob->SetDirectory(dirString.c_str());
   glob->AddFileNames("*");
 
   // sort the files

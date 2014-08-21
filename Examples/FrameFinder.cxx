@@ -71,6 +71,9 @@ Module:    FrameFinder.cxx
 #include <vtkGlobFileNames.h>
 #endif
 
+#include <vtksys/SystemTools.hxx>
+#include <string>
+
 // A macro to assist VTK 5 backwards compatibility
 #if VTK_MAJOR_VERSION >= 6
 #define SET_INPUT_DATA SetInputData
@@ -88,9 +91,12 @@ void ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
 {
   // get the files
+  std::string dirString = directoryName;
+  vtksys::SystemTools::ConvertToUnixSlashes(dirString);
+
   vtkSmartPointer<vtkGlobFileNames> glob =
     vtkSmartPointer<vtkGlobFileNames>::New();
-  glob->SetDirectory(directoryName);
+  glob->SetDirectory(dirString.c_str());
   glob->AddFileNames("*");
 
   // sort the files
