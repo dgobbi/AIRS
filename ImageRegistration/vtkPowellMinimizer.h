@@ -168,6 +168,12 @@ private:
     double gtol, bool *failed);
 
   // Description:
+  // Use Brent's method to search for a minimum.
+  double PowellBrent(
+    const double *p0, double y0, const double *v, double *p, int n,
+    double gtol, bool *failed);
+
+  // Description:
   // Initialize the workspace required for the method.
   void PowellInitialize();
 

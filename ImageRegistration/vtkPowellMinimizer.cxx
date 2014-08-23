@@ -378,6 +378,148 @@ double vtkPowellMinimizer::PowellGolden(
 }
 
 //----------------------------------------------------------------------------
+double vtkPowellMinimizer::PowellBrent(
+  const double *p0, double y0, const double *vec, double *point, int n,
+  double tol, bool *failed)
+{
+  // the golden ratio
+  const double g = 0.6180339887498949;
+  const double cg = 1.0 - g;
+
+  // the bracket
+  double a = -g;
+  double b = 1.0;
+
+  // ensure that a minimum is bracketed
+  *failed = true;
+  for (int i = 0; i < n; i++) { point[i] = p0[i] + a*vec[i]; }
+  this->EvaluateFunction();
+  double fa = this->FunctionValue;
+  if (fa < y0) { return fa; }
+  for (int i = 0; i < n; i++) { point[i] = p0[i] + b*vec[i]; }
+  this->EvaluateFunction();
+  double fb = this->FunctionValue;
+  if (fb < y0) { return fb; }
+
+  // else set "failed" to false (i.e. success)
+  *failed = false;
+
+  double x = 0;
+  double w = 0;
+  double v = 0;
+
+  double fx = y0;
+  double fw = y0;
+  double fv = y0;
+
+  double e = 0;
+  double d = 1.0;
+
+  // limit the number of line search iterations
+  for (int ii = 0; ii < this->MaxIterations; ii++)
+    {
+    // add a fractional component to the tolerance
+    double tol1 = tol + fabs(x)*1e-8;
+
+    // midpoint
+    double xc = 0.5*(a + b);
+    if (fabs(x - xc) < (2*tol1 - 0.5*(b - a)))
+      {
+      // desired tolerance achieved
+      break;
+      }
+    if (fabs(e) <= tol1)
+      {
+      // golden section
+      e = ((x < xc) ? b : a) - x;
+      d = cg*e;
+      }
+    else
+      {
+      // parabolic calculation
+      double r = (x - w)*(fx - fv);
+      double q = (x - v)*(fx - fw);
+      double p = (x - v)*q + (x - w)*r;
+      q = 2*(q - r);
+      p = ((q > 0) ? -p : p);
+      q = fabs(q);
+      double etmp = e;
+      e = d;
+
+      if (p > q*(a - x) && p < q*(b - x) && fabs(p) < fabs(0.5*q*etmp))
+        {
+        // if we are here, the parabolic step is useful
+        d = p/q;
+        double u = x + d;
+        if ((u - a) < 2*tol1 || (b - u) < 2*tol1)
+          {
+          d = ((xc - x < 0) ? -tol1 : tol1);
+          }
+        }
+      else
+        {
+        // parabolic step not useful, do golden section
+        e = ((x < xc) ? b : a) - x;
+        d = cg*e;
+        }
+      }
+
+    // compute the new position
+    double u = x + d;
+
+    // make sure step is at least as large as tol1erance
+    if (fabs(d) < tol1)
+      {
+      // update by tol1erance
+      u = x + ((d < 0) ? -tol1 : tol1);
+      }
+
+    // perform function evaluation
+    for (int i = 0; i < n; i++)
+      {
+      point[i] = p0[i] + u*vec[i];
+      }
+    this->EvaluateFunction();
+    double fu = this->FunctionValue;
+
+    if (fu > fx)
+      {
+      if (u < x) { a = u; }
+      else { b = u; }
+      if (fu <= fw || w == x)
+        {
+        v = w;
+        w = u;
+        fv = fw;
+        fw = fu;
+        }
+      else if (fu <= fv || v == x || v == w)
+        {
+        v = u;
+        fv = fu;
+        }
+      }
+    else
+      {
+      if (u >= x) { a = x; }
+      else { b = x; }
+      v = w;
+      w = x;
+      x = u;
+      fv = fw;
+      fw = fx;
+      fx = fu;
+      }
+    }
+
+  for (int i = 0; i < n; i++)
+    {
+    point[i] = p0[i] + x*vec[i];
+    }
+  return fx;
+}
+
+//----------------------------------------------------------------------------
 void vtkPowellMinimizer::PowellInitialize()
 {
   int n = this->NumberOfParameters;
@@ -438,7 +580,7 @@ int vtkPowellMinimizer::PowellIterate()
       }
     l = sqrt(l);
     double gtol = ptol/l;
-    y = this->PowellGolden(p0, y0, v, p, n, gtol, &gfailed);
+    y = this->PowellBrent(p0, y0, v, p, n, gtol, &gfailed);
     double dy = y0 - y;
     if (dy > dymax)
       {
