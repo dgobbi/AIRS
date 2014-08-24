@@ -171,7 +171,14 @@ private:
   // Use Brent's method to search for a minimum.
   double PowellBrent(
     const double *p0, double y0, const double *v, double *p, int n,
-    double gtol, bool *failed);
+    const double bracket[3], double gtol);
+
+  // Description:
+  // Bracket a minimum, given a starting point.  Return the function
+  // value at the center point of the bracket.
+  double PowellBracket(
+    const double *p0, double y0, const double *v, double *p, int n,
+    double bracket[3], bool *failed);
 
   // Description:
   // Initialize the workspace required for the method.

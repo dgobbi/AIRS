@@ -380,33 +380,24 @@ double vtkPowellMinimizer::PowellGolden(
 //----------------------------------------------------------------------------
 double vtkPowellMinimizer::PowellBrent(
   const double *p0, double y0, const double *vec, double *point, int n,
-  double tol, bool *failed)
+  const double bracket[3], double tol)
 {
   // the golden ratio
   const double g = 0.6180339887498949;
   const double cg = 1.0 - g;
 
   // the bracket
-  double a = -g;
-  double b = 1.0;
+  double a = bracket[0];
+  double b = bracket[2];
+  if (a > b)
+    {
+    b = bracket[0];
+    a = bracket[2];
+    }
 
-  // ensure that a minimum is bracketed
-  *failed = true;
-  for (int i = 0; i < n; i++) { point[i] = p0[i] + a*vec[i]; }
-  this->EvaluateFunction();
-  double fa = this->FunctionValue;
-  if (fa < y0) { return fa; }
-  for (int i = 0; i < n; i++) { point[i] = p0[i] + b*vec[i]; }
-  this->EvaluateFunction();
-  double fb = this->FunctionValue;
-  if (fb < y0) { return fb; }
-
-  // else set "failed" to false (i.e. success)
-  *failed = false;
-
-  double x = 0;
-  double w = 0;
-  double v = 0;
+  double x = bracket[1];
+  double w = x;
+  double v = x;
 
   double fx = y0;
   double fw = y0;
@@ -520,6 +511,169 @@ double vtkPowellMinimizer::PowellBrent(
 }
 
 //----------------------------------------------------------------------------
+double vtkPowellMinimizer::PowellBracket(
+  const double *p0, double y0, const double *vec, double *point, int n,
+  double bracket[3], bool *failed)
+{
+  // the golden ratio
+  const double g = 0.6180339887498949;
+  // maximum growth allowed
+  const double growlim = 110;
+
+  double fa = y0;
+  double xa = 0.0;
+  double xb = 1.0;
+
+  for (int i = 0; i < n; i++)
+    {
+    point[i] = p0[i] + xb*vec[i];
+    }
+  this->EvaluateFunction();
+  double fb = this->FunctionValue;
+  if (fa < fb)
+    {
+    xa = xb;
+    xb = 0.0;
+    fa = fb;
+    fb = y0;
+    }
+
+  double xc = xb + g*(xb - xa);
+
+  for (int i = 0; i < n; i++)
+    {
+    point[i] = p0[i] + xc*vec[i];
+    }
+  this->EvaluateFunction();
+  double fc = this->FunctionValue;
+
+  int ii = 0;
+  while (fc < fb)
+    {
+    double tmp1 = (xb - xa)*(fb - fc);
+    double tmp2 = (xb - xc)*(fb - fa);
+    double val = tmp2 - tmp1;
+    const double tinyval = 1e-21;
+    val = ((val < tinyval) ? tinyval : val);
+    double denom = 2*val;
+    double w = xb - ((xb - xc)*tmp2 - (xb - xa)*tmp1)/denom;
+    double wlim = xb + growlim*(xc - xb);
+    if (ii++ > this->MaxIterations)
+      {
+      break;
+      }
+
+    double fw = 0;
+    if ((w - xc)*(xb - w) > 0)
+      {
+      for (int i = 0; i < n; i++)
+        {
+        point[i] = p0[i] + w*vec[i];
+        }
+      this->EvaluateFunction();
+      fw = this->FunctionValue;
+      if (fw < fc)
+        {
+        xa = xb;
+        xb = w;
+        fa = fb;
+        fb = fw;
+        break;
+        }
+      else if (fw > fb)
+        {
+        xc = w;
+        fc = fw;
+        break;
+        }
+      w = xc + g*(xc - xb);
+      for (int i = 0; i < n; i++)
+        {
+        point[i] = p0[i] + w*vec[i];
+        }
+      this->EvaluateFunction();
+      fw = this->FunctionValue;
+      }
+    else if ((w - wlim)*(wlim - xc) >= 0)
+      {
+      w = wlim;
+      for (int i = 0; i < n; i++)
+        {
+        point[i] = p0[i] + w*vec[i];
+        }
+      this->EvaluateFunction();
+      fw = this->FunctionValue;
+      }
+    else if ((w - wlim)*(xc - w) >= 0)
+      {
+      for (int i = 0; i < n; i++)
+        {
+        point[i] = p0[i] + w*vec[i];
+        }
+      this->EvaluateFunction();
+      fw = this->FunctionValue;
+      if (fw < fc)
+        {
+        xb = xc;
+        xc = w;
+        w = xc + g*(xc - xb);
+        fb = fc;
+        fc = fw;
+        for (int i = 0; i < n; i++)
+          {
+          point[i] = p0[i] + w*vec[i];
+          }
+        this->EvaluateFunction();
+        fw = this->FunctionValue;
+        }
+      }
+    else
+      {
+      w = xc + g*(xc - xb);
+      for (int i = 0; i < n; i++)
+        {
+        point[i] = p0[i] + w*vec[i];
+        }
+      this->EvaluateFunction();
+      fw = this->FunctionValue;
+      }
+    xa = xb;
+    xb = xc;
+    xc = w;
+    fa = fb;
+    fb = fc;
+    fc = fw;
+    }
+
+  bracket[0] = xa;
+  bracket[1] = xb;
+  bracket[2] = xc;
+
+  if (fa <= fb)
+    {
+    *failed = true;
+    xb = xa;
+    fb = fa;
+    }
+  else if (fc <= fb)
+    {
+    *failed = true;
+    xb = xc;
+    fb = fc;
+    }
+  else
+    {
+    *failed = false;
+    }
+
+  for (int i = 0; i < n; i++)
+    {
+    point[i] = p0[i] + xb*vec[i];
+    }
+  return fb;
+}
+
+//----------------------------------------------------------------------------
 void vtkPowellMinimizer::PowellInitialize()
 {
   int n = this->NumberOfParameters;
@@ -569,7 +723,6 @@ int vtkPowellMinimizer::PowellIterate()
     {
     for (int i = 0; i < n; i++) { p0[i] = p[i]; }
     double *v = vecs[j];
-    bool gfailed = false;
     double y0 = y;
     // compute length of vector
     double l = 0.0;
@@ -580,7 +733,13 @@ int vtkPowellMinimizer::PowellIterate()
       }
     l = sqrt(l);
     double gtol = ptol/l;
-    y = this->PowellBrent(p0, y0, v, p, n, gtol, &gfailed);
+    double bracket[3];
+    bool failed = false;
+    y = this->PowellBracket(p0, y0, v, p, n, bracket, &failed);
+    if (!failed)
+      {
+      y = this->PowellBrent(p0, y, v, p, n, bracket, gtol);
+      }
     double dy = y0 - y;
     if (dy > dymax)
       {
