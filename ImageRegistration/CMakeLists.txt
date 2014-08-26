@@ -16,6 +16,7 @@ vtkImageMutualInformation.cxx
 vtkImageSquaredDifference.cxx
 vtkLabelInterpolator.cxx
 vtkGaussianInterpolator.cxx
+vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
 vtkITKXFMReader.cxx

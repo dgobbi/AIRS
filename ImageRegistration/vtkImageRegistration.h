@@ -106,6 +106,7 @@ public:
     CrossCorrelation,
     NormalizedCrossCorrelation,
     NeighborhoodCorrelation,
+    CorrelationRatio,
     MutualInformation,
     NormalizedMutualInformation
   };

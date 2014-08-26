@@ -66,6 +66,7 @@ POSSIBILITY OF SUCH DAMAGES.
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
 #include "vtkImageMutualInformation.h"
+#include "vtkImageCorrelationRatio.h"
 #include "vtkImageCrossCorrelation.h"
 #include "vtkImageNeighborhoodCorrelation.h"
 
@@ -486,6 +487,8 @@ void vtkEvaluateFunction(void * arg)
     vtkImageSquaredDifference::SafeDownCast(registrationInfo->Metric);
   vtkImageNeighborhoodCorrelation *ncMetric =
     vtkImageNeighborhoodCorrelation::SafeDownCast(registrationInfo->Metric);
+  vtkImageCorrelationRatio *crMetric =
+    vtkImageCorrelationRatio::SafeDownCast(registrationInfo->Metric);
 
   vtkSetTransformParameters(registrationInfo);
 
@@ -504,6 +507,9 @@ void vtkEvaluateFunction(void * arg)
       break;
     case vtkImageRegistration::NeighborhoodCorrelation:
       val = ncMetric->GetValueToMinimize();
+      break;
+    case vtkImageRegistration::CorrelationRatio:
+      val = - crMetric->GetCorrelationRatio();
       break;
     case vtkImageRegistration::MutualInformation:
       val = - miMetric->GetMutualInformation();
@@ -860,6 +866,19 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       metric->SET_INPUT_DATA(sourceImage);
       metric->SetInputConnection(1, reslice->GetOutputPort());
       metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+      }
+      break;
+
+    case vtkImageRegistration::CorrelationRatio:
+      {
+      vtkImageCorrelationRatio *metric = vtkImageCorrelationRatio::New();
+      this->Metric = metric;
+
+      metric->SET_INPUT_DATA(sourceImage);
+      metric->SetInputConnection(1, reslice->GetOutputPort());
+      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+
+      metric->SetDataRange(sourceImageRange);
       }
       break;
 

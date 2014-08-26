@@ -1421,6 +1421,7 @@ void register_show_help(FILE *fp, const char *command)
     "                 CC        CrossCorrelation\n"
     "                 NCC       NormalizedCrossCorrelation\n"
     "                 NC        NeighborhoodCorrelation\n"
+    "                 CR        CorrelationRatio\n"
     "                 MI        MutualInformation\n"
     "                 NMI       NormalizedMutualInformation\n"
     "\n"
@@ -1527,6 +1528,7 @@ int register_read_options(
     "CrossCorrelation", "CC",
     "NormalizedCrossCorrelation", "NCC",
     "NeighborhoodCorrelation", "NC",
+    "CorrelationRatio", "CR",
     "MutualInformation", "MI",
     "NormalizedMutualInformation", "NMI",
     0 };
@@ -1617,6 +1619,11 @@ int register_read_options(
                  strcmp(arg, "NC") == 0)
           {
           options->metric = vtkImageRegistration::NeighborhoodCorrelation;
+          }
+        else if (strcmp(arg, "CorrelationRatio") == 0 ||
+                 strcmp(arg, "CR") == 0)
+          {
+          options->metric = vtkImageRegistration::CorrelationRatio;
           }
         else if (strcmp(arg, "MutualInformation") == 0 ||
                  strcmp(arg, "MI") == 0)
