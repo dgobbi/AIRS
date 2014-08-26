@@ -479,7 +479,7 @@ void vtkImageCorrelationRatioExecute1Int(
   double *outPtr, int numBins, int binOrigin, int binSpacing,
   int threadId)
 {
-  switch (inData1->GetScalarType())
+  switch (inData0->GetScalarType())
     {
     vtkTemplateAliasMacro(
       vtkImageCorrelationRatioExecuteInt(
@@ -589,7 +589,8 @@ void vtkImageCorrelationRatio::ThreadedRequestData(
         vtkImageCorrelationRatioExecute1Int(
           this, inData0, inData1, stencil,
           inPtr0, static_cast<VTK_TT *>(inPtr1),
-          extent, outPtr, numBins, binOrigin, binSpacing,
+          extent, outPtr, numBins,
+          static_cast<int>(binOrigin), static_cast<int>(binSpacing),
           threadId));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
@@ -603,8 +604,7 @@ void vtkImageCorrelationRatio::ThreadedRequestData(
         vtkImageCorrelationRatioExecute1(
           this, inData0, inData1, stencil,
           inPtr0, static_cast<VTK_TT *>(inPtr1),
-          extent, outPtr, numBins,
-          static_cast<int>(binOrigin), static_cast<int>(binSpacing),
+          extent, outPtr, numBins, binOrigin, binSpacing,
           threadId));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
