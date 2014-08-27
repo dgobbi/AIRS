@@ -728,23 +728,23 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       scalarType = VTK_DOUBLE;
       }
 
+    if (sourceImage->GetScalarType() != scalarType)
+      {
+      vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
+      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetOutputScalarType(scalarType);
+      sourceCast->ClampOverflowOff();
+      sourceCast->SetShift(0.0);
+      sourceCast->SetScale(1.0);
+      sourceCast->Update();
+      sourceImage = sourceCast->GetOutput();
+      }
+
     vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
-    bspline->SET_INPUT_DATA(sourceImage);
+    bspline->SET_INPUT_DATA(targetImage);
     bspline->SetOutputScalarType(scalarType);
     bspline->Update();
-    sourceImage = bspline->GetOutput();
-
-    if (targetImage->GetScalarType() != scalarType)
-      {
-      vtkImageShiftScale *targetCast = this->TargetImageTypecast;
-      targetCast->SET_INPUT_DATA(targetImage);
-      targetCast->SetOutputScalarType(scalarType);
-      targetCast->ClampOverflowOff();
-      targetCast->SetShift(0.0);
-      targetCast->SetScale(1.0);
-      targetCast->Update();
-      targetImage = targetCast->GetOutput();
-      }
+    targetImage = bspline->GetOutput();
     }
 
   // coerce types if NeighborhoodCorrelation
