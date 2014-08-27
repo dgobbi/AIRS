@@ -650,10 +650,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   targetImageRange[0] = this->TargetImageRange[0];
   targetImageRange[1] = this->TargetImageRange[1];
 
-  if (this->MetricType ==
-      vtkImageRegistration::MutualInformation ||
-      this->MetricType ==
-      vtkImageRegistration::NormalizedMutualInformation) 
+  if (this->MetricType == vtkImageRegistration::MutualInformation ||
+      this->MetricType == vtkImageRegistration::NormalizedMutualInformation)
     {
     if (sourceImageRange[0] >= sourceImageRange[1])
       {
@@ -709,7 +707,19 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       sourceImageRange[1] = this->JointHistogramSize[1] - 1;
       }
     }
-  else if (this->InterpolatorType == vtkImageRegistration::BSpline)
+
+  // make sure source range is computed for CorrelationRatio
+  if (this->MetricType == vtkImageRegistration::CorrelationRatio)
+    {
+    if (sourceImageRange[0] >= sourceImageRange[1])
+      {
+      this->ComputeImageRange(sourceImage, this->GetSourceImageStencil(),
+        sourceImageRange);
+      }
+    }
+
+  // apply b-spline prefilter if b-spline interpolator is used
+  if (this->InterpolatorType == vtkImageRegistration::BSpline)
     {
     int scalarType = VTK_FLOAT;
     if (targetImage->GetScalarType() == VTK_DOUBLE ||
@@ -736,8 +746,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       targetImage = targetCast->GetOutput();
       }
     }
-  else if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
-           this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
+
+  // coerce types if NeighborhoodCorrelation
+  if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
+      this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
     {
     // coerce the types to make them compatible
     int sourceType = sourceImage->GetScalarType();
@@ -757,7 +769,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     else if (sourceSize < 8 && targetSize < 8)
       {
       coercedType = VTK_FLOAT;
-      } 
+      }
 
     if (sourceType != coercedType)
       {
