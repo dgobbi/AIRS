@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkAmoebaMinimizer.h"
+#include "vtkPowellMinimizer.h"
 #include "vtkImageHistogramStatistics.h"
 #include "vtkImageBSplineCoefficients.h"
 #include "vtkImageBSplineInterpolator.h"
@@ -119,8 +120,8 @@ vtkImageRegistration* vtkImageRegistration::New()
 //----------------------------------------------------------------------------
 vtkImageRegistration::vtkImageRegistration()
 {
-  this->OptimizerType = vtkImageRegistration::Amoeba;
-  this->MetricType = vtkImageRegistration::NormalizedMutualInformation;
+  this->OptimizerType = vtkImageRegistration::Powell;
+  this->MetricType = vtkImageRegistration::MutualInformation;
   this->InterpolatorType = vtkImageRegistration::Linear;
   this->TransformType = vtkImageRegistration::Rigid;
   this->InitializerType = vtkImageRegistration::None;
@@ -372,8 +373,8 @@ void vtkTransformRotation(
 
 void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 {
-  vtkAmoebaMinimizer* optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkPowellMinimizer* optimizer =
+    vtkPowellMinimizer::SafeDownCast(registrationInfo->Optimizer);
   vtkTransform* transform =
     vtkTransform::SafeDownCast(registrationInfo->Transform);
   vtkMatrix4x4 *initialMatrix = registrationInfo->InitialMatrix;
@@ -477,8 +478,8 @@ void vtkEvaluateFunction(void * arg)
 
   double val = 0.0;
 
-  vtkAmoebaMinimizer* optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkPowellMinimizer* optimizer =
+    vtkPowellMinimizer::SafeDownCast(registrationInfo->Optimizer);
   vtkImageMutualInformation *miMetric =
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
@@ -921,7 +922,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     this->Optimizer->Delete();
     }
 
-  vtkAmoebaMinimizer *optimizer = vtkAmoebaMinimizer::New();
+  vtkPowellMinimizer *optimizer = vtkPowellMinimizer::New();
   this->Optimizer = optimizer;
   optimizer->SetTolerance(this->MetricTolerance);
   optimizer->SetParameterTolerance(this->TransformTolerance);
@@ -944,9 +945,16 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Center[1] = center[1];
   this->RegistrationInfo->Center[2] = center[2];
 
-  // use golden ratio for amoeba
-  optimizer->SetExpansionRatio(1.618);
-  optimizer->SetContractionRatio(0.618);
+  /*
+  vtkAmoebaOptimizer *amoeba = vtkAmoebaOptimizer::SafeDownCast(optimizer);
+  if (amoeba)
+    {
+    // use golden ratio for amoeba
+    amoeba->SetExpansionRatio(1.618);
+    amoeba->SetContractionRatio(0.618);
+    }
+  */
+
   optimizer->SetFunction(&vtkEvaluateFunction,
                          (void*)(this->RegistrationInfo));
 
@@ -1061,8 +1069,8 @@ int vtkImageRegistration::ExecuteRegistration()
 
   int converged = 0;
 
-  vtkAmoebaMinimizer *optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(this->Optimizer);
+  vtkPowellMinimizer *optimizer =
+    vtkPowellMinimizer::SafeDownCast(this->Optimizer);
 
   if (optimizer)
     {
@@ -1098,8 +1106,8 @@ int vtkImageRegistration::ExecuteRegistration()
 //--------------------------------------------------------------------------
 int vtkImageRegistration::Iterate()
 {
-  vtkAmoebaMinimizer *optimizer =
-    vtkAmoebaMinimizer::SafeDownCast(this->Optimizer);
+  vtkPowellMinimizer *optimizer =
+    vtkPowellMinimizer::SafeDownCast(this->Optimizer);
 
   if (optimizer)
     {

@@ -96,7 +96,8 @@ public:
   // Optimizer types
   enum
   {
-    Amoeba
+    Amoeba,
+    Powell
   };
 
   // Metric types
@@ -141,8 +142,7 @@ public:
   };
 
   // Description:
-  // Set the image registration metric.  The default is normalized
-  // cross correlation.
+  // Set the image registration metric.  The default is mutual information.
   vtkSetMacro(MetricType, int);
   void SetMetricTypeToSquaredDifference() {
     this->SetMetricType(SquaredDifference); }
@@ -159,10 +159,12 @@ public:
   vtkGetMacro(MetricType, int);
 
   // Description:
-  // Set the optimizer.  The default is Amoeba (Nelder-Mead Simplex).
+  // Set the optimizer.  The default is Powell.
   vtkSetMacro(OptimizerType, int);
   void SetOptimizerTypeToAmoeba() {
     this->SetOptimizerType(Amoeba); }
+  void SetOptimizerTypeToPowell() {
+    this->SetOptimizerType(Powell); }
   vtkGetMacro(OptimizerType, int);
 
   // Description:
