@@ -340,7 +340,7 @@ int vtkImageCorrelationRatio::RequestData(
     inInfo, vtkDataObject::FIELD_ASSOCIATION_POINTS,
     vtkDataSetAttributes::SCALARS);
   int scalarType = inScalarInfo->Get(vtkDataObject::FIELD_ARRAY_TYPE());
- 
+
   // compute the array size for the partial sums
   if (scalarType == VTK_DOUBLE || scalarType == VTK_FLOAT)
     {
