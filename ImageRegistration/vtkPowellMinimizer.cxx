@@ -7,9 +7,6 @@
 #include "vtkPowellMinimizer.h"
 #include "vtkObjectFactory.h"
 
-#define  N_STEPS_NO_VALUE_IMPROVEMENT  2
-#define  N_STEPS_NO_PARAM_IMPROVEMENT  18
-
 vtkStandardNewMacro(vtkPowellMinimizer);
 
 //----------------------------------------------------------------------------
@@ -25,9 +22,6 @@ vtkPowellMinimizer::vtkPowellMinimizer()
   this->ParameterScales = NULL;
 
   this->FunctionValue = 0.0;
-
-  this->ContractionRatio = 0.5;
-  this->ExpansionRatio = 2.0;
 
   this->Tolerance = 1e-4;
   this->ParameterTolerance = 1e-4;
@@ -130,8 +124,6 @@ void vtkPowellMinimizer::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MaxIterations: " << this->GetMaxIterations() << "\n";
   os << indent << "Tolerance: " << this->GetTolerance() << "\n";
   os << indent << "ParameterTolerance: " << this->GetParameterTolerance() << "\n";
-  os << indent << "ContractionRatio: " << this->GetContractionRatio() << "\n";
-  os << indent << "ExpansionRatio: " << this->GetExpansionRatio() << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -327,54 +319,6 @@ void vtkPowellMinimizer::EvaluateFunction()
     this->Function(this->FunctionArg);
     }
   this->FunctionEvaluations++;
-}
-
-//----------------------------------------------------------------------------
-double vtkPowellMinimizer::PowellGolden(
-  const double *p0, double y0, const double *v, double *p, int n,
-  double tol, bool *failed)
-{
-  // the golden ratio
-  const double g = 0.6180339887498949;
-
-  // ensure that a minimum is bracketed
-  *failed = true;
-  double a0 = y0;
-  for (int i = 0; i < n; i++) { p[i] = p0[i] + v[i]; }
-  this->EvaluateFunction();
-  double a1 = this->FunctionValue;
-  if (a1 < a0) { return a1; }
-  for (int i = 0; i < n; i++) { p[i] = p0[i] - g*v[i]; }
-  this->EvaluateFunction();
-  double a2 = this->FunctionValue;
-  if (a2 < a0) { return a2; }
-
-  // do the golden section search, tol is ratio of final size to initial
-  *failed = false;
-  double d = 0.0;
-  double a3 = a0;
-  for (double r = 1.0; fabs(r) >= tol; r = g*r)
-    {
-    double dtry = d + r - g*r;
-    for (int i = 0; i < n; i++) { p[i] = p0[i] + dtry*v[i]; }
-    this->EvaluateFunction();
-    a3 = this->FunctionValue;
-
-    if (a0 < a3)
-      {
-      a1 = a3;
-      r = -r;
-      }
-    else
-      {
-      a2 = a0;
-      a0 = a3;
-      d = dtry;
-      }
-    }
-
-  for (int i = 0; i < n; i++) { p[i] = p0[i] + d*v[i]; }
-  return a0;
 }
 
 //----------------------------------------------------------------------------
