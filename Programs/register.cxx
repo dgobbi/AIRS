@@ -1277,7 +1277,7 @@ struct register_options
   int transform;       // -T --transform
   int interpolator;    // -I --interpolator
   int coords;          // -C --coords
-  int maxiter[3];      // -M --maxiter
+  int maxiter[4];      // -M --maxiter
   int display;         // -d --display
   int silent;          // -s --silent
 #ifdef VTK_HAS_SLAB_SPACING
@@ -1302,6 +1302,7 @@ void register_initialize_options(register_options *options)
   options->maxiter[0] = 500;
   options->maxiter[1] = 500;
   options->maxiter[2] = 500;
+  options->maxiter[3] = 500;
   options->display = 0;
   options->silent = 0;
 #ifdef VTK_HAS_SLAB_SPACING
@@ -1390,8 +1391,6 @@ void register_show_help(FILE *fp, const char *command)
     "with images that have been blurred to four times their original pixel\n"
     "spacing, proceeding to images that have been blurred to two times their\n"
     "original spacing, and finishing with unblurred, full-resolution images.\n"
-    "At each resolution, the registration is first done with nearest-neighbor\n"
-    "interpolation, and then refined with higher-order interpolation.\n"
     "\n"
     "The \"-o\" option allows you to specify either an output image, or an\n"
     "output transform file.  The transform file will provide the coordinate\n"
@@ -1473,7 +1472,7 @@ void register_show_help(FILE *fp, const char *command)
     "    matrix that is written by the \"-o\" option will be in the chosen\n"
     "    coordinate system.\n"
     "\n"
-    " -N --maxiter   (default: 500x500x500)\n"
+    " -N --maxiter   (default: 500x500x500x500)\n"
     "\n"
     "    Set the maximum number of iterations per stage.  Set this to zero\n"
     "    if you want to use the initial transform as-is.\n"
@@ -1726,7 +1725,7 @@ int register_read_options(
                strcmp(arg, "--maxiter") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
           {
           options->maxiter[i] = static_cast<int>(
             strtoul(arg, const_cast<char **>(&arg), 0));
@@ -1839,7 +1838,7 @@ int main(int argc, char *argv[])
   int interpolatorType = options.interpolator;
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
-  double initialBlurFactor = 4.0;
+  double initialBlurFactor = 8.0;
 
   // -------------------------------------------------------
   // load and concatenate the initial matrix transforms
@@ -2158,26 +2157,16 @@ int main(int argc, char *argv[])
 
   // the registration starts at low-resolution
   double blurFactor = initialBlurFactor;
-  // two stages for each resolution:
-  // first without interpolation, and then with interpolation
   int level = 0;
-  int stage = 0;
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
-  while (level < 3 && options.maxiter[level] > 0)
+  while (level < 4 && options.maxiter[level] > 0)
     {
     registration->SetMaximumNumberOfIterations(options.maxiter[level]);
-    if (stage == 0)
-      {
-      registration->SetInterpolatorTypeToNearest();
-      registration->SetTransformTolerance(minSpacing*blurFactor);
-      }
-    else
-      {
-      registration->SetInterpolatorType(interpolatorType);
-      registration->SetTransformTolerance(transformTolerance*blurFactor);
-      }
+    registration->SetInterpolatorType(interpolatorType);
+    registration->SetTransformTolerance(transformTolerance*blurFactor);
+
     if (blurFactor < 1.1)
       {
       // full resolution: no blurring or resampling
@@ -2292,23 +2281,15 @@ int main(int argc, char *argv[])
 
     if (!options.silent)
       {
-      cout << (stage ? "interpolated " : "non-interp'd ")
-           << minBlurSpacing << " mm took "
+      cout << minBlurSpacing << " mm took "
            << (newTime - lastTime) << "s and "
            << registration->GetNumberOfEvaluations() << " evaluations" << endl;
       lastTime = newTime;
       }
 
     // prepare for next iteration
-    if (stage == 1 || interpolatorType == vtkImageRegistration::Nearest)
-      {
-      level++;
-      blurFactor /= 2.0;
-      }
-    if (interpolatorType != vtkImageRegistration::Nearest)
-      {
-      stage = (stage + 1) % 2;
-      }
+    level++;
+    blurFactor /= 2.0;
     }
 
   if (!options.silent)
