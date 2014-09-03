@@ -48,6 +48,8 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkMatrix4x4.h"
 #include "vtkPoints.h"
 #include "vtkCellArray.h"
+#include "vtkFloatArray.h"
+#include "vtkPointData.h"
 #include "vtkVersion.h"
 #include "vtkMath.h"
 #include "vtkSmartPointer.h"
@@ -1745,6 +1747,11 @@ int vtkFrameFinder::FindFrame(
     {
     // generate the frame data
     vtkSmartPointer<vtkPoints> points;
+    vtkSmartPointer<vtkFloatArray> scalars =
+      vtkSmartPointer<vtkFloatArray>::New();
+    vtkSmartPointer<vtkFloatArray> vectors =
+      vtkSmartPointer<vtkFloatArray>::New();
+    vectors->SetNumberOfComponents(3);
     if (poly->GetPoints())
       {
       points = poly->GetPoints();
@@ -1762,6 +1769,7 @@ int vtkFrameFinder::FindFrame(
     // activate this to see all the blobs, not just frame blobs
     // (for debugging purposes only)
 #if 1
+    points->SetNumberOfPoints(0);
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)
@@ -1772,6 +1780,11 @@ int vtkFrameFinder::FindFrame(
       point[2] = origin[2] + it->slice*spacing[2];
       vtkIdType ptId = points->InsertNextPoint(point);
       cells->InsertCellPoint(ptId);
+      float s = it->val;
+      float r = sqrt(it->count/3.14159);
+      float v[3] = { r, r, 1.0 };
+      scalars->InsertNextTuple(&s);
+      vectors->InsertNextTuple(v);
       //cout << "blob " << numVerts << " " << point[0] << " " << point[1] << " " << point[2] << "\n";
       numVerts++;
       }
@@ -1779,6 +1792,8 @@ int vtkFrameFinder::FindFrame(
     cells->UpdateCellCount(numVerts);
     poly->SetPoints(points);
     poly->SetVerts(cells);
+    poly->GetPointData()->SetScalars(scalars);
+    poly->GetPointData()->SetVectors(vectors);
     }
 #else
     for (std::vector<Point>::iterator it = framePoints.begin();

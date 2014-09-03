@@ -35,10 +35,14 @@ Module:    FrameFinder.cxx
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
 #include <vtkMath.h>
+#include <vtkLookupTable.h>
 #include <vtkPoints.h>
 #include <vtkCellArray.h>
 #include <vtkPolyData.h>
 #include <vtkTubeFilter.h>
+#include <vtkSphereSource.h>
+#include <vtkTransformPolyDataFilter.h>
+#include <vtkGlyph3D.h>
 #include <vtkStringArray.h>
 
 #include <vtkMINCImageReader.h>
@@ -403,6 +407,7 @@ int main (int argc, char *argv[])
 
   renderer->AddViewProp(sourceActor);
   renderer->SetBackground(0.2,0.2,0.2);
+  //renderer->SetBackground(0.0,0.0,0.0);
 
   renderWindow->SetSize(720,720);
 
@@ -445,22 +450,58 @@ int main (int argc, char *argv[])
 
   lastTime = timer->GetUniversalTime();
 
+  vtkSmartPointer<vtkSphereSource> glyphSource =
+    vtkSmartPointer<vtkSphereSource>::New();
+  glyphSource->SetThetaResolution(21);
+  //glyphSource->SetResolution(21);
+  glyphSource->Update();
+
+  vtkSmartPointer<vtkTransform> gtrans = vtkSmartPointer<vtkTransform>::New();
+  //gtrans->RotateWXYZ(90, 1.0, 0.0, 0.0);
+
+  vtkSmartPointer<vtkTransformPolyDataFilter> glyphRotate =
+    vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+  glyphRotate->SetInputConnection(glyphSource->GetOutputPort());
+  glyphRotate->SetTransform(gtrans);
+
+  vtkSmartPointer<vtkGlyph3D> glypher =
+    vtkSmartPointer<vtkGlyph3D>::New();
+  glypher->SetSourceConnection(glyphRotate->GetOutputPort());
+  glypher->SetInputConnection(frameFinder->GetOutputPort());
+  glypher->SetScaleModeToScaleByVectorComponents();
+  glypher->SetColorModeToColorByScalar();
+  glypher->ScalingOn();
+  glypher->OrientOff();
+  glypher->ClampingOff();
+
   vtkSmartPointer<vtkMatrix4x4> frameMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   vtkMatrix4x4::Multiply4x4(
     leksellToDICOM, frameFinder->GetImageToFrameMatrix(), frameMatrix);
   sourceActor->SetUserMatrix(frameMatrix);
 
+  vtkSmartPointer<vtkLookupTable> mtable =
+    vtkSmartPointer<vtkLookupTable>::New();
+  mtable->SetRampToLinear();
+  mtable->SetSaturationRange(0.0, 0.0);
+  mtable->SetValueRange(0.0, 1.0);
+  mtable->Build();
+  mtable->SetRange(sourceRange[0], sourceRange[1]*0.2);
+
   vtkSmartPointer<vtkDataSetMapper> frameMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
-  frameMapper->SetInputConnection(frameFinder->GetOutputPort(0));
+  frameMapper->SetInputConnection(glypher->GetOutputPort());
+  frameMapper->SetColorModeToMapScalars();
+  frameMapper->SetLookupTable(mtable);
+  frameMapper->UseLookupTableScalarRangeOn();
 
   vtkSmartPointer<vtkActor> frameActor =
     vtkSmartPointer<vtkActor>::New();
   frameActor->SetUserMatrix(frameMatrix);
   frameActor->SetMapper(frameMapper);
-  frameActor->GetProperty()->SetAmbient(0.6);
-  frameActor->GetProperty()->SetColor(1.0, 0.0, 1.0);
+  frameActor->GetProperty()->SetAmbient(0.1);
+  frameActor->GetProperty()->SetDiffuse(1.0);
+  //frameActor->GetProperty()->SetColor(1.0, 0.0, 1.0);
 
   renderer->AddViewProp(frameActor);
 

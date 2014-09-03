@@ -38,7 +38,7 @@ IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
       vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL vtkIOImage vtkIOMINC
-      vtkImagingStencil vtkImagingMath vtksys)
+      vtkImagingStencil vtkImagingMath vtkFiltersSources vtksys)
   # If vtkIOMPIImage is present, it has factories for vtkIOImage
   LIST(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
   IF(TMP_INDEX GREATER -1)
