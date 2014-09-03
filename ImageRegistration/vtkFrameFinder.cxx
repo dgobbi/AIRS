@@ -409,13 +409,13 @@ Blob MakeBlob(
     AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
-    AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y + 1, z,
+    AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
     AddPixelIfAboveThreshold(array, curPt.x, curPt.y + 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
-    AddPixelIfAboveThreshold(array, curPt.x - 1, curPt.y + 1, z,
+    AddPixelIfAboveThreshold(array, curPt.x, curPt.y - 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
     }
