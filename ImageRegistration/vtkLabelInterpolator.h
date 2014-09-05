@@ -91,12 +91,11 @@ public:
   // BlurFactor.  This can be used to set the standard deviation of the
   // Gaussian, which will be equal to BlurFactor/sqrt(2*pi).  When the
   // BlurFactor is 1, the standard deviation is 0.399, which provides
-  // a Gaussian of unit height and unit area.  For higher-order kernels,
-  // the frequency cutoff is reduced by the provided BlurFactor.
-  // If you turn Antialiasing on, then the blur factors will be computed
-  // automatically so that the frequency cutoff is the Nyquist frequency
-  // for the output sampling rate.  Blurring increases the computation
-  // time because the kernel size increases by the blur factor.
+  // a Gaussian of unit height and unit area.  If you turn Antialiasing on,
+  // then the blur factors will be computed automatically so that the
+  // frequency cutoff is the Nyquist frequency for the output sampling rate.
+  // Blurring increases the computation time because the kernel size
+  // increases by the blur factor.
   void SetBlurFactors(double x, double y, double z);
   void SetBlurFactors(const double f[3]) {
     this->SetBlurFactors(f[0], f[1], f[2]); }
