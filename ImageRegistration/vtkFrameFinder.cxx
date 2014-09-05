@@ -649,7 +649,7 @@ public:
   // The maximum intensity value for all the blobs.
   double GetMaximum() { return this->Maximum; }
 
-  // The average intensity value for all the blobs.
+  // The average bin value, for use as a selection threshold.
   double GetAverage() { return this->Average; }
 
   // Search for two peaks that are separated by the given distance and
@@ -686,7 +686,7 @@ public:
   };
 
   // Get the clusters that were selected by SelectOne() or SelectTwo().
-  std::vector<Cluster> *GetClusters() { return &this->Clusters; }
+  std::vector<Cluster> *GetClusters();
 
 private:
   void ReturnCluster(double keepThreshold, Cluster *cluster);
@@ -1007,6 +1007,13 @@ bool Selector::SelectOne(double threshold, int maxWidth)
   clusters->push_back(cluster);
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+// Get the selected clusters.
+std::vector<Selector::Cluster> *Selector::GetClusters()
+{
+  return &this->Clusters;
 }
 
 //----------------------------------------------------------------------------
@@ -1346,29 +1353,29 @@ bool FiducialPlate::LocateBars(
   int clusterWidthH = static_cast<int>(clusterWidth/hspacing + 0.5);
 
   // generate cluster selectors along the horiz and diagonal directions
-  Selector hist1(blobs, dvec);
-  Selector hist2(blobs, hvec);
+  Selector selector1(blobs, dvec);
+  Selector selector2(blobs, hvec);
 
   // the cluster identification threshold
-  clusterThreshold *= hist2.GetMaximum();
+  clusterThreshold *= selector2.GetMaximum();
 
   // locate the diagonal bar
-  if (!hist1.SelectOne(clusterThreshold, clusterWidthD))
+  if (!selector1.SelectOne(clusterThreshold, clusterWidthD))
     {
     return false;
     }
 
   // locate the two vertical bars
-  if (!hist2.SelectTwo(barSeparation, clusterThreshold, clusterWidthH))
+  if (!selector2.SelectTwo(barSeparation, clusterThreshold, clusterWidthH))
     {
     return false;
     }
 
   // get the clusters for the three bars
   std::vector<Selector::Cluster>::iterator clusters[3];
-  clusters[0] = hist1.GetClusters()->begin();
-  clusters[1] = hist2.GetClusters()->begin();
-  clusters[2] = hist2.GetClusters()->begin() + 1;
+  clusters[0] = selector1.GetClusters()->begin();
+  clusters[1] = selector2.GetClusters()->begin();
+  clusters[2] = selector2.GetClusters()->begin() + 1;
 
   // the cluster selector directions for the bars
   const double *vecs[3];
@@ -1503,8 +1510,8 @@ bool PositionFrame(
   // find the side plates of the leksell frame
   Selector xSelector(blobs, xvec);
   if (!xSelector.SelectTwo(plateSeparationX/spacing[0],
-                              plateClusterThreshold*xSelector.GetAverage(),
-                              clusterWidthX))
+                           plateClusterThreshold*xSelector.GetAverage(),
+                           clusterWidthX))
     {
     return false;
     }
