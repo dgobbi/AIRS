@@ -35,6 +35,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkVersion.h"
 
+#include <vector>
 #include <stack>
 #include <algorithm>
 
@@ -297,6 +298,9 @@ protected:
     vtkImageData *outData, OT *outPtr,
     vtkImageStencilData *stencil, int extent[6],
     vtkIntArray *labelMap);
+
+  // Sort the ExtractedRegionLabels array and the other arrays.
+  static void SortRegionArrays(vtkImageConnectivityFilter *self);
 
   // Finalize the output
   template<class OT>
@@ -729,16 +733,19 @@ void vtkICF::GenerateRegionArrays(
   vtkImageConnectivityFilter *self, vtkICF::RegionVector& regionInfo,
   vtkDataArray *seedScalars, int minLabel, int maxLabel)
 {
+  // clamp the default label value to the range of the output data type
   int constantLabel = self->GetLabelConstantValue();
   constantLabel = (constantLabel > minLabel ? constantLabel : minLabel);
   constantLabel = (constantLabel < maxLabel ? constantLabel : maxLabel);
 
+  // build the arrays
   vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
   vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
   vtkIntArray *labels = self->GetExtractedRegionLabels();
 
   if (regionInfo.size() == 1)
     {
+    // only background is present, there are no connected regions
     sizes->Reset();
     ids->Reset();
     labels->Reset();
@@ -746,15 +753,21 @@ void vtkICF::GenerateRegionArrays(
   else if (self->GetExtractionMode() ==
            vtkImageConnectivityFilter::LargestRegion)
     {
+    // only one region (the largest) will be output
     sizes->SetNumberOfValues(1);
     ids->SetNumberOfValues(1);
     labels->SetNumberOfValues(1);
 
+    // get info for the largest region
     vtkICF::RegionVector::iterator largest = regionInfo.largest();
 
+    // default label value is 1
     int label = 1;
+
+    // check which label mode was selected
     switch (self->GetLabelMode())
       {
+      // use the scalars of the seed points as labels
       case vtkImageConnectivityFilter::SeedScalar:
         if (seedScalars)
           {
@@ -769,22 +782,27 @@ void vtkICF::GenerateRegionArrays(
             }
           }
         break;
+      // use the specified ConstantValue for all regions
       case vtkImageConnectivityFilter::ConstantValue:
         label = constantLabel;
         break;
       }
 
+    // create the arrays for the single region present in the output
     sizes->SetValue(0, largest->size);
     ids->SetValue(0, largest->id);
     labels->SetValue(0, label);
     }
   else
     {
+    // multiple regions might be present in the output (we subtract
+    // one because the background doesn't count as a region)
     vtkIdType n = static_cast<vtkIdType>(regionInfo.size()) - 1;
     sizes->SetNumberOfValues(n);
     ids->SetNumberOfValues(n);
     labels->SetNumberOfValues(n);
 
+    // build the arrays (this part is easy!)
     for (vtkIdType i = 0; i < n; i++)
       {
       sizes->SetValue(i, regionInfo[i+1].size);
@@ -792,8 +810,10 @@ void vtkICF::GenerateRegionArrays(
       labels->SetValue(i, i+1);
       }
 
+    // some label modes require additional actions to be done
     switch (self->GetLabelMode())
       {
+      // change the labels to match the scalars for the seed points
       case vtkImageConnectivityFilter::SeedScalar:
         if (seedScalars)
           {
@@ -812,6 +832,7 @@ void vtkICF::GenerateRegionArrays(
             }
           }
         break;
+      // order the labels by the size rank of the regions
       case vtkImageConnectivityFilter::SizeRank:
         {
         vtkICF::CompareSize cmpfunc(regionInfo);
@@ -819,6 +840,7 @@ void vtkICF::GenerateRegionArrays(
         std::stable_sort(la, la+n, cmpfunc);
         }
         break;
+      // set all labels to the same value
       case vtkImageConnectivityFilter::ConstantValue:
         for (vtkIdType i = 0; i < n; i++)
           {
@@ -839,6 +861,8 @@ void vtkICF::Relabel(
 {
   vtkImageRegionIterator<OT> iter(outData, stencil, extent);
 
+  // loop through the output voxels and change the "region id" value
+  // stored in the voxel into a "region label" value.
   for (; !iter.IsAtEnd(); iter.NextSpan())
     {
     outPtr = iter.BeginSpan();
@@ -854,6 +878,35 @@ void vtkICF::Relabel(
           *outPtr = labelMap->GetValue(v-1);
           }
         }
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkICF::SortRegionArrays(
+  vtkImageConnectivityFilter *self)
+{
+  vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
+  vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
+  vtkIntArray *labels = self->GetExtractedRegionLabels();
+
+  vtkIdType *sizePtr = sizes->GetPointer(0);
+  vtkIdType *idPtr = ids->GetPointer(0);
+  int *labelPtr = labels->GetPointer(0);
+
+  vtkIdType n = labels->GetNumberOfTuples();
+
+  // only SizeRank needs re-sorting
+  if (self->GetLabelMode() == vtkImageConnectivityFilter::SizeRank)
+    {
+    std::vector<vtkIdType> sizeVector(sizePtr, sizePtr + n);
+    std::vector<vtkIdType> idVector(idPtr, idPtr + n);
+    for (vtkIdType i = 0; i < n; i++)
+      {
+      int j = labelPtr[i] - 1;
+      sizePtr[i] = sizeVector[j];
+      idPtr[i] = idVector[j];
+      labelPtr[i] = static_cast<int>(i + 1);
       }
     }
 }
@@ -897,7 +950,11 @@ void vtkICF::Finish(
       vtkICF::Relabel(
         outData, outPtr, stencil, extent, labelArray);
       }
+
+    // sort the three region info arrays (must be done after Relabel)
+    vtkICF::SortRegionArrays(self);
     }
+
 }
 
 //----------------------------------------------------------------------------
