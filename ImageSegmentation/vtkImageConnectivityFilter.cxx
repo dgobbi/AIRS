@@ -886,8 +886,16 @@ void vtkICF::GenerateRegionArrays(
       case vtkImageConnectivityFilter::SizeRank:
         {
         vtkICF::CompareSize cmpfunc(regionInfo);
-        vtkIdType *la = labels->GetPointer(0);
-        std::stable_sort(la, la+n, cmpfunc);
+        std::vector<vtkIdType> tmpi(static_cast<size_t>(n));
+        for (vtkIdType i = 0; i < n; i++)
+          {
+          tmpi[i] = i + 1;
+          }
+        std::stable_sort(tmpi.begin(), tmpi.end(), cmpfunc);
+        for (vtkIdType i = 0; i < n; i++)
+          {
+          labels->SetValue(tmpi[i] - 1, i + 1);
+          }
         }
         break;
       // set all labels to the same value
@@ -962,9 +970,9 @@ void vtkICF::SortRegionArrays(
     for (vtkIdType i = 0; i < n; i++)
       {
       int j = labelPtr[i] - 1;
-      sizePtr[i] = sizeVector[j];
-      idPtr[i] = idVector[j];
       labelPtr[i] = static_cast<int>(i + 1);
+      sizePtr[j] = sizeVector[i];
+      idPtr[j] = idVector[i];
       }
     }
 }
