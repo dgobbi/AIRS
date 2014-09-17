@@ -167,17 +167,6 @@ public:
   vtkSetMacro(ActiveComponent, int);
   vtkGetMacro(ActiveComponent, int);
 
-  // Description:
-  // Limit the operation to a slice range in each direction.
-  // This is most often used to limit the connectivity operation to
-  // just a single slice of a 3D image.
-  vtkSetVector2Macro(SliceRangeX, int);
-  vtkGetVector2Macro(SliceRangeX, int);
-  vtkSetVector2Macro(SliceRangeY, int);
-  vtkGetVector2Macro(SliceRangeY, int);
-  vtkSetVector2Macro(SliceRangeZ, int);
-  vtkGetVector2Macro(SliceRangeZ, int);
-
 protected:
   vtkImageConnectivityFilter();
   ~vtkImageConnectivityFilter();
@@ -190,10 +179,6 @@ protected:
   int LabelConstantValue;
   int ActiveComponent;
   int LabelScalarType;
-
-  int SliceRangeX[2];
-  int SliceRangeY[2];
-  int SliceRangeZ[2];
 
   vtkIntArray *ExtractedRegionLabels;
   vtkIdTypeArray *ExtractedRegionSizes;

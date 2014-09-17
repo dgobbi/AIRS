@@ -64,13 +64,6 @@ vtkImageConnectivityFilter::vtkImageConnectivityFilter()
 
   this->LabelScalarType = VTK_UNSIGNED_CHAR;
 
-  this->SliceRangeX[0] = -VTK_INT_MAX;
-  this->SliceRangeX[1] = VTK_INT_MAX;
-  this->SliceRangeY[0] = -VTK_INT_MAX;
-  this->SliceRangeY[1] = VTK_INT_MAX;
-  this->SliceRangeZ[0] = -VTK_INT_MAX;
-  this->SliceRangeZ[1] = VTK_INT_MAX;
-
   this->ExtractedRegionLabels = vtkIntArray::New();
   this->ExtractedRegionSizes = vtkIdTypeArray::New();
   this->ExtractedRegionSeedIds = vtkIdTypeArray::New();
@@ -276,7 +269,7 @@ protected:
   template<class IT, class OT>
   static vtkIdType Fill(
     IT *inPtr, vtkIdType inInc[3], IT low, IT high,
-    OT *outPtr, vtkIdType outInc[3],
+    OT *outPtr, vtkIdType outInc[3], int outLimits[6],
     unsigned char *maskPtr, int maxIdx[3],
     std::stack<vtkICF::Seed> &seedStack);
 
@@ -342,7 +335,12 @@ public:
     vtkImageConnectivityFilter *self,
     vtkImageData *inData, vtkImageData *outData,
     vtkPointSet *seedData, vtkImageStencilData *stencil,
-    IT *inPtr, unsigned char *maskPtr, int outExt[6], int id);
+    IT *inPtr, unsigned char *maskPtr, int extent[6], int id);
+
+  // Utility method to find the intersection of two extents.
+  // Returns false if the extents do not intersect.
+  static bool IntersectExtents(
+    const int extent1[6], const int extent2[6], int output[6]);
 };
 
 //----------------------------------------------------------------------------
@@ -436,10 +434,30 @@ public:
 };
 
 //----------------------------------------------------------------------------
+bool vtkICF::IntersectExtents(
+  const int extent1[6], const int extent2[6], int output[6])
+{
+  bool rval = true;
+
+  int i = 0;
+  while (i < 6)
+    {
+    output[i] = (extent1[i] > extent2[i] ? extent1[i] : extent2[i]);
+    i++;
+    output[i] = (extent1[i] < extent2[i] ? extent1[i] : extent2[i]);
+    rval &= (output[i-1] <= output[i]);
+    i++;
+    }
+
+  return rval;
+}
+
+//----------------------------------------------------------------------------
 void vtkICF::MakeMaskFromStencil(
   unsigned char *maskPtr, vtkImageStencilData *stencil, int extent[6])
 {
-  // make a fake vtkImageData for the stencil, it will contain only
+  // The vtkImageRegionIterator requires a vtkImageData, so make
+  // a fake vtkImageData for the stencil, it will contain only
   // one real voxel but its extent will be our desired extent
   vtkSmartPointer<vtkImageData> data =
     vtkSmartPointer<vtkImageData>::New();
@@ -451,6 +469,8 @@ void vtkICF::MakeMaskFromStencil(
   data->AllocateScalars();
 #endif
   data->SetExtent(extent);
+
+  // for pointer math, get pointer to first voxel
   unsigned char *beginptr = static_cast<unsigned char *>(
     data->GetScalarPointer());
 
@@ -479,6 +499,14 @@ void vtkICF::PruneAllButLargest(
   vtkImageData *outData, OT *outPtr, vtkImageStencilData *stencil,
   int extent[6], const OT& value, vtkICF::RegionVector& regionInfo)
 {
+  // clip the extent with the output extent
+  int outExt[6];
+  outData->GetExtent(outExt);
+  if (!vtkICF::IntersectExtents(outExt, extent, outExt))
+    {
+    return;
+    }
+
   // find the largest region
   vtkICF::RegionVector::iterator largest = regionInfo.largest();
   if (largest != regionInfo.end())
@@ -489,7 +517,7 @@ void vtkICF::PruneAllButLargest(
     regionInfo.erase(regionInfo.begin()+2, regionInfo.end());
 
     // remove all other regions from the output
-    vtkImageRegionIterator<OT> iter(outData, stencil, extent);
+    vtkImageRegionIterator<OT> iter(outData, stencil, outExt);
     for (; !iter.IsAtEnd(); iter.NextSpan())
       {
       if (iter.IsInStencil())
@@ -519,6 +547,14 @@ void vtkICF::PruneSmallestRegion(
   vtkImageData *outData, OT *outPtr, vtkImageStencilData *stencil,
   int extent[6], vtkICF::RegionVector& regionInfo)
 {
+  // clip the extent with the output extent
+  int outExt[6];
+  outData->GetExtent(outExt);
+  if (!vtkICF::IntersectExtents(outExt, extent, outExt))
+    {
+    return;
+    }
+
   // find the smallest region
   vtkICF::RegionVector::iterator smallest = regionInfo.smallest();
   if (smallest != regionInfo.end())
@@ -528,7 +564,7 @@ void vtkICF::PruneSmallestRegion(
     regionInfo.erase(smallest);
 
     // remove the corresponding region from the output
-    vtkImageRegionIterator<OT> iter(outData, stencil, extent);
+    vtkImageRegionIterator<OT> iter(outData, stencil, outExt);
     for (; !iter.IsAtEnd(); iter.NextSpan())
       {
       if (iter.IsInStencil())
@@ -584,8 +620,16 @@ void vtkICF::PruneBySize(
     // resize regionInfo
     regionInfo.resize(m);
 
+    // clip the extent with the output extent
+    int outExt[6];
+    outData->GetExtent(outExt);
+    if (!vtkICF::IntersectExtents(outExt, extent, outExt))
+      {
+      return;
+      }
+
     // remove the corresponding regions from the output
-    vtkImageRegionIterator<OT> iter(outData, stencil, extent);
+    vtkImageRegionIterator<OT> iter(outData, stencil, outExt);
     for (; !iter.IsAtEnd(); iter.NextSpan())
       {
       if (iter.IsInStencil())
@@ -610,7 +654,7 @@ void vtkICF::PruneBySize(
 template<class IT, class OT>
 vtkIdType vtkICF::Fill(
   IT *inPtr, vtkIdType inInc[3], IT low, IT high,
-  OT *outPtr, vtkIdType outInc[3],
+  OT *outPtr, vtkIdType outInc[3], int outLimits[6],
   unsigned char *maskPtr, int maxIdx[3],
   std::stack<vtkICF::Seed> &seedStack)
 {
@@ -621,21 +665,6 @@ vtkIdType vtkICF::Fill(
     // get the seed at the top of the stack
     vtkICF::Seed seed = seedStack.top();
     seedStack.pop();
-
-    // get the pointer to the seed position in the mask
-    vtkIdType outOffset = (seed[0]*outInc[0] +
-                           seed[1]*outInc[1] +
-                           seed[2]*outInc[2]);
-
-    // get the pointer into the bitmask
-    unsigned char bit = 1 << static_cast<unsigned char>(outOffset & 0x7);
-    unsigned char *maskPtr1 = maskPtr + (outOffset >> 3);
-
-    // if already colored, skip
-    if ((*maskPtr1 & bit) != 0)
-      {
-      continue;
-      }
 
     // get the value of the input voxel at this position
     vtkIdType inOffset = (seed[0]*inInc[0] +
@@ -649,10 +678,32 @@ vtkIdType vtkICF::Fill(
       continue;
       }
 
+    // get the pointer into the bitmask
+    unsigned char bit = 1 << static_cast<unsigned char>(inOffset & 0x7);
+    unsigned char *maskPtr1 = maskPtr + (inOffset >> 3);
+
+    // if already colored, skip
+    if ((*maskPtr1 & bit) != 0)
+      {
+      continue;
+      }
+
     // paint the mask and count the voxel
     *maskPtr1 ^= bit;
-    outPtr[outOffset] = static_cast<OT>(*seed);
     counter++;
+
+    // set the output if within output extent
+    if (seed[0] >= outLimits[0] && seed[0] <= outLimits[1] &&
+        seed[1] >= outLimits[2] && seed[1] <= outLimits[3] &&
+        seed[2] >= outLimits[4] && seed[2] <= outLimits[5])
+      {
+      // get the pointer to the seed position in the mask
+      vtkIdType outOffset = ((seed[0] - outLimits[0])*outInc[0] +
+                             (seed[1] - outLimits[2])*outInc[1] +
+                             (seed[2] - outLimits[4])*outInc[2]);
+
+      outPtr[outOffset] = static_cast<OT>(*seed);
+      }
 
     // push the new seeds for the six neighbors, make sure offsets in X are
     // pushed last so that they will be popped first (we want to raster X,
@@ -859,7 +910,15 @@ void vtkICF::Relabel(
   vtkImageStencilData *stencil, int extent[6],
   vtkIntArray *labelMap)
 {
-  vtkImageRegionIterator<OT> iter(outData, stencil, extent);
+  // clip the extent with the output extent
+  int outExt[6];
+  outData->GetExtent(outExt);
+  if (!vtkICF::IntersectExtents(outExt, extent, outExt))
+    {
+    return;
+    }
+
+  vtkImageRegionIterator<OT> iter(outData, stencil, outExt);
 
   // loop through the output voxels and change the "region id" value
   // stored in the voxel into a "region label" value.
@@ -987,6 +1046,16 @@ void vtkICF::SeededExecute(
   maxIdx[1] = extent[3] - extent[2];
   maxIdx[2] = extent[5] - extent[4];
 
+  // Get the limits for the output data
+  int outLimits[6];
+  outData->GetExtent(outLimits);
+  outLimits[0] -= extent[0];
+  outLimits[1] -= extent[0];
+  outLimits[2] -= extent[2];
+  outLimits[3] -= extent[2];
+  outLimits[4] -= extent[4];
+  outLimits[5] -= extent[4];
+
   // label consecutively, starting at 1
   OT label = 1;
 
@@ -1020,7 +1089,7 @@ void vtkICF::SeededExecute(
     // find all voxels that are connected to the seed
     vtkIdType voxelCount = vtkICF::Fill(
       inPtr, inInc, srange[0], srange[1],
-      outPtr, outInc, maskPtr, maxIdx,
+      outPtr, outInc, outLimits, maskPtr, maxIdx,
       seedStack);
 
     if (voxelCount != 0)
@@ -1057,6 +1126,16 @@ void vtkICF::SeedlessExecute(
   maxIdx[1] = extent[3] - extent[2];
   maxIdx[2] = extent[5] - extent[4];
 
+  // Get the limits for the output data
+  int outLimits[6];
+  outData->GetExtent(outLimits);
+  outLimits[0] -= extent[0];
+  outLimits[1] -= extent[0];
+  outLimits[2] -= extent[2];
+  outLimits[3] -= extent[2];
+  outLimits[4] -= extent[4];
+  outLimits[5] -= extent[4];
+
   std::stack<vtkICF::Seed> seedStack;
 
   vtkImageRegionIterator<IT> iter(inData, stencil, extent, self, id);
@@ -1084,7 +1163,7 @@ void vtkICF::SeedlessExecute(
         // find all voxels that are connected to the seed
         vtkIdType voxelCount = vtkICF::Fill(
           inPtr, inInc, srange[0], srange[1],
-          outPtr, outInc, maskPtr, maxIdx,
+          outPtr, outInc, outLimits, maskPtr, maxIdx,
           seedStack);
 
         if (voxelCount != 0)
@@ -1154,7 +1233,7 @@ void vtkICF::Execute(
   vtkImageConnectivityFilter *self,
   vtkImageData *inData, vtkImageData *outData,
   vtkPointSet *seedData, vtkImageStencilData *stencil,
-  IT *inPtr, unsigned char *maskPtr, int outExt[6], int id)
+  IT *inPtr, unsigned char *maskPtr, int extent[6], int id)
 {
   // Get active component (only one component is thresholded)
   int nComponents = inData->GetNumberOfScalarComponents();
@@ -1187,37 +1266,10 @@ void vtkICF::Execute(
     srange[1] = static_cast<IT>(drange[1]);
     }
 
-  // Get the extent for the flood fill, and clip with the input extent
-  int extent[6];
-  int inExt[6];
-  self->GetSliceRangeX(&extent[0]);
-  self->GetSliceRangeY(&extent[2]);
-  self->GetSliceRangeZ(&extent[4]);
-  inData->GetExtent(inExt);
-  for (int ii = 0; ii < 3; ii++)
-    {
-    if (extent[2*ii] > inExt[2*ii+1] || extent[2*ii+1] < inExt[2*ii])
-      { // extents don't intersect, we're done
-      return;
-      }
-    if (extent[2*ii] < inExt[2*ii])
-      {
-      extent[2*ii] = inExt[2*ii];
-      }
-    if (extent[2*ii+1] > inExt[2*ii+1])
-      {
-      extent[2*ii+1] = inExt[2*ii+1];
-      }
-    // check against output extent
-    if (extent[2*ii] < outExt[2*ii] || extent[2*ii+1] > outExt[2*ii+1])
-      {
-      return;
-      }
-    }
-
-  // Get pointers for the new extent (the one used for the seeds)
+  // Get pointer for input extent
   inPtr = static_cast<IT *>(inData->GetScalarPointerForExtent(extent));
-  void *outPtr = outData->GetScalarPointerForExtent(extent);
+  // Get pointer for entire output extent
+  void *outPtr = outData->GetScalarPointer();
 
   // Adjust pointer to use the active component
   inPtr += activeComponent;
@@ -1277,28 +1329,8 @@ int vtkImageConnectivityFilter::RequestUpdateExtent(
   vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
   vtkInformation *stencilInfo = inputVector[1]->GetInformationObject(0);
 
-  int inExt[6], extent[6];
-  inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
-  extent[0] = this->SliceRangeX[0];
-  extent[1] = this->SliceRangeX[1];
-  extent[2] = this->SliceRangeY[0];
-  extent[3] = this->SliceRangeY[1];
-  extent[4] = this->SliceRangeZ[0];
-  extent[5] = this->SliceRangeZ[1];
-
-  // Clip the extent to the inExt
-  for (int i = 0; i < 3; i++)
-    {
-    if (extent[2*i] < inExt[2*i])
-      {
-      extent[2*i] = inExt[2*i];
-      }
-    if (extent[2*i+1] > inExt[2*i+1])
-      {
-      extent[2*i+1] = inExt[2*i+1];
-      }
-    }
-
+  int extent[6];
+  inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), extent);
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), extent, 6);
   if (stencilInfo)
     {
@@ -1347,6 +1379,31 @@ int vtkImageConnectivityFilter::RequestData(
   this->AllocateOutputData(outData, outExt);
 #endif
 
+  void *outPtr = outData->GetScalarPointerForExtent(outExt);
+
+  // clear the output
+  size_t size = (outExt[1] - outExt[0] + 1);
+  size *= (outExt[3] - outExt[2] + 1);
+  size *= (outExt[5] - outExt[4] + 1);
+  size_t byteSize = size*outData->GetScalarSize();
+  memset(outPtr, 0, byteSize);
+
+  // we need all the voxels that might be connected to the seed
+  int extent[6];
+  inData->GetExtent(extent);
+
+  // voxels outside the stencil extent can be excluded
+  if (stencil)
+    {
+    int stencilExtent[6];
+    stencil->GetExtent(stencilExtent);
+    if (!vtkICF::IntersectExtents(extent, stencilExtent, extent))
+      {
+      // if stencil doesn't overlap the input, return
+      return 1;
+      }
+    }
+
   int outScalarType = outData->GetScalarType();
   if (outScalarType != VTK_UNSIGNED_CHAR &&
       outScalarType != VTK_SHORT &&
@@ -1361,19 +1418,15 @@ int vtkImageConnectivityFilter::RequestData(
     }
 
   // create and clear the image bitmask (each bit is a voxel)
-  size_t size = (outExt[1] - outExt[0] + 1);
-  size *= (outExt[3] - outExt[2] + 1);
-  size *= (outExt[5] - outExt[4] + 1);
-  size_t byteSize = (size + 7) / 8;
+  size = (extent[1] - extent[0] + 1);
+  size *= (extent[3] - extent[2] + 1);
+  size *= (extent[5] - extent[4] + 1);
+  byteSize = (size + 7) / 8;
   unsigned char *mask = new unsigned char [byteSize];
   memset(mask, 0, byteSize);
 
   // get scalar pointers
-  void *inPtr = inData->GetScalarPointerForExtent(outExt);
-  void *outPtr = outData->GetScalarPointerForExtent(outExt);
-
-  // clear the output
-  memset(outPtr, 0, size*outData->GetScalarSize());
+  void *inPtr = inData->GetScalarPointerForExtent(extent);
 
   int id = 0; // not multi-threaded, thread id is always zero
 
@@ -1383,7 +1436,7 @@ int vtkImageConnectivityFilter::RequestData(
     vtkTemplateAliasMacro(
       vtkICF::Execute(
         this, inData, outData, seedData, stencil,
-        static_cast<VTK_TT *>(inPtr), mask, outExt, id));
+        static_cast<VTK_TT *>(inPtr), mask, extent, id));
 
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
@@ -1432,13 +1485,6 @@ void vtkImageConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "ActiveComponent: "
      << this->ActiveComponent << "\n";
-
-  os << indent << "SliceRangeX: "
-     << this->SliceRangeX[0] << " " << this->SliceRangeX[1] << "\n";
-  os << indent << "SliceRangeY: "
-     << this->SliceRangeY[0] << " " << this->SliceRangeY[1] << "\n";
-  os << indent << "SliceRangeZ: "
-     << this->SliceRangeZ[0] << " " << this->SliceRangeZ[1] << "\n";
 
   os << indent << "SeedConnection: "
      << this->GetSeedConnection() << "\n";
