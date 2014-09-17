@@ -30,7 +30,6 @@
 #include "vtkImageAlgorithm.h"
 
 class vtkIdTypeArray;
-class vtkIntArray;
 class vtkPointSet;
 class vtkImageData;
 class vtkImageStencilData;
@@ -132,7 +131,7 @@ public:
 
   // Description:
   // Get the label used for each extracted region.
-  vtkIntArray *GetExtractedRegionLabels() {
+  vtkIdTypeArray *GetExtractedRegionLabels() {
     return this->ExtractedRegionLabels; }
 
   // Desciption:
@@ -180,7 +179,7 @@ protected:
   int ActiveComponent;
   int LabelScalarType;
 
-  vtkIntArray *ExtractedRegionLabels;
+  vtkIdTypeArray *ExtractedRegionLabels;
   vtkIdTypeArray *ExtractedRegionSizes;
   vtkIdTypeArray *ExtractedRegionSeedIds;
 

@@ -25,7 +25,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 #include "vtkIdTypeArray.h"
-#include "vtkIntArray.h"
 #include "vtkImageStencilData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkInformation.h"
@@ -64,7 +63,7 @@ vtkImageConnectivityFilter::vtkImageConnectivityFilter()
 
   this->LabelScalarType = VTK_UNSIGNED_CHAR;
 
-  this->ExtractedRegionLabels = vtkIntArray::New();
+  this->ExtractedRegionLabels = vtkIdTypeArray::New();
   this->ExtractedRegionSizes = vtkIdTypeArray::New();
   this->ExtractedRegionSeedIds = vtkIdTypeArray::New();
 
@@ -290,7 +289,7 @@ protected:
   static void Relabel(
     vtkImageData *outData, OT *outPtr,
     vtkImageStencilData *stencil, int extent[6],
-    vtkIntArray *labelMap);
+    vtkIdTypeArray *labelMap);
 
   // Sort the ExtractedRegionLabels array and the other arrays.
   static void SortRegionArrays(vtkImageConnectivityFilter *self);
@@ -792,7 +791,7 @@ void vtkICF::GenerateRegionArrays(
   // build the arrays
   vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
   vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
-  vtkIntArray *labels = self->GetExtractedRegionLabels();
+  vtkIdTypeArray *labels = self->GetExtractedRegionLabels();
 
   if (regionInfo.size() == 1)
     {
@@ -887,7 +886,7 @@ void vtkICF::GenerateRegionArrays(
       case vtkImageConnectivityFilter::SizeRank:
         {
         vtkICF::CompareSize cmpfunc(regionInfo);
-        int *la = labels->GetPointer(0);
+        vtkIdType *la = labels->GetPointer(0);
         std::stable_sort(la, la+n, cmpfunc);
         }
         break;
@@ -908,7 +907,7 @@ template<class OT>
 void vtkICF::Relabel(
   vtkImageData *outData, OT *outPtr,
   vtkImageStencilData *stencil, int extent[6],
-  vtkIntArray *labelMap)
+  vtkIdTypeArray *labelMap)
 {
   // clip the extent with the output extent
   int outExt[6];
@@ -947,11 +946,11 @@ void vtkICF::SortRegionArrays(
 {
   vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
   vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
-  vtkIntArray *labels = self->GetExtractedRegionLabels();
+  vtkIdTypeArray *labels = self->GetExtractedRegionLabels();
 
   vtkIdType *sizePtr = sizes->GetPointer(0);
   vtkIdType *idPtr = ids->GetPointer(0);
-  int *labelPtr = labels->GetPointer(0);
+  vtkIdType *labelPtr = labels->GetPointer(0);
 
   vtkIdType n = labels->GetNumberOfTuples();
 
@@ -992,7 +991,7 @@ void vtkICF::Finish(
     self, regionInfo, seedScalars,
     vtkTypeTraits<OT>::Min(), vtkTypeTraits<OT>::Max());
 
-  vtkIntArray *labelArray = self->GetExtractedRegionLabels();
+  vtkIdTypeArray *labelArray = self->GetExtractedRegionLabels();
   if (labelArray->GetNumberOfTuples() > 0)
     {
     // do the extraction and final labeling
