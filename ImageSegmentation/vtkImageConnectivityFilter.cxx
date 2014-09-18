@@ -269,7 +269,7 @@ protected:
   static vtkIdType Fill(
     IT *inPtr, vtkIdType inInc[3], IT low, IT high,
     OT *outPtr, vtkIdType outInc[3], int outLimits[6],
-    unsigned char *maskPtr, int maxIdx[3],
+    unsigned char *maskPtr, int maxIdx[3], int fillExtent[6],
     std::stack<vtkICF::Seed> &seedStack);
 
   // Add a region to the list of regions.
@@ -663,7 +663,7 @@ template<class IT, class OT>
 vtkIdType vtkICF::Fill(
   IT *inPtr, vtkIdType inInc[3], IT low, IT high,
   OT *outPtr, vtkIdType outInc[3], int outLimits[6],
-  unsigned char *maskPtr, int maxIdx[3],
+  unsigned char *maskPtr, int maxIdx[3], int fillExtent[6],
   std::stack<vtkICF::Seed> &seedStack)
 {
   vtkIdType counter = 0;
@@ -700,6 +700,16 @@ vtkIdType vtkICF::Fill(
     // paint the mask and count the voxel
     *maskPtr1 ^= bit;
     counter++;
+
+    if (fillExtent != 0)
+      {
+      if (seed[0] < fillExtent[0]) { fillExtent[0] = seed[0]; };
+      if (seed[0] > fillExtent[1]) { fillExtent[1] = seed[0]; };
+      if (seed[1] < fillExtent[2]) { fillExtent[2] = seed[1]; };
+      if (seed[1] > fillExtent[3]) { fillExtent[3] = seed[1]; };
+      if (seed[2] < fillExtent[4]) { fillExtent[4] = seed[2]; };
+      if (seed[2] > fillExtent[5]) { fillExtent[5] = seed[2]; };
+      }
 
     if (outLimits == 0)
       {
@@ -1127,13 +1137,16 @@ void vtkICF::SeededExecute(
       continue;
       }
 
+    // in the future, can measure extent of fill
+    int *fillExtent = 0;
+
     seedStack.push(vtkICF::Seed(idx[0], idx[1], idx[2], label));
 
     // find all voxels that are connected to the seed
     vtkIdType voxelCount = vtkICF::Fill(
       inPtr, inInc, srange[0], srange[1],
       outPtr, outInc, outLimits, maskPtr, maxIdx,
-      seedStack);
+      fillExtent, seedStack);
 
     if (voxelCount != 0)
       {
@@ -1193,6 +1206,9 @@ void vtkICF::SeedlessExecute(
           continue;
           }
 
+        // in the future, can measure extent of fill
+        int *fillExtent = 0;
+
         OT label = static_cast<OT>(regionInfo.size());
         seedStack.push(vtkICF::Seed(xIdx, yIdx, zIdx, label));
 
@@ -1200,7 +1216,7 @@ void vtkICF::SeedlessExecute(
         vtkIdType voxelCount = vtkICF::Fill(
           inPtr, inInc, srange[0], srange[1],
           outPtr, outInc, outLimits, maskPtr, maxIdx,
-          seedStack);
+          fillExtent, seedStack);
 
         if (voxelCount != 0)
           {
