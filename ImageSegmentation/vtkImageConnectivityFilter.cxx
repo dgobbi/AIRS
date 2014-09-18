@@ -301,6 +301,11 @@ protected:
     OT *outPtr, vtkImageStencilData *stencil, int extent[6],
     vtkDataArray *seedScalars, vtkICF::RegionVector& regionInfo);
 
+  // Subtract the lower extent limit from "limits", and return the
+  // extent size subtract 1 in maxIdx.
+  static int *ZeroBaseExtent(
+    const int wholeExtent[6], int extent[6], int maxIdx[3]);
+
   // Execute method for when point seeds are provided.
   template <class IT, class OT>
   static void SeededExecute(
@@ -696,16 +701,26 @@ vtkIdType vtkICF::Fill(
     *maskPtr1 ^= bit;
     counter++;
 
-    // set the output if within output extent
-    if (seed[0] >= outLimits[0] && seed[0] <= outLimits[1] &&
-        seed[1] >= outLimits[2] && seed[1] <= outLimits[3] &&
-        seed[2] >= outLimits[4] && seed[2] <= outLimits[5])
+    if (outLimits == 0)
+      {
+      // get the pointer to the seed position in the mask
+      vtkIdType outOffset = (seed[0]*outInc[0] +
+                             seed[1]*outInc[1] +
+                             seed[2]*outInc[2]);
+
+      // set the output
+      outPtr[outOffset] = static_cast<OT>(*seed);
+      }
+    else if (seed[0] >= outLimits[0] && seed[0] <= outLimits[1] &&
+             seed[1] >= outLimits[2] && seed[1] <= outLimits[3] &&
+             seed[2] >= outLimits[4] && seed[2] <= outLimits[5])
       {
       // get the pointer to the seed position in the mask
       vtkIdType outOffset = ((seed[0] - outLimits[0])*outInc[0] +
                              (seed[1] - outLimits[2])*outInc[1] +
                              (seed[2] - outLimits[4])*outInc[2]);
 
+      // set the output if within output extent
       outPtr[outOffset] = static_cast<OT>(*seed);
       }
 
@@ -1029,6 +1044,29 @@ void vtkICF::Finish(
 }
 
 //----------------------------------------------------------------------------
+int *vtkICF::ZeroBaseExtent(
+  const int wholeExtent[6], int extent[6], int maxIdx[3])
+{ 
+  // Indexing goes from 0 to maxIdX
+  maxIdx[0] = wholeExtent[1] - wholeExtent[0];
+  maxIdx[1] = wholeExtent[3] - wholeExtent[2];
+  maxIdx[2] = wholeExtent[5] - wholeExtent[4];
+
+  // Get the limits for the output data
+  bool useLimits = false;
+  for (int k = 0; k < 3; k++)
+    {
+    extent[2*k] -= wholeExtent[2*k];
+    useLimits |= (extent[2*k] != 0);
+    extent[2*k + 1] -= wholeExtent[2*k];
+    useLimits |= (extent[2*k + 1] != maxIdx[k]);
+    }
+
+  // return limits as NULL if we don't have to use them
+  return (useLimits ? extent : 0);
+}
+
+//----------------------------------------------------------------------------
 template <class IT, class OT>
 void vtkICF::SeededExecute(
   vtkImageConnectivityFilter *self,
@@ -1052,21 +1090,14 @@ void vtkICF::SeededExecute(
   inData->GetOrigin(origin);
   inData->GetSpacing(spacing);
 
-  // Indexing goes from 0 to maxIdX
-  int maxIdx[3];
-  maxIdx[0] = extent[1] - extent[0];
-  maxIdx[1] = extent[3] - extent[2];
-  maxIdx[2] = extent[5] - extent[4];
+  int outExt[6];
+  outData->GetExtent(outExt);
 
-  // Get the limits for the output data
-  int outLimits[6];
-  outData->GetExtent(outLimits);
-  outLimits[0] -= extent[0];
-  outLimits[1] -= extent[0];
-  outLimits[2] -= extent[2];
-  outLimits[3] -= extent[2];
-  outLimits[4] -= extent[4];
-  outLimits[5] -= extent[4];
+  // Indexing will go from 0 to maxIdX, and the lower limit if "extent" will
+  // be subracted from outExt.  If outExt was the same as extent, then NULL
+  // is returned, else outExt is returned.
+  int maxIdx[3];
+  int *outLimits = vtkICF::ZeroBaseExtent(extent, outExt, maxIdx);
 
   // label consecutively, starting at 1
   OT label = 1;
@@ -1132,21 +1163,14 @@ void vtkICF::SeedlessExecute(
   inData->GetIncrements(inInc);
   outData->GetIncrements(outInc);
 
-  // Indexing goes from 0 to maxIdX
-  int maxIdx[3];
-  maxIdx[0] = extent[1] - extent[0];
-  maxIdx[1] = extent[3] - extent[2];
-  maxIdx[2] = extent[5] - extent[4];
+  int outExt[6];
+  outData->GetExtent(outExt);
 
-  // Get the limits for the output data
-  int outLimits[6];
-  outData->GetExtent(outLimits);
-  outLimits[0] -= extent[0];
-  outLimits[1] -= extent[0];
-  outLimits[2] -= extent[2];
-  outLimits[3] -= extent[2];
-  outLimits[4] -= extent[4];
-  outLimits[5] -= extent[4];
+  // Indexing will go from 0 to maxIdX, and the lower limit if "extent" will
+  // be subracted from outExt.  If outExt was the same as extent, then NULL
+  // is returned, else outExt is returned.
+  int maxIdx[3];
+  int *outLimits = vtkICF::ZeroBaseExtent(extent, outExt, maxIdx);
 
   std::stack<vtkICF::Seed> seedStack;
 
