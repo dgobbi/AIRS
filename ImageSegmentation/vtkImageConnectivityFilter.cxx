@@ -398,8 +398,10 @@ class vtkICF::RegionVector : public std::vector<vtkICF::Region>
 public:
   typedef std::vector<vtkICF::Region>::iterator iterator;
 
+  // get the smallest of the regions in the vector
   iterator smallest()
   {
+    // start at 1, because 0 is the background
     iterator small = begin() + 1;
     if (small != end())
       {
@@ -414,11 +416,13 @@ public:
     return small;
   }
 
+  // get the largest of the regions in the vector
   iterator largest()
   {
     iterator large = begin() + 1;
     if (large != end())
       {
+    // start at 1, because 0 is the background
       for (iterator i = large + 1; i != end(); ++i)
         {
         if (i->size > large->size)
