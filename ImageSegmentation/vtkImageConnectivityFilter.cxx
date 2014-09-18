@@ -682,8 +682,9 @@ vtkIdType vtkICF::Fill(
       }
 
     // get the pointer into the bitmask
-    unsigned char bit = 1 << static_cast<unsigned char>(inOffset & 0x7);
-    unsigned char *maskPtr1 = maskPtr + (inOffset >> 3);
+    vtkIdType bitOffset = inOffset / inInc[0];
+    unsigned char bit = 1 << static_cast<unsigned char>(bitOffset & 0x7);
+    unsigned char *maskPtr1 = maskPtr + (bitOffset >> 3);
 
     // if already colored, skip
     if ((*maskPtr1 & bit) != 0)
