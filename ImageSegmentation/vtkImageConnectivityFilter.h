@@ -30,6 +30,7 @@
 #include "vtkImageAlgorithm.h"
 
 class vtkIdTypeArray;
+class vtkIntArray;
 class vtkDataSet;
 class vtkImageData;
 class vtkImageStencilData;
@@ -136,7 +137,7 @@ public:
     return this->ExtractedRegionLabels; }
 
   // Desciption:
-  // Get the size of each extracted region.
+  // Get the size of each extracted region, as a voxel count.
   vtkIdTypeArray *GetExtractedRegionSizes() {
     return this->ExtractedRegionSizes; }
 
@@ -145,6 +146,19 @@ public:
   // If no seed was used, the PointId will be -1.
   vtkIdTypeArray *GetExtractedRegionSeedIds() {
     return this->ExtractedRegionSeedIds; }
+
+  // Description:
+  // Get the extent (a 6-tuples) for each output region.
+  // This is only valid if GenerateRegionExtentsOn() was called before
+  // the filter was executed.
+  vtkIntArray *GetExtractedRegionExtents() {
+    return this->ExtractedRegionExtents; }
+
+  // Description:
+  // Turn this on to request creation of the ExtractedRegionExtents array.
+  vtkSetMacro(GenerateRegionExtents, int);
+  vtkBooleanMacro(GenerateRegionExtents, int);
+  vtkGetMacro(GenerateRegionExtents, int);
 
   // Description:
   // Set the size range for the extracted regions.
@@ -179,10 +193,12 @@ protected:
   int LabelConstantValue;
   int ActiveComponent;
   int LabelScalarType;
+  int GenerateRegionExtents;
 
   vtkIdTypeArray *ExtractedRegionLabels;
   vtkIdTypeArray *ExtractedRegionSizes;
   vtkIdTypeArray *ExtractedRegionSeedIds;
+  vtkIntArray *ExtractedRegionExtents;
 
   void ComputeInputUpdateExtent(int inExt[6], int outExt[6]);
 

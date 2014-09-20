@@ -25,6 +25,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 #include "vtkIdTypeArray.h"
+#include "vtkIntArray.h"
 #include "vtkImageStencilData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkInformation.h"
@@ -63,9 +64,13 @@ vtkImageConnectivityFilter::vtkImageConnectivityFilter()
 
   this->LabelScalarType = VTK_UNSIGNED_CHAR;
 
+  this->GenerateRegionExtents = 0;
+
   this->ExtractedRegionLabels = vtkIdTypeArray::New();
   this->ExtractedRegionSizes = vtkIdTypeArray::New();
   this->ExtractedRegionSeedIds = vtkIdTypeArray::New();
+  this->ExtractedRegionExtents = vtkIntArray::New();
+  this->ExtractedRegionExtents->SetNumberOfComponents(6);
 
   this->SetNumberOfInputPorts(3);
 }
@@ -84,6 +89,10 @@ vtkImageConnectivityFilter::~vtkImageConnectivityFilter()
   if (this->ExtractedRegionSeedIds)
     {
     this->ExtractedRegionSeedIds->Delete();
+    }
+  if (this->ExtractedRegionExtents)
+    {
+    this->ExtractedRegionExtents->Delete();
     }
 }
 
@@ -223,7 +232,7 @@ vtkIdType vtkImageConnectivityFilter::GetNumberOfExtractedRegions()
 //----------------------------------------------------------------------------
 namespace {
 
-// A private class for the connectivity algorithm
+// Methods for the connectivity algorithm
 class vtkICF
 {
 public:
@@ -277,12 +286,13 @@ protected:
   static void AddRegion(
     vtkImageData *outData, OT *outPtr, vtkImageStencilData *stencil,
     int extent[6], vtkIdType sizeRange[2], vtkICF::RegionVector& regionInfo,
-    vtkIdType voxelCount, vtkIdType regionId, int extractionMode);
+    vtkIdType voxelCount, vtkIdType regionId, int regionExtent[6],
+    int extractionMode);
 
   // Fill the ExtractedRegionSizes and ExtractedRegionLabels arrays.
   static void GenerateRegionArrays(
     vtkImageConnectivityFilter *self, vtkICF::RegionVector& regionInfo,
-    vtkDataArray *seedScalars, int minLabel, int maxLabel);
+    vtkDataArray *seedScalars, int extent[6], int minLabel, int maxLabel);
 
   // Relabel the image, usually the last method called.
   template<class OT>
@@ -390,11 +400,16 @@ private:
 // region struct: size and id
 struct vtkICF::Region
 {
-  Region(vtkIdType s, vtkIdType i) : size(s), id(i) {}
-  Region() : size(0), id(0) {}
+  Region(vtkIdType s, vtkIdType i, const int e[6]) : size(s), id(i) {
+    extent[0] = e[0]; extent[1] = e[1]; extent[2] = e[2];
+    extent[3] = e[3]; extent[4] = e[4]; extent[5] = e[5]; }
+  Region() : size(0), id(0) {
+    extent[0] = extent[1] = extent[2] = 0;
+    extent[3] = extent[4] = extent[5] = 0; }
 
   vtkIdType size;
   vtkIdType id;
+  int extent[6];
 };
 
 //----------------------------------------------------------------------------
@@ -765,9 +780,10 @@ template<class OT>
 void vtkICF::AddRegion(
   vtkImageData *outData, OT *outPtr, vtkImageStencilData *stencil,
   int extent[6], vtkIdType sizeRange[2], vtkICF::RegionVector& regionInfo,
-  vtkIdType voxelCount, vtkIdType regionId, int extractionMode)
+  vtkIdType voxelCount, vtkIdType regionId, int regionExtent[6],
+  int extractionMode)
 {
-  regionInfo.push_back(vtkICF::Region(voxelCount, regionId));
+  regionInfo.push_back(vtkICF::Region(voxelCount, regionId, regionExtent));
   // check if the label value has reached its maximum, and if so,
   // remove some of the regions
   if (regionInfo.size() > static_cast<size_t>(vtkTypeTraits<OT>::Max()))
@@ -811,7 +827,7 @@ struct vtkICF::CompareSize
 //----------------------------------------------------------------------------
 void vtkICF::GenerateRegionArrays(
   vtkImageConnectivityFilter *self, vtkICF::RegionVector& regionInfo,
-  vtkDataArray *seedScalars, int minLabel, int maxLabel)
+  vtkDataArray *seedScalars, int extent[6], int minLabel, int maxLabel)
 {
   // clamp the default label value to the range of the output data type
   int constantLabel = self->GetLabelConstantValue();
@@ -822,6 +838,7 @@ void vtkICF::GenerateRegionArrays(
   vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
   vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
   vtkIdTypeArray *labels = self->GetExtractedRegionLabels();
+  vtkIntArray *extents = self->GetExtractedRegionExtents();
 
   if (regionInfo.size() == 1)
     {
@@ -829,6 +846,7 @@ void vtkICF::GenerateRegionArrays(
     sizes->Reset();
     ids->Reset();
     labels->Reset();
+    extents->Reset();
     }
   else if (self->GetExtractionMode() ==
            vtkImageConnectivityFilter::LargestRegion)
@@ -837,6 +855,7 @@ void vtkICF::GenerateRegionArrays(
     sizes->SetNumberOfValues(1);
     ids->SetNumberOfValues(1);
     labels->SetNumberOfValues(1);
+    extents->SetNumberOfTuples(1);
 
     // get info for the largest region
     vtkICF::RegionVector::iterator largest = regionInfo.largest();
@@ -872,6 +891,14 @@ void vtkICF::GenerateRegionArrays(
     sizes->SetValue(0, largest->size);
     ids->SetValue(0, largest->id);
     labels->SetValue(0, label);
+    const int *regionExt = largest->extent;
+    int *extPtr = extents->GetPointer(0);
+    // rebase the region extent starting at "extent" lower bound
+    for (int k = 0; k < 3; k++)
+      {
+      extPtr[2*k] = regionExt[2*k] + extent[2*k];
+      extPtr[2*k+1] = regionExt[2*k+1] + extent[2*k];
+      }
     }
   else
     {
@@ -881,6 +908,7 @@ void vtkICF::GenerateRegionArrays(
     sizes->SetNumberOfValues(n);
     ids->SetNumberOfValues(n);
     labels->SetNumberOfValues(n);
+    extents->SetNumberOfTuples(n);
 
     // build the arrays (this part is easy!)
     for (vtkIdType i = 0; i < n; i++)
@@ -888,6 +916,14 @@ void vtkICF::GenerateRegionArrays(
       sizes->SetValue(i, regionInfo[i+1].size);
       ids->SetValue(i, regionInfo[i+1].id);
       labels->SetValue(i, i+1);
+      const int *regionExt = regionInfo[i+1].extent;
+      int *extPtr = extents->GetPointer(6*i);
+      // rebase the region extent starting at "extent" lower bound
+      for (int k = 0; k < 3; k++)
+        {
+        extPtr[2*k] = regionExt[2*k] + extent[2*k];
+        extPtr[2*k+1] = regionExt[2*k+1] + extent[2*k];
+        }
       }
 
     // some label modes require additional actions to be done
@@ -985,10 +1021,12 @@ void vtkICF::SortRegionArrays(
   vtkIdTypeArray *sizes = self->GetExtractedRegionSizes();
   vtkIdTypeArray *ids = self->GetExtractedRegionSeedIds();
   vtkIdTypeArray *labels = self->GetExtractedRegionLabels();
+  vtkIntArray *extents = self->GetExtractedRegionExtents();
 
   vtkIdType *sizePtr = sizes->GetPointer(0);
   vtkIdType *idPtr = ids->GetPointer(0);
   vtkIdType *labelPtr = labels->GetPointer(0);
+  int *extentPtr = extents->GetPointer(0);
 
   vtkIdType n = labels->GetNumberOfTuples();
 
@@ -997,12 +1035,17 @@ void vtkICF::SortRegionArrays(
     {
     std::vector<vtkIdType> sizeVector(sizePtr, sizePtr + n);
     std::vector<vtkIdType> idVector(idPtr, idPtr + n);
+    std::vector<int> extentVector(extentPtr, extentPtr + 6*n);
     for (vtkIdType i = 0; i < n; i++)
       {
       int j = labelPtr[i] - 1;
       labelPtr[i] = static_cast<int>(i + 1);
       sizePtr[j] = sizeVector[i];
       idPtr[j] = idVector[i];
+      for (int k = 0; k < 6; k++)
+        {
+        extentPtr[6*j + k] = extentVector[6*i + k];
+        }
       }
     }
 }
@@ -1026,7 +1069,7 @@ void vtkICF::Finish(
 
   // create the three region info arrays
   vtkICF::GenerateRegionArrays(
-    self, regionInfo, seedScalars,
+    self, regionInfo, seedScalars, extent,
     vtkTypeTraits<OT>::Min(), vtkTypeTraits<OT>::Max());
 
   vtkIdTypeArray *labelArray = self->GetExtractedRegionLabels();
@@ -1056,7 +1099,7 @@ void vtkICF::Finish(
 //----------------------------------------------------------------------------
 int *vtkICF::ZeroBaseExtent(
   const int wholeExtent[6], int extent[6], int maxIdx[3])
-{ 
+{
   // Indexing goes from 0 to maxIdX
   maxIdx[0] = wholeExtent[1] - wholeExtent[0];
   maxIdx[1] = wholeExtent[3] - wholeExtent[2];
@@ -1109,6 +1152,11 @@ void vtkICF::SeededExecute(
   int maxIdx[3];
   int *outLimits = vtkICF::ZeroBaseExtent(extent, outExt, maxIdx);
 
+  // for measuring extent of fill
+  int seedExtent[6];
+  // only set to non-null if extent generation was requested
+  int *fillExtent = (self->GetGenerateRegionExtents() ? seedExtent : NULL);
+
   // label consecutively, starting at 1
   OT label = 1;
 
@@ -1142,8 +1190,10 @@ void vtkICF::SeededExecute(
       continue;
       }
 
-    // in the future, can measure extent of fill
-    int *fillExtent = 0;
+    // initialize the region extent from the seed position
+    seedExtent[0] = seedExtent[1] = idx[0];
+    seedExtent[2] = seedExtent[3] = idx[1];
+    seedExtent[4] = seedExtent[5] = idx[2];
 
     seedStack.push(vtkICF::Seed(idx[0], idx[1], idx[2], label));
 
@@ -1157,7 +1207,7 @@ void vtkICF::SeededExecute(
       {
       vtkICF::AddRegion(
         outData, outPtr, stencil, extent, sizeRange, regionInfo,
-        voxelCount, i, extractionMode);
+        voxelCount, i, seedExtent, extractionMode);
       label = static_cast<OT>(regionInfo.size());
       }
     }
@@ -1190,6 +1240,11 @@ void vtkICF::SeedlessExecute(
   int maxIdx[3];
   int *outLimits = vtkICF::ZeroBaseExtent(extent, outExt, maxIdx);
 
+  // for measuring extent of fill
+  int seedExtent[6];
+  // only set to non-null if extent generation was requested
+  int *fillExtent = (self->GetGenerateRegionExtents() ? seedExtent : NULL);
+
   std::stack<vtkICF::Seed> seedStack;
 
   vtkImageRegionIterator<IT> iter(inData, stencil, extent, self, id);
@@ -1211,8 +1266,10 @@ void vtkICF::SeedlessExecute(
           continue;
           }
 
-        // in the future, can measure extent of fill
-        int *fillExtent = 0;
+        // initialize the region extent from the seed position
+        seedExtent[0] = seedExtent[1] = xIdx;
+        seedExtent[2] = seedExtent[3] = yIdx;
+        seedExtent[4] = seedExtent[5] = zIdx;
 
         OT label = static_cast<OT>(regionInfo.size());
         seedStack.push(vtkICF::Seed(xIdx, yIdx, zIdx, label));
@@ -1238,7 +1295,7 @@ void vtkICF::SeedlessExecute(
             {
             vtkICF::AddRegion(
               outData, outPtr, stencil, extent, sizeRange, regionInfo,
-              voxelCount, -1, extractionMode);
+              voxelCount, -1, seedExtent, extractionMode);
             }
           }
         }
@@ -1257,7 +1314,7 @@ void vtkICF::ExecuteInputOutput(
 {
   // push the "background" onto the region vector
   vtkICF::RegionVector regionInfo;
-  regionInfo.push_back(vtkICF::Region(0, 0));
+  regionInfo.push_back(vtkICF::Region(0, 0, extent));
 
   // execution depends on how regions are seeded
   vtkDataArray *seedScalars = 0;
@@ -1534,6 +1591,9 @@ void vtkImageConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ExtractedRegionSeedIds: "
      << this->ExtractedRegionSeedIds << "\n";
 
+  os << indent << "ExtractedRegionExtents: "
+     << this->ExtractedRegionExtents << "\n";
+
   os << indent << "ScalarRange: "
      << this->ScalarRange[0] << " " << this->ScalarRange[1] << "\n";
 
@@ -1542,6 +1602,9 @@ void vtkImageConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "ActiveComponent: "
      << this->ActiveComponent << "\n";
+
+  os << indent << "GenerateRegionExtents: "
+     << (this->GenerateRegionExtents ? "On\n" : "Off\n");
 
   os << indent << "SeedConnection: "
      << this->GetSeedConnection() << "\n";
