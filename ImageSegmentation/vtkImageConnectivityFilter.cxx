@@ -17,7 +17,7 @@
 
 #include "vtkMath.h"
 #include "vtkImageData.h"
-#include "vtkPointSet.h"
+#include "vtkDataSet.h"
 #include "vtkPointData.h"
 #include "vtkImageStencilData.h"
 #include "vtkImageRegionIterator.h"
@@ -93,7 +93,7 @@ int vtkImageConnectivityFilter::FillInputPortInformation(
 {
   if (port == 2)
     {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPointSet");
+    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
     }
   else if (port == 1)
@@ -145,7 +145,7 @@ vtkAlgorithmOutput *vtkImageConnectivityFilter::GetSeedConnection()
 }
 
 //----------------------------------------------------------------------------
-void vtkImageConnectivityFilter::SetSeedData(vtkPointSet *seeds)
+void vtkImageConnectivityFilter::SetSeedData(vtkDataSet *seeds)
 {
 #if VTK_MAJOR_VERSION >= 6
   this->SetInputData(2, seeds);
@@ -311,7 +311,7 @@ protected:
   static void SeededExecute(
     vtkImageConnectivityFilter *self,
     vtkImageData *inData, vtkImageData *outData,
-    vtkPointSet *seedData, vtkImageStencilData *stencil,
+    vtkDataSet *seedData, vtkImageStencilData *stencil,
     IT *inPtr, OT *outPtr, unsigned char *maskPtr, int extent[6],
     IT srange[2], vtkICF::RegionVector& regionInfo, int id);
 
@@ -328,7 +328,7 @@ protected:
   static void ExecuteInputOutput(
     vtkImageConnectivityFilter *self,
     vtkImageData *inData, vtkImageData *outData,
-    vtkPointSet *seedData, vtkImageStencilData *stencil,
+    vtkDataSet *seedData, vtkImageStencilData *stencil,
     IT *inPtr, IT srange[2], OT *outPtr, unsigned char *maskPtr,
     int extent[6], int id);
 
@@ -338,7 +338,7 @@ public:
   static void Execute(
     vtkImageConnectivityFilter *self,
     vtkImageData *inData, vtkImageData *outData,
-    vtkPointSet *seedData, vtkImageStencilData *stencil,
+    vtkDataSet *seedData, vtkImageStencilData *stencil,
     IT *inPtr, unsigned char *maskPtr, int extent[6], int id);
 
   // Utility method to find the intersection of two extents.
@@ -1081,7 +1081,7 @@ template <class IT, class OT>
 void vtkICF::SeededExecute(
   vtkImageConnectivityFilter *self,
   vtkImageData *inData, vtkImageData *outData,
-  vtkPointSet *seedData, vtkImageStencilData *stencil,
+  vtkDataSet *seedData, vtkImageStencilData *stencil,
   IT *inPtr, OT *outPtr, unsigned char *maskPtr, int extent[6],
   IT srange[2], vtkICF::RegionVector& regionInfo, int)
 {
@@ -1114,13 +1114,18 @@ void vtkICF::SeededExecute(
 
   std::stack<vtkICF::Seed> seedStack;
 
-  vtkPoints *points = seedData->GetPoints();
-  vtkIdType nPoints = points->GetNumberOfPoints();
+  vtkIdType nPoints = seedData->GetNumberOfPoints();
+  vtkDataArray *scalars = seedData->GetPointData()->GetScalars();
 
   for (vtkIdType i = 0; i < nPoints; i++)
     {
+    if (scalars && scalars->GetComponent(i, 0) == 0)
+      {
+      continue;
+      }
+
     double point[3];
-    points->GetPoint(i, point);
+    seedData->GetPoint(i, point);
     int idx[3];
     bool outOfBounds = false;
 
@@ -1246,7 +1251,7 @@ void vtkICF::SeedlessExecute(
 template <class IT, class OT>
 void vtkICF::ExecuteInputOutput(
   vtkImageConnectivityFilter *self,
-  vtkImageData *inData, vtkImageData *outData, vtkPointSet *seedData,
+  vtkImageData *inData, vtkImageData *outData, vtkDataSet *seedData,
   vtkImageStencilData *stencil, IT *inPtr, IT srange[2],
   OT *outPtr, unsigned char *maskPtr, int extent[6], int id)
 {
@@ -1284,7 +1289,7 @@ template <class IT>
 void vtkICF::Execute(
   vtkImageConnectivityFilter *self,
   vtkImageData *inData, vtkImageData *outData,
-  vtkPointSet *seedData, vtkImageStencilData *stencil,
+  vtkDataSet *seedData, vtkImageStencilData *stencil,
   IT *inPtr, unsigned char *maskPtr, int extent[6], int id)
 {
   // Get active component (only one component is thresholded)
@@ -1409,10 +1414,10 @@ int vtkImageConnectivityFilter::RequestData(
   vtkImageData* inData = static_cast<vtkImageData *>(
     inInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  vtkPointSet* seedData = 0;
+  vtkDataSet* seedData = 0;
   if (seedInfo)
     {
-    seedData = static_cast<vtkPointSet *>(
+    seedData = static_cast<vtkDataSet *>(
       seedInfo->Get(vtkDataObject::DATA_OBJECT()));
     }
 

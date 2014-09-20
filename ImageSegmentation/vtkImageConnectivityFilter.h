@@ -30,7 +30,7 @@
 #include "vtkImageAlgorithm.h"
 
 class vtkIdTypeArray;
-class vtkPointSet;
+class vtkDataSet;
 class vtkImageData;
 class vtkImageStencilData;
 
@@ -60,11 +60,12 @@ public:
 
   // Description:
   // The input for seed locations (input port 1).
-  // This must be a vtkPolyData or some other kind of vtkPointSet.
-  // Each point in the supplied data set will be used as a seed.
+  // Each point in the supplied data set will be used as a seed, unless
+  // the data set has scalars, in which case only the points with scalar
+  // values that are not equal to zero will be used as seeds.
   void SetSeedConnection(vtkAlgorithmOutput *port);
   vtkAlgorithmOutput *GetSeedConnection();
-  void SetSeedData(vtkPointSet *data);
+  void SetSeedData(vtkDataSet *data);
 
   // Description:
   // The input for a stencil (input port 2).
