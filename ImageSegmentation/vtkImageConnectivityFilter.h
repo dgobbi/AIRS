@@ -70,8 +70,8 @@ public:
 
   // Description:
   // The input for a stencil (input port 2).
-  // The labels will be restricted to the region inside the stencil,
-  // as if no voxels existed outside the stencil.  This allows you to
+  // The output labels will be restricted to the region inside the stencil,
+  // as if no input voxels existed outside the stencil.  This allows you to
   // apply this filter within an arbitrary region of interest.
   void SetStencilConnection(vtkAlgorithmOutput *port);
   vtkAlgorithmOutput *GetStencilConnection();
@@ -81,7 +81,9 @@ public:
   // Set the scalar type for the output label image.
   // This should be one of UnsignedChar, Short, UnsignedShort, or Int
   // depending on how many labels are expected.  The default is UnsignedChar,
-  // which allows for 255 label values.
+  // which allows for 255 label values.  If the total number of regions is
+  // greater than the maximum label value N, then only the largest N regions
+  // will be kept and the rest will be discarded.
   void SetLabelScalarTypeToUnsignedChar() {
     this->SetLabelScalarType(VTK_UNSIGNED_CHAR); }
   void SetLabelScalarTypeToShort() {
@@ -96,13 +98,15 @@ public:
 
   // Description:
   // Set the mode for applying labels to the output.
-  // Labeling by SeedScalar uses the scalars of the seeds, or if
-  // there are no scalars, then the regions will be labeled consecutively
-  // starting at 1. Labeling by SizeRank means that the largest region is
-  // labeled 1 and other regions are labeled consecutively in order of
-  // decreasing size.  If there is a tie, then the seed point ID is used
-  // as a tiebreaker.  Finally, Constant means that all regions will have
-  // the value of SetLabelConstantValue().
+  // Labeling by SeedScalar uses the scalars from the seeds as labels, if
+  // present, or the regions will be labeled consecutively at 1, if the
+  // seeds have no scalars. Labeling by SizeRank means that the largest
+  // region is labeled 1 and other regions are labeled consecutively in
+  // order of decreasing size (if there is a tie, then the seed point ID
+  // is used as a tiebreaker).  Finally, Constant means that all regions
+  // will have the value of SetLabelConstantValue().  The default is to
+  // label using the seed scalars, if present, or to label consecutively,
+  // if no seed scalars are present.
   void SetLabelModeToSeedScalar() { this->SetLabelMode(SeedScalar); }
   void SetLabelModeToConstantValue() { this->SetLabelMode(ConstantValue); }
   void SetLabelModeToSizeRank() { this->SetLabelMode(SizeRank); }
@@ -111,7 +115,11 @@ public:
   vtkGetMacro(LabelMode, int);
 
   // Description:
-  // Set which regions to output from the filter.
+  // Set which regions to output from this filter.
+  // This can be all the regions, just the seeded regions, or the largest
+  // region (which will the the largest seeded region, if there are seeds).
+  // The default is to output all the seeded regions, if there are seeds,
+  // or to output all the regions, if there are no seeds.
   void SetExtractionModeToSeededRegions(){
     this->SetExtractionMode(SeededRegions); }
   void SetExtractionModeToAllRegions() {
@@ -124,6 +132,7 @@ public:
 
   // Description:
   // The label used when LabelMode is ConstantValue.
+  // The default value is 255.
   vtkSetMacro(LabelConstantValue, int);
   vtkGetMacro(LabelConstantValue, int);
 
