@@ -27,7 +27,7 @@
 #include <vtkImageSliceMapper.h>
 #include <vtkInteractorStyleImage.h>
 #include <vtkIdTypeArray.h>
-#include <vtkIdTypeArray.h>
+#include <vtkIntArray.h>
 #include <vtkPoints.h>
 #include <vtkPointData.h>
 #include <vtkPolyData.h>
@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
       {
       connectivity->SetScalarRange(800, 1200);
       }
+    connectivity->GenerateRegionExtentsOn();
 
     // test a previous bug where OutputExtent != InputExtent cause a crash.
     int extent[6] = { 0, 63, 0, 63, 3, 3 };
@@ -117,13 +118,20 @@ int main(int argc, char *argv[])
     vtkIdTypeArray *sizeArray = connectivity->GetExtractedRegionSizes();
     vtkIdTypeArray *idArray = connectivity->GetExtractedRegionSeedIds();
     vtkIdTypeArray *labelArray = connectivity->GetExtractedRegionLabels();
+    vtkIntArray *extentArray = connectivity->GetExtractedRegionExtents();
     vtkIdType rn = connectivity->GetNumberOfExtractedRegions();
     cout << "info";
     for (vtkIdType r = 0; r < rn; r++)
       {
       cout << " (" << idArray->GetValue(r) << ","
            << labelArray->GetValue(r) << ","
-           << sizeArray->GetValue(r) << ")";
+           << sizeArray->GetValue(r) << ",["
+           << extentArray->GetValue(6*r) << ","
+           << extentArray->GetValue(6*r+1) << ","
+           << extentArray->GetValue(6*r+2) << ","
+           << extentArray->GetValue(6*r+3) << ","
+           << extentArray->GetValue(6*r+4) << ","
+           << extentArray->GetValue(6*r+5) << "])";
       }
     cout << "\n";
 
