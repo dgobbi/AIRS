@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkMergePoints.h"
 #include "vtkImageData.h"
 #include "vtkPolyData.h"
 #include "vtkMatrix4x4.h"
@@ -585,6 +586,9 @@ void UpdateBlobs(
   int extent[6];
   input->GetExtent(extent);
 
+  //cout << "spacing " << spacing[0] << ", " << spacing[1] << ", " << spacing[2] << "\n";
+  //cout << "size " << (extent[1] - extent[0] + 1) << ", " << (extent[3] - extent[2] + 1) << ", " << (extent[5] - extent[4] + 1) << "\n";
+
   // maximum blob size to find is 24 square millimetres
   int maxBlobSize = static_cast<int>(24.0/(spacing[0]*spacing[1]));
 
@@ -739,6 +743,40 @@ Selector::Selector(std::vector<Blob> *blobs, const double vec[3])
   this->Minimum = minval;
   this->Maximum = maxval;
   this->Average = sum/bins->size();
+
+#if 0
+  int imin = +1000;
+  int imax = -1000;
+  for (std::map<int, Bin>::iterator it = bins->begin();
+       it != bins->end();
+       ++it)
+    {
+    imin = (it->first > imin ? imin : it->first);
+    imax = (it->first < imax ? imax : it->first);
+    }
+  double spacing[3] = { 0.546875, 0.546875, 1.0 };
+  double u[3];
+  u[0] = vec[0] / spacing[0];
+  u[1] = vec[1] / spacing[1];
+  u[2] = vec[2] / spacing[2];
+  double nm = sqrt(u[0]*u[0] + u[1]*u[1] + u[2]*u[2]);
+  u[0] /= nm;
+  u[1] /= nm;
+  u[2] /= nm;
+  cout << "vec " << u[0] << ", " << u[1] << ", " << u[2] << " ("
+       << vec[0] << ", " << vec[1] << ", " << vec[2] << ")\n";
+  cout << "min, max, minval, maxval, average " << imin << ", " << imax << ", " << minval << ", " << maxval << ", " << this->Average << "\n";
+  for (int i = imin; i < imax; ++i)
+    {
+    double v = 0;
+    std::map<int, Bin>::iterator it = bins->find(i);
+    if (it != bins->end())
+      {
+      v = it->second.sum;
+      }
+    cout << i << "\t" << i*spacing[0] << "\t" << v << ((i == imax - 1) ? "\n" : ",");
+    }
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -834,6 +872,9 @@ void Selector::BuildClusters(double threshold, int maxWidth)
 bool Selector::SelectTwo(
   double distance, double threshold, int maxWidth)
 {
+#if 0
+  cout << "SelectTwo " << distance << ", " << threshold << ", " << maxWidth << "\n";
+#endif
   // distance = ideal distance between peaks, in data coordinates
 
   this->BuildClusters(threshold, maxWidth);
@@ -918,6 +959,9 @@ bool Selector::SelectTwo(
 bool Selector::SelectOne(
   double position, double threshold, int maxWidth)
 {
+#if 0
+  cout << "SelectOne " << position << ", " << threshold << ", " << maxWidth << "\n";
+#endif
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
 
@@ -980,6 +1024,9 @@ bool Selector::SelectOne(
 // Identify the cluster with the highest value.
 bool Selector::SelectOne(double threshold, int maxWidth)
 {
+#if 0
+  cout << "SelectOne " << threshold << ", " << maxWidth << "\n";
+#endif
   this->BuildClusters(threshold, maxWidth);
   std::vector<Cluster> *clusters = &this->Clusters;
 
@@ -1013,6 +1060,16 @@ bool Selector::SelectOne(double threshold, int maxWidth)
 // Get the selected clusters.
 std::vector<Selector::Cluster> *Selector::GetClusters()
 {
+#if 0
+  std::vector<Cluster> *clusters = &this->Clusters;
+  typedef std::vector<Cluster>::iterator ClusterIterator;
+  for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
+    {
+    cout << "cluster(" << it->lowest << ", " << it->highest << ", " << it->sum << ")\n";
+    }
+  cout << endl;
+#endif
+
   return &this->Clusters;
 }
 
@@ -1798,8 +1855,22 @@ int vtkFrameFinder::FindFrame(
 
     // activate this to see all the blobs, not just frame blobs
     // (for debugging purposes only)
-#if 0
-    points->SetNumberOfPoints(0);
+#if 1
+    vtkSmartPointer<vtkMergePoints> locator =
+      vtkSmartPointer<vtkMergePoints>::New();
+    points->Initialize();
+    locator->InitPointInsertion(points, image->GetBounds());
+    points = vtkSmartPointer<vtkPoints>::New();
+    for (std::vector<Point>::iterator it = framePoints.begin();
+         it != framePoints.end();
+         ++it)
+      {
+      double point[3] = { it->x, it->y, it->z };
+      locator->InsertNextPoint(point);
+      }
+    locator->BuildLocator();
+
+    //points->SetNumberOfPoints(0);
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)
@@ -1808,7 +1879,9 @@ int vtkFrameFinder::FindFrame(
       point[0] = origin[0] + it->x*spacing[0];
       point[1] = origin[1] + it->y*spacing[1];
       point[2] = origin[2] + it->slice*spacing[2];
-      vtkIdType ptId = points->InsertNextPoint(point);
+      vtkIdType ptId = locator->IsInsertedPoint(point);
+      //if (ptId < 0) continue;
+      ptId = points->InsertNextPoint(point);
       cells->InsertCellPoint(ptId);
       float s = it->val;
       float r = sqrt(it->count/3.14159);

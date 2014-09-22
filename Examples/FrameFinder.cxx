@@ -44,6 +44,7 @@ Module:    FrameFinder.cxx
 #include <vtkTransformPolyDataFilter.h>
 #include <vtkGlyph3D.h>
 #include <vtkStringArray.h>
+#include <vtkImageThresholdConnectivity.h>
 
 #include <vtkMINCImageReader.h>
 #include <vtkDICOMImageReader.h>
@@ -390,37 +391,87 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SET_INPUT_DATA(sourceImage);
+  vtkSmartPointer<vtkPoints> spoints =
+    vtkSmartPointer<vtkPoints>::New();
+  spoints->SetNumberOfPoints(1);
+  spoints->SetPoint(0, 1.0, 1.0, 59.5);
+
+  int extent[6];
+  sourceImage->GetExtent(extent);
+
+  vtkSmartPointer<vtkImageThresholdConnectivity> sourceFill =
+    vtkSmartPointer<vtkImageThresholdConnectivity>::New();
+  sourceFill->SET_INPUT_DATA(sourceImage);
+  sourceFill->ThresholdBetween(-1, 100);
+  sourceFill->ReplaceOutOff();
+  sourceFill->ReplaceInOn();
+  sourceFill->SetInValue(0.0);
+  sourceFill->SetSliceRangeZ(extent[4] + 55, extent[5] - 94);
+  sourceFill->SetNeighborhoodRadius(2.0, 2.0, 2.0);
+  sourceFill->SetNeighborhoodFraction(0.8);
+  sourceFill->SetSeedPoints(spoints);
+  sourceFill->Update();
+
+  sourceMapper->SetInputConnection(sourceFill->GetOutputPort());
   sourceMapper->SliceAtFocalPointOn();
   //sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
 
   double sourceRange[2];
   sourceImage->GetScalarRange(sourceRange);
+  sourceRange[1] *= 0.25;
+
+  vtkSmartPointer<vtkLookupTable> table =
+    vtkSmartPointer<vtkLookupTable>::New();
+  table->SetRampToLinear();
+  table->SetSaturationRange(0.0, 0.0);
+  table->SetValueRange(0.0, 1.0);
+  table->SetAlphaRange(1.0, 1.0);
+  table->Build();
+  table->SetTableValue(0, 0.0, 0.0, 0.0, 0.0);
+
   sourceProperty->SetInterpolationTypeToLinear();
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
+  sourceProperty->SetLookupTable(table);
+  //sourceProperty->SetOpacity(0.99);
+  //sourceProperty->BackingOff();
+  //sourceProperty->SetBackingColor(1.0, 0.0, 0.0);
 
   sourceActor->SetMapper(sourceMapper);
   sourceActor->SetProperty(sourceProperty);
   sourceActor->SetUserMatrix(sourceMatrix);
 
   renderer->AddViewProp(sourceActor);
-  renderer->SetBackground(0.2,0.2,0.2);
-  //renderer->SetBackground(0.0,0.0,0.0);
+  //renderer->SetBackground(0.2,0.2,0.2);
+  renderer->SetBackground(0.0,0.0,0.0);
 
-  renderWindow->SetSize(720,720);
+  renderWindow->SetSize(1050,860);
+
+  double tmpMatrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0,-1.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 1.0
+  };
+  vtkSmartPointer<vtkMatrix4x4> viewMatrix =
+    vtkSmartPointer<vtkMatrix4x4>::New();
+  viewMatrix->DeepCopy(tmpMatrix);
+  vtkMatrix4x4::Multiply4x4(viewMatrix, sourceMatrix, viewMatrix);
 
   //double bounds[6] = {-10.0, 210.0, -10.0, 210.0, -10.0, 210.0 };
-  double center[4] = {100.0, 100.0, 100.0, 1.0};
+  double center[4] = { 100.0, 100.0, 100.0, 1.0 };
   targetMatrix->MultiplyPoint(center, center);
 
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
   camera->SetFocalPoint(center);
+  camera->SetViewUp(0.0, -1.0, 0.0);
   camera->ParallelProjectionOn();
-  camera->SetParallelScale(132);
-  SetViewFromMatrix(renderer, istyle, sourceMatrix);
+  camera->SetParallelScale(110);
+  SetViewFromMatrix(renderer, istyle, viewMatrix);
+  camera->Azimuth(5.0);
+  camera->Elevation(10.0);
   renderer->ResetCameraClippingRange();
 
   if (display)
@@ -486,7 +537,7 @@ int main (int argc, char *argv[])
   mtable->SetSaturationRange(0.0, 0.0);
   mtable->SetValueRange(0.0, 1.0);
   mtable->Build();
-  mtable->SetRange(sourceRange[0], sourceRange[1]*0.2);
+  mtable->SetRange(sourceRange[0], sourceRange[1]);
 
   vtkSmartPointer<vtkDataSetMapper> frameMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
@@ -494,14 +545,18 @@ int main (int argc, char *argv[])
   frameMapper->SetColorModeToMapScalars();
   frameMapper->SetLookupTable(mtable);
   frameMapper->UseLookupTableScalarRangeOn();
+  frameMapper->SetScalarMaterialModeToAmbientAndDiffuse();
+  frameMapper->InterpolateScalarsBeforeMappingOn();
 
   vtkSmartPointer<vtkActor> frameActor =
     vtkSmartPointer<vtkActor>::New();
   frameActor->SetUserMatrix(frameMatrix);
   frameActor->SetMapper(frameMapper);
-  frameActor->GetProperty()->SetAmbient(0.1);
-  frameActor->GetProperty()->SetDiffuse(1.0);
-  //frameActor->GetProperty()->SetColor(1.0, 0.0, 1.0);
+  frameActor->GetProperty()->SetAmbient(0.49);
+  frameActor->GetProperty()->SetDiffuse(0.51);
+  frameActor->GetProperty()->SetAmbientColor(1.0, 0.0, 0.0);
+  frameActor->GetProperty()->SetDiffuseColor(0.0, 1.0, 0.0);
+  frameActor->GetProperty()->SetSpecularColor(0.0, 0.0, 1.0);
 
   renderer->AddViewProp(frameActor);
 
@@ -515,9 +570,9 @@ int main (int argc, char *argv[])
   targetActor->SetUserMatrix(targetMatrix);
   targetActor->GetProperty()->SetAmbient(0.6);
   targetActor->GetProperty()->SetColor(1.0, 1.0, 0.0);
-  targetActor->GetProperty()->SetOpacity(0.5);
+  //targetActor->GetProperty()->SetOpacity(0.5);
 
-  renderer->AddViewProp(targetActor);
+  //renderer->AddViewProp(targetActor);
 
   if (display)
     {
