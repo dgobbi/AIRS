@@ -23,5 +23,3 @@ target_link_libraries(TestImageConnectivityFilter
 add_test(TestImageConnectivityFilter
   ${CXX_TEST_PATH}/TestImageConnectivityFilter
   -D "${VTK_TESTING_DIRECTORY}")
-
-message(STATUS "TEST ${VTK_TESTING_DIRECTORY}")
