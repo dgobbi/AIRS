@@ -120,6 +120,7 @@ public:
     Cubic,
     BSpline,
     Sinc,
+    ASinc,
     Label
   };
 
@@ -180,6 +181,8 @@ public:
     this->SetInterpolatorType(BSpline); }
   void SetInterpolatorTypeToSinc() {
     this->SetInterpolatorType(Sinc); }
+  void SetInterpolatorTypeToASinc() {
+    this->SetInterpolatorType(ASinc); }
   void SetInterpolatorTypeToLabel() {
     this->SetInterpolatorType(Label); }
   vtkGetMacro(InterpolatorType, int);

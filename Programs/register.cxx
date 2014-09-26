@@ -143,6 +143,10 @@ void SetInterpolator(vtkImageReslice *reslice, int interpolator)
     case vtkImageRegistration::Sinc:
       reslice->SetInterpolator(sincInterpolator);
       break;
+    case vtkImageRegistration::ASinc:
+      sincInterpolator->AntialiasingOn();
+      reslice->SetInterpolator(sincInterpolator);
+      break;
     case vtkImageRegistration::Label:
       reslice->SetInterpolator(labelInterpolator);
       break;
@@ -1452,14 +1456,18 @@ void register_show_help(FILE *fp, const char *command)
     "                 CU        Cubic\n"
     "                 BS        BSpline\n"
     "                 WS        WindowedSinc\n"
+    "                 AS        Antialiasing\n"
     "                 LA        Label\n"
     "\n"
     "    Linear interpolation is usually the best choice, it provides\n"
     "    a good balance between efficiency and quality.  Either Label or\n"
     "    NearestNeighbor is required if one of the images is a label image.\n"
     "    The Windowed Sinc interpolator uses a five-lobe Blackman-windowed\n"
-    "    sinc kernel and offers the highest overall quality.  The image that\n"
-    "    is interpolated is the target image.\n"
+    "    sinc kernel and offers the highest overall quality, while the\n"
+    "    the Antialiasing interpolator uses a five-lobe Blackman-windowed\n"
+    "    sinc that has been widened in order to bandlimit the image for\n"
+    "    the output sample spacing.  The image that is interpolated is the\n"
+    "    target image.\n"
     "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
@@ -1546,6 +1554,7 @@ int register_read_options(
     "Cubic", "CU",
     "BSpline", "BS",
     "WindowedSinc", "WS",
+    "Antialiasing", "AS",
     "Label", "LA",
     0 };
   static const char *coords_args[] = {
@@ -1699,6 +1708,11 @@ int register_read_options(
                  strcmp(arg, "WS") == 0)
           {
           options->interpolator = vtkImageRegistration::Sinc;
+          }
+        else if (strcmp(arg, "Antialiasing") == 0 ||
+                 strcmp(arg, "AS") == 0)
+          {
+          options->interpolator = vtkImageRegistration::ASinc;
           }
         else if (strcmp(arg, "Label") == 0 ||
                  strcmp(arg, "LA") == 0)
@@ -2093,6 +2107,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageSincInterpolator> sourceBlurKernel =
     vtkSmartPointer<vtkImageSincInterpolator>::New();
   sourceBlurKernel->SetWindowFunctionToBlackman();
+  sourceBlurKernel->AntialiasingOn();
 
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
@@ -2107,6 +2122,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageSincInterpolator> targetBlurKernel =
     vtkSmartPointer<vtkImageSincInterpolator>::New();
   targetBlurKernel->SetWindowFunctionToBlackman();
+  targetBlurKernel->AntialiasingOn();
 
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =

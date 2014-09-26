@@ -830,6 +830,15 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       interp->Delete();
       }
       break;
+    case vtkImageRegistration::ASinc:
+      {
+      vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
+      interp->SetWindowFunctionToBlackman();
+      interp->AntialiasingOn();
+      reslice->SetInterpolator(interp);
+      interp->Delete();
+      }
+      break;
     case vtkImageRegistration::Label:
       {
       vtkLabelInterpolator *interp = vtkLabelInterpolator::New();
