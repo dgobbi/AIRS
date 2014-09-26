@@ -1077,10 +1077,11 @@ void WriteMatrix(
     {
     // Delimited text file
     const char *delim = ((t == CSVTransform) ? "," : "\t");
-    ofstream outfile(xfmfile, ios::out);
+    std::ofstream outfile(xfmfile, ios::out);
     for (int i = 0; i < 4; i++)
       {
-      outfile << matrix->Element[i][0] << delim
+      outfile << std::setprecision(10)
+              << matrix->Element[i][0] << delim
               << matrix->Element[i][1] << delim
               << matrix->Element[i][2] << delim
               << matrix->Element[i][3] << "\n";
