@@ -158,6 +158,23 @@ int GuessFileType(const char *filename)
 {
   size_t n = strlen(filename);
 
+  if (n > 4 && strcmp(&filename[n-4], ".txt") == 0)
+    {
+    int ftype = TXTTransform;
+    ifstream infile(filename);
+    if (infile.good())
+      {
+      char firstline[32];
+      memset(firstline, '\0', 32);
+      infile.getline(firstline, 32);
+      if (strncmp(firstline, "#Insight Transform File V1.0", 28) == 0)
+        {
+        ftype = ITKTransform;
+        }
+      }
+    infile.close();
+    return ftype;
+    }
   if (n > 4 && strcmp(&filename[n-4], ".xfm") == 0)
     {
     return MNITransform;
@@ -166,8 +183,7 @@ int GuessFileType(const char *filename)
     {
     return ITKTransform;
     }
-  if ((n > 4 && strcmp(&filename[n-4], ".txt") == 0) ||
-      (n > 4 && strcmp(&filename[n-4], ".mat") == 0))
+  if (n > 4 && strcmp(&filename[n-4], ".mat") == 0)
     {
     return TXTTransform;
     }
