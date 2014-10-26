@@ -169,7 +169,6 @@ void vtkLabelInterpolator::ComputeSupportSize(
   // use matrix to compute blur factors and kernel size
   for (int i = 0; i < 3; i++)
     {
-    int integerRow = 1;
     double rowscale = 0.0;
     for (int j = 0; j < 3; j++)
       {
@@ -181,7 +180,6 @@ void vtkLabelInterpolator::ComputeSupportSize(
       // check fraction that remains after floor operation
       double f;
       vtkInterpolationMath::Floor(x, f);
-      integerRow &= (f == 0);
       }
 
     if (this->Antialiasing)
@@ -785,15 +783,6 @@ void vtkLabelInterpolatorPrecomputeWeights(
     int inCount = maxExt - minExt + 1;
     step = ((step < inCount) ? step : inCount);
 
-    // if output pixels lie exactly on top of the input pixels
-    F f1, f2;
-    vtkInterpolationMath::Floor(matrow[j], f1);
-    vtkInterpolationMath::Floor(matrow[3], f2);
-    if (f1 == 0 && f2 == 0 && !blur[j])
-      {
-      step = 1;
-      }
-
     // allocate space for the weights
     vtkIdType size = step*(outExt[2*j+1] - outExt[2*j] + 1);
     vtkIdType *positions = new vtkIdType[size];
@@ -1033,6 +1022,7 @@ void vtkLabelInterpolator::BuildKernelLookupTable()
 
     int cutoff = static_cast<int>(this->RadiusFactors[i]*b/p + 0.5);
     cutoff = (cutoff < size ? cutoff : size);
+    cutoff += 1;
     vtkGaussKernel::Evaluate(kernel[i], cutoff, p);
 
     // add a tail of zeros for when table is interpolated

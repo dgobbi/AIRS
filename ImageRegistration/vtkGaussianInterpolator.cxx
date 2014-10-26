@@ -153,7 +153,6 @@ void vtkGaussianInterpolator::ComputeSupportSize(
   // use matrix to compute blur factors and kernel size
   for (int i = 0; i < 3; i++)
     {
-    int integerRow = 1;
     double rowscale = 0.0;
     for (int j = 0; j < 3; j++)
       {
@@ -165,7 +164,6 @@ void vtkGaussianInterpolator::ComputeSupportSize(
       // check fraction that remains after floor operation
       double f;
       vtkInterpolationMath::Floor(x, f);
-      integerRow &= (f == 0);
       }
 
     if (this->Antialiasing)
@@ -189,13 +187,6 @@ void vtkGaussianInterpolator::ComputeSupportSize(
       size[i] = s;
       this->KernelSize[i] = s;
       }
-    /*
-    else if (integerRow)
-      {
-      // if no blurring and if ints map to ints, no interpolation is needed
-      size[i] = 1;
-      }
-    */
     }
 
   // rebuild the kernel lookup tables
@@ -1044,15 +1035,6 @@ void vtkGaussianInterpolatorPrecomputeWeights(
     int inCount = maxExt - minExt + 1;
     step = ((step < inCount) ? step : inCount);
 
-    // if output pixels lie exactly on top of the input pixels
-    F f1, f2;
-    vtkInterpolationMath::Floor(matrow[j], f1);
-    vtkInterpolationMath::Floor(matrow[3], f2);
-    if (f1 == 0 && f2 == 0 && !blur[j])
-      {
-      step = 1;
-      }
-
     // allocate space for the weights
     vtkIdType size = step*(outExt[2*j+1] - outExt[2*j] + 1);
     vtkIdType *positions = new vtkIdType[size];
@@ -1287,7 +1269,7 @@ void vtkGaussianInterpolator::BuildKernelLookupTable()
     double p = 1.0/(b*VTK_GAUSS_KERNEL_TABLE_DIVISIONS);
 
     // allocate and compute the kernel lookup table
-    // (add a small safety buffer that will be filled with zeros)
+    // (add a small safety margin for when the table is interpolated)
     kernel[i] = new float[size + 4];
 
 #if 0 /* print out kernel lookup table, for debugging */
@@ -1324,6 +1306,7 @@ void vtkGaussianInterpolator::BuildKernelLookupTable()
 
     int cutoff = static_cast<int>(this->RadiusFactors[i]*b/p + 0.5);
     cutoff = (cutoff < size ? cutoff : size);
+    cutoff += 1;
     if (this->KernelType == VTK_APPLEDORN10_INTERPOLATION)
       {
       vtkGaussKernel::D10(kernel[i], cutoff, p);
@@ -1360,7 +1343,7 @@ void vtkGaussianInterpolator::BuildKernelLookupTable()
       // if kernel stretched to create blur, divide by stretch factor
       float *ktmp = kernel[i];
       float bf = 1.0/b;
-      int j = size;
+      int j = size + 4;
       do
         {
         *ktmp *= bf;

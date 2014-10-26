@@ -136,7 +136,7 @@ public:
   // the weights computed from the kernel always sum to one, which is usually
   // desirable.  However, for the Gaussian kernel, renormalization creates
   // large negative side-lobes in the frequency response.
-  void SetRenormalization(int antialiasing);
+  void SetRenormalization(int renormalization);
   void RenormalizationOn() { this->SetRenormalization(1); }
   void RenormalizationOff() { this->SetRenormalization(0); }
   int GetRenormalization() { return this->Renormalization; }
