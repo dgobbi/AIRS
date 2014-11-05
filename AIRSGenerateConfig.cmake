@@ -9,8 +9,8 @@ SET(DOLLAR "$")
 #-----------------------------------------------------------------------------
 # Settings for the build tree.
 
-EXPORT_LIBRARY_DEPENDENCIES(
-  ${AIRS_BINARY_DIR}/AIRSLibraryDepends.cmake)
+EXPORT(TARGETS ${AIRS_LIBRARIES}
+  FILE ${AIRS_BINARY_DIR}/AIRSTargets.cmake)
 
 # Set the source dir
 SET(AIRS_SOURCE_DIR_CONFIG ${AIRS_SOURCE_DIR})
@@ -31,6 +31,10 @@ SET(AIRS_USE_FILE_CONFIG
 # The build settings file.
 SET(AIRS_BUILD_SETTINGS_FILE_CONFIG
   ${AIRS_BINARY_DIR}/AIRSBuildSettings.cmake)
+
+# The target file
+SET(AIRS_TARGET_FILE_CONFIG
+  ${AIRS_BINARY_DIR}/AIRSTargets.cmake)
 
 # The library directories.
 SET(AIRS_LIBRARY_DIRS_CONFIG ${AIRS_LIBRARY_DIR})

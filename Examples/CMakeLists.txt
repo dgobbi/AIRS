@@ -51,5 +51,10 @@ TARGET_LINK_LIBRARIES(RigidImageRegistration vtkImageRegistration ${VTK_LIBS} ${
 ADD_EXECUTABLE(DifferenceRegistration DifferenceRegistration.cxx)
 TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
 
+IF(${VTK_MAJOR_VERSION} VERSION_GREATER 5)
+  ADD_EXECUTABLE(WarpAnts WarpAnts.cxx)
+  TARGET_LINK_LIBRARIES(WarpAnts vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+ENDIF(${VTK_MAJOR_VERSION} VERSION_GREATER 5)
+
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
 TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
