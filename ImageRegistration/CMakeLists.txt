@@ -14,6 +14,7 @@ SET ( Kit_SRCS
 vtkFrameFinder.cxx
 vtkImageMutualInformation.cxx
 vtkImageSquaredDifference.cxx
+vtkMorphologicalInterpolator.cxx
 vtkLabelInterpolator.cxx
 vtkGaussianInterpolator.cxx
 vtkImageCorrelationRatio.cxx
