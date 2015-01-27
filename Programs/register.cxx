@@ -1326,6 +1326,7 @@ void register_initialize_options(register_options *options)
   options->maxiter[2] = 500;
   options->maxiter[3] = 500;
   options->display = 0;
+  options->translucent = 0;
   options->silent = 0;
 #ifdef VTK_HAS_SLAB_SPACING
   options->mip = 0;
