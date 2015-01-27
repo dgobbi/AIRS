@@ -1300,6 +1300,7 @@ struct register_options
   int coords;          // -C --coords
   int maxiter[4];      // -M --maxiter
   int display;         // -d --display
+  int translucent;     // -t --translucent
   int silent;          // -s --silent
 #ifdef VTK_HAS_SLAB_SPACING
   int mip;             // --mip
@@ -1513,6 +1514,10 @@ void register_show_help(FILE *fp, const char *command)
     " -d --display      (default: off)\n"
     "\n"
     "    Display the images during the registration.\n"
+    "\n"
+    " -t --translucent (default: off)\n"
+    "\n"
+    "    Display the images with translucency (rather than checkerboard).\n"
     "\n"
     " -s --silent       (default: off)\n"
     "\n"
@@ -1768,6 +1773,11 @@ int register_read_options(
         {
         options->display = 1;
         }
+      else if (strcmp(arg, "-t") == 0 ||
+               strcmp(arg, "--translucent") == 0)
+        {
+        options->translucent = 1;
+        }
 #ifdef VTK_HAS_SLAB_SPACING
       else if (strcmp(arg, "--mip") == 0)
         {
@@ -2007,7 +2017,14 @@ int main(int argc, char *argv[])
 
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
-  sourceProperty->CheckerboardOn();
+  if (options.translucent)
+    {
+    sourceProperty->SetOpacity(0.5);
+    }
+  else
+    {
+    sourceProperty->CheckerboardOn();
+    }
 
   sourceActor->SetMapper(sourceMapper);
   sourceActor->SetProperty(sourceProperty);
