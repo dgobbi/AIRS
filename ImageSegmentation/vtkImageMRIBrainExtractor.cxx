@@ -226,8 +226,15 @@ static void vtkBECalculateInitialParameters(
   int scalarTypeMin = static_cast<int>(inData->GetScalarTypeMin());
   int scalarTypeMax = static_cast<int>(inData->GetScalarTypeMax());
 
+  // Initialize the values to output
+  T2 = scalarTypeMin;
+  Tm = scalarTypeMin + 0.5;
+  T98 = scalarTypeMin + 1.0;
+  COG[0] = COG[1] = COG[2] = 0.0;
+  R = 1.0;
+
   int nBins = scalarTypeMax - scalarTypeMin + 1;
-  vtkIdType *hist = new vtkIdType[nBins];
+  size_t *hist = new size_t[nBins];
 
   // initialize the histogram
   for (int j = 0; j < nBins; j++)
@@ -235,12 +242,12 @@ static void vtkBECalculateInitialParameters(
     hist[j] = 0;
     }
 
-  vtkIdType voxelCount = (extent[1] - extent[0] + 1);
+  size_t voxelCount = (extent[1] - extent[0] + 1);
   voxelCount *= (extent[3] - extent[2] + 1);
   voxelCount *= (extent[5] - extent[4] + 1);
 
-  vtkIdType lowerThreshold = static_cast<vtkIdType>(0.02*voxelCount);
-  vtkIdType upperThreshold = static_cast<vtkIdType>(0.98*voxelCount);
+  size_t lowerThreshold = static_cast<size_t>(0.02*voxelCount + 0.5);
+  size_t upperThreshold = static_cast<size_t>(0.98*voxelCount + 0.5);
 
   // accumulate histogram bins
   vtkImageIterator<IT> inIter(inData, extent);
@@ -258,11 +265,11 @@ static void vtkBECalculateInitialParameters(
     }
 
   // compute thresholds
-  vtkIdType histogramSum = 0;
+  size_t histogramSum = 0;
 
   for (int bin = 0; bin < nBins; bin++)
     {
-    int f = hist[bin];
+    size_t f = hist[bin];
     histogramSum += f;
     int v = bin + scalarTypeMin;
 
@@ -319,8 +326,6 @@ static void vtkBECalculateInitialParameters(
   if (totalMass == 0)
     {
     vtkGenericWarningMacro("In vtkMRIBrainExtractor, image is all black");
-    COG[0] = COG[1] = COG[2] = 0.0;
-    Tm = 0.0;
     return;
     }
 
@@ -375,7 +380,7 @@ static void vtkBECalculateInitialParameters(
     }
 
   histogramSum = 0;
-  vtkIdType medianThreshold = voxelCount/2;
+  size_t medianThreshold = voxelCount/2;
   for (int bin = 0; bin < nBins; bin++)
     {
     int f = hist[bin];
