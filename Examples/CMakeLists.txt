@@ -58,3 +58,5 @@ TARGET_LINK_LIBRARIES(DifferenceRegistration vtkImageRegistration ${VTK_LIBS} ${
 
 ADD_EXECUTABLE(FrameFinder FrameFinder.cxx)
 TARGET_LINK_LIBRARIES(FrameFinder vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+ADD_EXECUTABLE(SkullStripper SkullStripper.cxx)
+TARGET_LINK_LIBRARIES(SkullStripper vtkImageSegmentation ${VTK_LIBS} ${DICOM_LIBRARIES})
