@@ -1,39 +1,30 @@
-PROJECT(AIRSTesting)
+include_directories(${AIRS_INCLUDE_DIRS})
+set(AIRS_TESTING_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
+set(VTK_TESTING_DIRECTORY "${VTK_DIR}/ExternalData/Testing/")
 
-# Testing out of AIRS build tree
-IF (NOT AIRS_BINARY_DIR)
-  MESSAGE(STATUS "Buiding AIRSTesting out of AIRS build tree")
+if(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  set(VTK_LIBS vtkRendering vtkIO)
+else(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+  set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
+      vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
+      vtkImagingStencil vtkImagingMath vtkImagingMorphological
+      vtkFiltersSources vtksys)
+  # If vtkRenderingFreeTypeOpenGL is present, it must be linked
+  list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
+  if(TMP_INDEX GREATER -1)
+    set(VTK_LIBS ${VTK_LIBS} vtkRenderingFreeTypeOpenGL)
+  endif()
+  # If vtkIOMPIImage is present, it has factories for vtkIOImage
+  list(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
+  if(TMP_INDEX GREATER -1)
+    set(VTK_LIBS ${VTK_LIBS} vtkIOMPIImage)
+  endif(TMP_INDEX GREATER -1)
+endif(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
-  IF (NOT AIRS_DIR)
-    FIND_PACKAGE(AIRS REQUIRED)
-  ELSE(NOT AIRS_DIR)
-    INCLUDE(${AIRS_DIR}/AIRSConfig.cmake)
-  ENDIF (NOT AIRS_DIR)
-
-  INCLUDE(${AIRS_USE_FILE})
-
-  # Test output
-  SET(AIRSTesting_TEMP_DIR ${AIRSTesting_BINARY_DIR}/Testing/Temporary)
-
-  # Configure Dart testing support.
-  INCLUDE(${CMAKE_ROOT}/Modules/Dart.cmake)
-
-  # Output paths
-  SET(EXECUTABLE_OUTPUT_PATH ${AIRSTesting_BINARY_DIR}/bin/ CACHE INTERNAL "Single output directory for building all executables.")
-  SET(AIRSTesting_EXECUTABLE_DIR ${EXECUTABLE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR})
-  SET(CXX_TEST_PATH ${AIRSTesting_EXECUTABLE_DIR})
-
-# Testing inside the AIRS build tree
-ELSE (NOT AIRS_BINARY_DIR)
-  MESSAGE(STATUS "Buiding AIRSTesting inside the AIRS build tree")
-
-  INCLUDE_DIRECTORIES(${AIRS_INCLUDE_DIRS})
-
-  # Test output
-  SET(AIRSTesting_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
-ENDIF (NOT AIRS_BINARY_DIR)
-
-#
-# Enable testing
-#
-#ENABLE_TESTING()
+add_executable(TestImageConnectivityFilter
+  TestImageConnectivityFilter.cxx)
+target_link_libraries(TestImageConnectivityFilter
+  vtkImageSegmentation ${VTK_LIBS})
+add_test(TestImageConnectivityFilter
+  ${CXX_TEST_PATH}/TestImageConnectivityFilter
+  -D "${VTK_TESTING_DIRECTORY}")
