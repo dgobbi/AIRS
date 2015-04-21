@@ -6,19 +6,18 @@ if(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   set(VTK_LIBS vtkRendering vtkIO)
 else(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
+      vtkRenderingFreeType vtkIOImage vtkIOMINC
       vtkImagingStencil vtkImagingMath vtkImagingMorphological
       vtkFiltersSources vtksys)
-  # If vtkRenderingFreeTypeOpenGL is present, it must be linked
-  list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
-  if(TMP_INDEX GREATER -1)
-    set(VTK_LIBS ${VTK_LIBS} vtkRenderingFreeTypeOpenGL)
-  endif()
-  # If vtkIOMPIImage is present, it has factories for vtkIOImage
-  list(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
-  if(TMP_INDEX GREATER -1)
-    set(VTK_LIBS ${VTK_LIBS} vtkIOMPIImage)
-  endif(TMP_INDEX GREATER -1)
+  set(VTK_EXTRA_LIBS vtkIOMPIImage
+      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
+      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
+  foreach(TMP_LIB ${VTK_EXTRA_LIBS})
+    list(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
+    if(TMP_INDEX GREATER -1)
+      set(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+    endif(TMP_INDEX GREATER -1)
+  endforeach(TMP_LIB ${VTK_EXTRA_LIBS})
 endif(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 add_executable(TestImageConnectivityFilter

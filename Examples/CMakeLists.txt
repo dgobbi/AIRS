@@ -37,18 +37,17 @@ IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRendering vtkIO)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
+      vtkRenderingFreeType vtkIOImage vtkIOMINC
       vtkImagingStencil vtkImagingMath vtkFiltersSources vtksys)
-  # If vtkRenderingFreeTypeOpenGL is present, it must be linked
-  list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
-  if(TMP_INDEX GREATER -1)
-    set(VTK_LIBS ${VTK_LIBS} vtkRenderingFreeTypeOpenGL)
-  endif()
-  # If vtkIOMPIImage is present, it has factories for vtkIOImage
-  LIST(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
-  IF(TMP_INDEX GREATER -1)
-    SET(VTK_LIBS ${VTK_LIBS} vtkIOMPIImage)
-  ENDIF(TMP_INDEX GREATER -1)
+  SET(VTK_EXTRA_LIBS vtkIOMPIImage
+      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
+      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
+  FOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
+    LIST(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
+    IF(TMP_INDEX GREATER -1)
+      SET(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+    ENDIF(TMP_INDEX GREATER -1)
+  ENDFOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
 ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 ADD_EXECUTABLE(RigidImageRegistration RigidImageRegistration.cxx)

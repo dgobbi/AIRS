@@ -6,18 +6,17 @@ IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRendering vtkIO)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
-      vtkIOLegacy vtkImagingStencil vtkImagingStatistics vtksys)
-  # If vtkRenderingFreeTypeOpenGL is present, it must be linked
-  list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
-  if(TMP_INDEX GREATER -1)
-    set(VTK_LIBS ${VTK_LIBS} vtkRenderingFreeTypeOpenGL)
-  endif()
-  # If vtkIOMPIImage is present, it has factories for vtkIOImage
-  LIST(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
-  IF(TMP_INDEX GREATER -1)
-    SET(VTK_LIBS ${VTK_LIBS} vtkIOMPIImage)
-  ENDIF()
+      vtkRenderingFreeType vtkIOImage vtkIOMINC vtkIOLegacy
+      vtkImagingStencil vtkImagingStatistics vtksys)
+  SET(VTK_EXTRA_LIBS vtkIOMPIImage
+      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
+      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
+  FOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
+    LIST(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
+    IF(TMP_INDEX GREATER -1)
+      SET(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+    ENDIF(TMP_INDEX GREATER -1)
+  ENDFOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
   IF(VTK_MINOR_VERSION VERSION_GREATER 1)
     ADD_DEFINITIONS(-DVTK_HAS_SLAB_SPACING)
   ENDIF(VTK_MINOR_VERSION VERSION_GREATER 1)
