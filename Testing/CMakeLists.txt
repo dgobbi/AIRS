@@ -6,9 +6,14 @@ if(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   set(VTK_LIBS vtkRendering vtkIO)
 else(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL vtkIOImage vtkIOMINC
+      vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
       vtkImagingStencil vtkImagingMath vtkImagingMorphological
       vtkFiltersSources vtksys)
+  # If vtkRenderingFreeTypeOpenGL is present, it must be linked
+  list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
+  if(TMP_INDEX GREATER -1)
+    set(VTK_LIBS ${VTK_LIBS} vtkRenderingFreeTypeOpenGL)
+  endif()
   # If vtkIOMPIImage is present, it has factories for vtkIOImage
   list(FIND VTK_LIBRARIES vtkIOMPIImage TMP_INDEX)
   if(TMP_INDEX GREATER -1)
