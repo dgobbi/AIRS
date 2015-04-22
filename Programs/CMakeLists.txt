@@ -23,7 +23,7 @@ ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 ADD_EXECUTABLE(register register.cxx)
-TARGET_LINK_LIBRARIES(register vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+TARGET_LINK_LIBRARIES(register vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 
 ADD_EXECUTABLE(skullstrip skullstrip.cxx)
-TARGET_LINK_LIBRARIES(skullstrip vtkImageSegmentation ${VTK_LIBS} ${DICOM_LIBRARIES})
+TARGET_LINK_LIBRARIES(skullstrip vtkImageSegmentation ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})

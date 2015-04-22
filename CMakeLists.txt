@@ -23,6 +23,18 @@ IF(AIRS_USE_DICOM)
   IF(DICOM_FOUND)
     INCLUDE(${DICOM_USE_FILE})
   ENDIF(DICOM_FOUND)
+  # GDCM is required for reading compressed DICOM images
+  OPTION(USE_GDCM "Use GDCM for image decompression" OFF)
+  IF(USE_GDCM)
+    FIND_PACKAGE(GDCM)
+    IF(NOT GDCM_DIR)
+      MESSAGE(FATAL_ERROR "Please set GDCM_DIR.")
+    ENDIF(NOT GDCM_DIR)
+    IF(GDCM_FOUND)
+      INCLUDE(${GDCM_USE_FILE})
+      SET(GDCM_LIBS gdcmMSFF gdcmIOD gdcmDSED gdcmDICT)
+    ENDIF(GDCM_FOUND)
+  ENDIF(USE_GDCM)
 ENDIF(AIRS_USE_DICOM)
 
 # Choose static or shared libraries.
