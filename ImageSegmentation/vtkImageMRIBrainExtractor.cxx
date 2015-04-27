@@ -665,7 +665,7 @@ void vtkImageMRIBrainExtractorExecute(
   vtkPoints *originalPoints = vtkPoints::New();
   for (ptIter = brainPoints.begin();
        ptIter != brainPoints.end();
-       ptIter++, nIter++)
+       ptIter++)
     {
     target = *ptIter;
     originalPoints->InsertNextPoint(target.xyz);
