@@ -921,6 +921,9 @@ void vtkImageMRIBrainExtractorExecute(
     // we've got new points
     std::copy(updatePoints.begin(), updatePoints.end(), brainPoints.begin());
     iteration++;
+    
+    // display progress
+    if ((iteration%int(nIterations*.01f))==1){fprintf(stderr,"> %.0f%%\n",iteration*100.f/nIterations);}
     }
   // Switch back to VTK containers
   vtkPoints *newPoints = brainPolyData->GetPoints();
