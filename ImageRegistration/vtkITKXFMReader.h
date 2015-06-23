@@ -70,7 +70,7 @@ public:
   // Description:
   // Get the entension for this file format.
   virtual const char* GetFileExtensions() {
-    return ".txt .tfm"; }
+    return ".txt .tfm .mat"; }
 
   // Description:
   // Get the name of this file format.
@@ -125,7 +125,11 @@ protected:
   int ParseStringValue(char **cpp, char data[]);
   int ParseFloatValues(char **cpp, vtkDoubleArray *array);
 
-  int ReadTransform(istream &infile, char linetext[]);
+  int ReadTextTransform(istream &infile, char linetext[]);
+
+  int AddTransform(
+    const char *name, vtkDoubleArray *parameters,
+    vtkDoubleArray *fixedParameters);
 
   static void BuildTransform(
     const double matparms[9], const double translation[3],
@@ -147,7 +151,19 @@ protected:
     vtkDoubleArray *parameters, vtkDoubleArray *fixedParameters,
     vtkIdType n, vtkIdType m, const char *classname);
 
-  virtual int ReadFile();
+  virtual int ReadTextFile();
+
+  virtual int ReadMatArray(istream &infile, vtkDoubleArray *array);
+
+  virtual int ReadMatTransform(istream &infile);
+
+  virtual int ReadMatFile();
+
+  static bool DecodeMatHeader(const char cp[20], int ip[5]);
+
+  static bool IsMatFile(const char *fname);
+
+  virtual int CreateOutputTransform();
 
   virtual int ProcessRequest(vtkInformation* request,
                              vtkInformationVector** inInfo,

@@ -118,6 +118,11 @@ void vtkITKXFMReader::PrintSelf(ostream& os, vtkIndent indent)
 //-------------------------------------------------------------------------
 int vtkITKXFMReader::CanReadFile(const char* fname)
 {
+  if (fname == 0)
+    {
+    return 0;
+    }
+
   // First make sure the file exists.  This prevents an empty file
   // from being created on older compilers.
   struct stat fs;
@@ -129,19 +134,40 @@ int vtkITKXFMReader::CanReadFile(const char* fname)
   // Try to read the first line of the file.
   int status = 0;
 
-  ifstream infile(fname);
-
-  if (infile.good())
+  if (vtkITKXFMReader::IsMatFile(fname))
     {
-    status = 1;
-    char linetext[ITKXFM_MAXLINE];
-    infile.getline(linetext, ITKXFM_MAXLINE);
-    if (strncmp(linetext, "#Insight Transform File", 23) != 0)
+    ifstream infile(fname, ios::in | ios::binary);
+    if (infile.good())
       {
-      status = 0;
+      char header[20];
+      infile.read(header, 20);
+      if (infile.gcount() == 20)
+        {
+        int ival[5];
+        if (vtkITKXFMReader::DecodeMatHeader(header, ival))
+          {
+          status = 1;
+          }
+        }
       }
-
     infile.close();
+    }
+  else
+    {
+    ifstream infile(fname);
+
+    if (infile.good())
+      {
+      status = 1;
+      char linetext[ITKXFM_MAXLINE];
+      infile.getline(linetext, ITKXFM_MAXLINE);
+      if (strncmp(linetext, "#Insight Transform File", 23) != 0)
+        {
+        status = 0;
+        }
+
+      infile.close();
+      }
     }
 
   return status;
@@ -455,7 +481,305 @@ void vtkITKXFMReader::MatrixFromAngle(
 }
 
 //-------------------------------------------------------------------------
-int vtkITKXFMReader::ReadTransform(
+bool vtkITKXFMReader::DecodeMatHeader(const char cp[20], int ip[5])
+{
+  // Returns false if not a valid matlab level 4 header
+  bool rval = false;
+  const unsigned char *ucp = reinterpret_cast<const unsigned char *>(cp);
+  for (int bigEndian = 0; rval == false && bigEndian < 2; bigEndian++)
+    {
+    if (bigEndian)
+      {
+      for (int i = 0; i < 5; i++)
+        {
+        ip[i] = static_cast<int>(
+          (((((ucp[0] << 8) + ucp[1]) << 8) + ucp[2]) << 8) + ucp[3]);
+        ucp += 4;
+        }
+      }
+    else
+      {
+      for (int i = 0; i < 5; i++)
+        {
+        ip[i] = static_cast<int>(
+          ucp[0] + (ucp[1] << 8) + (ucp[2] << 16) + (ucp[3] << 24));
+        ucp += 4;
+        }
+      }
+
+    if (ip[0] >= 0)
+      {
+      rval = true;
+      int m = (ip[0] / 1000);
+      int o = (ip[0] / 100) % 10;
+      int p = (ip[0] / 10) % 10;
+      int t = ip[0] % 10;
+      if (m < 0 || m > 4 || o != 0 || p < 0 || p > 5 || t < 0 || t > 2)
+        {
+        // bad type
+        rval = false;
+        }
+      else if (ip[1] < 0)
+        {
+        // number of rows
+        rval = false;
+        }
+      else if (ip[2] < 0)
+        {
+        // number of columns
+        rval = false;
+        }
+      else if (ip[3] < 0 || ip[3] > 1)
+        {
+        // complex
+        rval = false;
+        }
+      else if (ip[4] < 0)
+        {
+        // name length (including null)
+        rval = false;
+        }
+      }
+    }
+
+  return rval;
+}
+
+//-------------------------------------------------------------------------
+bool vtkITKXFMReader::IsMatFile(const char *fname)
+{
+  // If filename exists and ends with .mat, assume it's a matlab file
+  if (fname)
+    {
+    size_t l = strlen(fname);
+    if (l > 4)
+      {
+      if (fname[l-4] == '.' &&
+          (fname[l-3] == 'm' || fname[l-3] == 'M') &&
+          (fname[l-2] == 'a' || fname[l-3] == 'A') &&
+          (fname[l-1] == 't' || fname[l-3] == 'T'))
+        {
+        return true;
+        }
+      }
+    }
+
+  return false;
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::ReadMatArray(
+  istream &infile, vtkDoubleArray *array)
+{
+  char header[20];
+  int ip[5];
+
+  infile.read(header, 20);
+  if (infile.gcount() != 20 ||
+      !vtkITKXFMReader::DecodeMatHeader(header, ip))
+    {
+    if (!infile.eof())
+      {
+      vtkErrorMacro("Invalid Matlab Level 4 header in " << this->FileName);
+      return 0;
+      }
+    return 1;
+    }
+
+  int m = (ip[0] / 1000);
+  int p = (ip[0] / 10) % 10;
+  int t = ip[0] % 10;
+  if (m < 0 || m > 1)
+    {
+    const char *tt = "Unknown";
+    if (m >= 2 || m <= 4)
+      {
+      static const char *formats[3] = { "VAX D", "VAX G", "Cray" };
+      tt = formats[m-2];
+      }
+    vtkErrorMacro("Illegal Matlab numeric format \"" << tt << "\"");
+    return 0;
+    }
+  else if (p < 0 || p > 1)
+    {
+    const char *tt = "Unknown";
+    if (m >= 2 || m <= 5)
+      {
+      static const char *types[4] = { "int", "short", "ushort", "uchar" };
+      tt = types[m-2];
+      }
+    vtkErrorMacro("Illegal Matlab data type \"" << tt << "\"");
+    return 0;
+    }
+  else if (t != 0)
+    {
+    const char *tt = (t == 1 ? "text" : "sparse");
+    vtkErrorMacro("Illegal Matlab array format \"" << tt << "\"");
+    }
+  else if (ip[1] < 0 || ip[1] > 12 || ip[2] != 1)
+    {
+    vtkErrorMacro("Bad Matlab array size (" << ip[1] << "," << ip[2] << ")");
+    return 0;
+    }
+  else if (ip[3] != 0)
+    {
+    vtkErrorMacro("Illegal Matlab numeric format \"complex\"");
+    return 0;
+    }
+  else if (ip[4] < 1 || ip[4] > 256)
+    {
+    vtkErrorMacro("Bad Matlab array name (length = " << ip[4] << ")");
+    return 0;
+    }
+
+  char name[256];
+  infile.read(name, ip[4]);
+  name[ip[4]-1] = '\0';
+
+  array->SetName(name);
+
+  for (int i = 0; i < ip[1]; i++)
+    {
+    double x = 0;
+    if (p == 0)
+      {
+      // data type is double
+      union { double d; unsigned long long l; } u;
+      unsigned char cp[8];
+      infile.read(reinterpret_cast<char *>(cp), 8);
+      if (!infile.good())
+        {
+        break;
+        }
+      if (m == 0)
+        {
+        // unpack little endian
+        unsigned int a =
+          cp[0] + (cp[1] << 8) + ((cp[2] + (cp[3] << 8)) << 16);
+        unsigned int b =
+          cp[4] + (cp[5] << 8) + ((cp[6] + (cp[7] << 8)) << 16);
+        u.l = (static_cast<unsigned long long>(b) << 32) + a;
+        }
+      else
+        {
+        // unpack big endian
+        unsigned int a =
+          (((((cp[0] << 8) + cp[1]) << 8) + cp[2]) << 8) + cp[3];
+        unsigned int b =
+          (((((cp[4] << 8) + cp[5]) << 8) + cp[6]) << 8) + cp[7];
+        u.l = (static_cast<unsigned long long>(a) << 32) + b;
+        }
+      x = u.d;
+      }
+    else
+      {
+      // data type if float
+      union { float f; unsigned int i; } u;
+      unsigned char cp[4];
+      infile.read(reinterpret_cast<char *>(cp), 4);
+      if (!infile.good())
+        {
+        break;
+        }
+      if (m == 0)
+        {
+        // unpack little endian
+        u.i = cp[0] + (cp[1] << 8) + (cp[2] << 16) + (cp[3] << 24);
+        }
+      else
+        {
+        // unpack big endian
+        u.i = (((((cp[0] << 8) + cp[1]) << 8) + cp[2]) << 8) + cp[3];
+        }
+      x = u.f;
+      }
+
+    array->InsertNextValue(x);
+    }
+
+  return 1;
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::ReadMatTransform(istream &infile)
+{
+  vtkSmartPointer<vtkDoubleArray> parameters =
+    vtkSmartPointer<vtkDoubleArray>::New();
+  if (!this->ReadMatArray(infile, parameters))
+    {
+    return 0;
+    }
+  else if (infile.eof())
+    {
+    return 1;
+    }
+
+  vtkSmartPointer<vtkDoubleArray> fixedParameters =
+    vtkSmartPointer<vtkDoubleArray>::New();
+  if (!this->ReadMatArray(infile, fixedParameters))
+    {
+    return 0;
+    }
+  else if (infile.eof())
+    {
+    return 1;
+    }
+
+  return this->AddTransform(
+    parameters->GetName(), parameters, fixedParameters);
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::ReadMatFile()
+{
+  this->Transforms->RemoveAllItems();
+  this->TransformParameters->RemoveAllItems();
+  this->TransformNames->Reset();
+  this->ErrorIndicator = 0;
+
+  // Check that the file name has been set.
+  if (!this->FileName || this->FileName[0] == '\0')
+    {
+    vtkErrorMacro("ReadMatFile: No file name has been set");
+    return 0;
+    }
+
+  // Make sure that the file exists.
+  struct stat fs;
+  if(stat(this->FileName, &fs) != 0)
+    {
+    vtkErrorMacro("ReadMatFile: Can't open file " << this->FileName);
+    return 0;
+    }
+
+  // Make sure that the file is readable.
+  ifstream infile(this->FileName);
+
+  if (infile.fail())
+    {
+    vtkErrorMacro("ReadTextFile: Can't read the file " << this->FileName);
+    return 0;
+    }
+
+  // Read the transforms
+  while (infile.good())
+    {
+    if (this->ReadMatTransform(infile) == 0)
+      {
+      this->Transforms->RemoveAllItems();
+      infile.close();
+      return 0;
+      }
+    }
+
+  // Close the file
+  infile.close();
+
+  return this->CreateOutputTransform();
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::ReadTextTransform(
   istream &infile, char linetext[ITKXFM_MAXLINE])
 {
   char identifier[ITKXFM_MAXLINE];
@@ -517,18 +841,30 @@ int vtkITKXFMReader::ReadTransform(
     return 0;
     }
 
+  return this->AddTransform(classname, parameters, fixedParameters);
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::AddTransform(
+  const char *name, vtkDoubleArray *parameters,
+  vtkDoubleArray *fixedParameters)
+{
   // Get the template parameters
+  size_t namelen = 0;
   int d1 = 3;
   int d2 = 3;
   int pcount = 0;
-  for (int l = 0; classname[l] != '\0'; l++)
+  for (int l = 0; name[l] != '\0'; l++)
     {
-    if (classname[l] == '_')
+    if (name[l] == '_')
       {
-      classname[l] = '\0';
+      if (namelen == 0)
+        {
+        namelen = l;
+        }
       if (pcount == 1 || pcount == 2)
         {
-        int d = static_cast<int>(atol(&classname[l+1]));
+        int d = static_cast<int>(atol(&name[l+1]));
         if (pcount == 1 && d != 0)
           {
           d1 = d;
@@ -542,6 +878,11 @@ int vtkITKXFMReader::ReadTransform(
       pcount++;
       }
     }
+
+  char classname[80];
+  strncpy(classname, name, 80);
+  namelen = (namelen > 0 && namelen < 80 ? namelen : 79);
+  classname[namelen] = '\0';
 
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
@@ -869,7 +1210,7 @@ int vtkITKXFMReader::ReadTransform(
 }
 
 //-------------------------------------------------------------------------
-int vtkITKXFMReader::ReadFile()
+int vtkITKXFMReader::ReadTextFile()
 {
   this->Transforms->RemoveAllItems();
   this->TransformParameters->RemoveAllItems();
@@ -879,7 +1220,7 @@ int vtkITKXFMReader::ReadFile()
   // Check that the file name has been set.
   if (!this->FileName || this->FileName[0] == '\0')
     {
-    vtkErrorMacro("ReadFile: No file name has been set");
+    vtkErrorMacro("ReadTextFile: No file name has been set");
     return 0;
     }
 
@@ -887,7 +1228,7 @@ int vtkITKXFMReader::ReadFile()
   struct stat fs;
   if(stat(this->FileName, &fs) != 0)
     {
-    vtkErrorMacro("ReadFile: Can't open file " << this->FileName);
+    vtkErrorMacro("ReadTextFile: Can't open file " << this->FileName);
     return 0;
     }
 
@@ -896,7 +1237,7 @@ int vtkITKXFMReader::ReadFile()
 
   if (infile.fail())
     {
-    vtkErrorMacro("ReadFile: Can't read the file " << this->FileName);
+    vtkErrorMacro("ReadTextFile: Can't read the file " << this->FileName);
     return 0;
     }
 
@@ -907,7 +1248,7 @@ int vtkITKXFMReader::ReadFile()
 
   if (strncmp(linetext, "#Insight Transform File", 23) != 0)
     {
-    vtkErrorMacro("ReadFile: File is not an ITK transform file: " << this->FileName);
+    vtkErrorMacro("ReadTextFile: File is not an ITK transform file: " << this->FileName);
     infile.close();
     return 0;
     }
@@ -915,7 +1256,7 @@ int vtkITKXFMReader::ReadFile()
   // Read the transforms
   while (infile.good())
     {
-    if (this->ReadTransform(infile, linetext) == 0)
+    if (this->ReadTextTransform(infile, linetext) == 0)
       {
       this->Transforms->RemoveAllItems();
       infile.close();
@@ -927,6 +1268,12 @@ int vtkITKXFMReader::ReadFile()
   // Close the file
   infile.close();
 
+  return this->CreateOutputTransform();
+}
+
+//-------------------------------------------------------------------------
+int vtkITKXFMReader::CreateOutputTransform()
+{
   // Create the output transform.
   int n = this->Transforms->GetNumberOfItems();
   if (n == 1)
@@ -996,9 +1343,16 @@ int vtkITKXFMReader::ProcessRequest(vtkInformation *request,
                                     vtkInformationVector **inputVector,
                                     vtkInformationVector *outputVector)
 {
-  if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
+  if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
     {
-    return this->ReadFile();
+    if (vtkITKXFMReader::IsMatFile(this->FileName))
+      {
+      return this->ReadMatFile();
+      }
+    else
+      {
+      return this->ReadTextFile();
+      }
     }
 
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
