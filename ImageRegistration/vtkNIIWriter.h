@@ -27,8 +27,8 @@
 // .SECTION See Also
 // vtkNIIReader
 
-#ifndef __vtkNIIWriter_h
-#define __vtkNIIWriter_h
+#ifndef vtkNIIWriter_h
+#define vtkNIIWriter_h
 
 #include <vtkImageWriter.h>
 
@@ -173,4 +173,4 @@ private:
   void operator=(const vtkNIIWriter&);  // Not implemented.
 };
 
-#endif // __vtkNIIWriter_h
+#endif // vtkNIIWriter_h

@@ -29,8 +29,8 @@
 // .SECTION See Also
 // vtkNIIWriter, vtkNIIHeader
 
-#ifndef __vtkNIIReader_h
-#define __vtkNIIReader_h
+#ifndef vtkNIIReader_h
+#define vtkNIIReader_h
 
 #include <vtkImageReader2.h>
 
@@ -208,4 +208,4 @@ private:
   void operator=(const vtkNIIReader&);  // Not implemented.
 };
 
-#endif // __vtkNIIReader_h
+#endif // vtkNIIReader_h

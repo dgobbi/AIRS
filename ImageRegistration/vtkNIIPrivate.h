@@ -274,4 +274,4 @@ typedef struct nifti_2_header nifti_2_header;
 /*=================*/
 
 #endif /* __NIFTI2_HEADER */
-// VTK-HeaderTest-Exclude: vtkNIIPrivate.h
+// VTK-HeaderTest-Exclude: vtkNIFTIPrivate.h

@@ -30,8 +30,8 @@
 // .SECTION See Also
 // vtkNIIReader, vtkNIIWriter
 
-#ifndef __vtkNIIHeader_h
-#define __vtkNIIHeader_h
+#ifndef vtkNIIHeader_h
+#define vtkNIIHeader_h
 
 #include <vtkObject.h>
 
@@ -272,7 +272,7 @@ public:
   const char *GetDescrip() { return this->Descrip; }
 
   // Description:
-  // Get an auxilliary file, e.g. a color table, that is associated
+  // Get an auxiliary file, e.g. a color table, that is associated
   // with this data.  The length of the filename must be a maximum of
   // 24 characters, and it will be assumed to be in the same directory
   // as the NIFTI file.
@@ -377,4 +377,4 @@ private:
   void operator=(const vtkNIIHeader&);  // Not implemented.
 };
 
-#endif // __vtkNIIHeader_h
+#endif // vtkNIIHeader_h
