@@ -48,7 +48,7 @@
 
 class vtkAbstractTransform;
 
-class VTK_HYBRID_EXPORT vtkTransformToStrain : public vtkAlgorithm
+class VTK_EXPORT vtkTransformToStrain : public vtkAlgorithm
 {
 public:
   static vtkTransformToStrain *New();

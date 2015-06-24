@@ -399,7 +399,11 @@ int strain_read_transform(
     vtkSmartPointer<vtkBSplineTransform> gt =
       vtkSmartPointer<vtkBSplineTransform>::New();
     gt->SetBorderModeToZero();
+#if VTK_MAJOR_VERSION >= 6
+    gt->SetCoefficientData(image);
+#else
     gt->SetCoefficients(image);
+#endif
     t = gt;
     }
   else
@@ -731,7 +735,11 @@ int main(int argc, char *argv[])
 
   vtkSmartPointer<vtkImageExtractComponents> extractor =
     vtkSmartPointer<vtkImageExtractComponents>::New();
+#if VTK_MAJOR_VERSION >= 6
+  extractor->SetInputData(computeStrain->GetOutput());
+#else
   extractor->SetInput(computeStrain->GetOutput());
+#endif
   if (outputType == PrincipalComponents)
     {
     extractor->SetComponents(0,1,2);

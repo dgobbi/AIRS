@@ -259,7 +259,11 @@ int strain_read_transform(
       vtkSmartPointer<vtkGridTransform>::New();
     // use linear to match ANTS?
     gt->SetInterpolationModeToCubic();
+#if VTK_MAJOR_VERSION >= 6
+    gt->SetDisplacementGridData(image);
+#else
     gt->SetDisplacementGrid(image);
+#endif
     t = gt;
     }
   else
@@ -463,12 +467,18 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkAppendPolyData>::New();
   glyphSource->AddInputConnection(arrowSource->GetOutputPort());
   glyphSource->AddInputConnection(lineSource->GetOutputPort());
+  glyphSource->Update();
 
   double glyphScale = 2.0*rfactor;
   vtkSmartPointer<vtkTensorGlyph> glyph =
     vtkSmartPointer<vtkTensorGlyph>::New();
+#if VTK_MAJOR_VERSION >= 6
+  glyph->SetInputData(tensors);
+  glyph->SetSourceData(glyphSource->GetOutput());
+#else
   glyph->SetInput(tensors);
   glyph->SetSource(glyphSource->GetOutput());
+#endif
   glyph->SetScaleFactor(glyphScale);
   glyph->ThreeGlyphsOn();
   glyph->SymmetricOn();
@@ -583,8 +593,13 @@ int main (int argc, char *argv[])
 
     vtkSmartPointer<vtkTensorGlyph> glyph2 =
       vtkSmartPointer<vtkTensorGlyph>::New();
+#if VTK_MAJOR_VERSION >= 6
+    glyph2->SetInputData(tensorData);
+    glyph2->SetSourceData(glyphSource->GetOutput());
+#else
     glyph2->SetInput(tensorData);
     glyph2->SetSource(glyphSource->GetOutput());
+#endif
     glyph2->SetScaleFactor(glyphScale);
     glyph2->ThreeGlyphsOn();
     glyph2->SymmetricOn();

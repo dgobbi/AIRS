@@ -42,7 +42,6 @@
 #include "vtkLSMReader.h"
 #include "vtkObjectFactory.h"
 #include "vtkImageData.h"
-#include "vtkSource.h"
 #include "vtkPointData.h"
 #include "vtkByteSwap.h"
 #include "vtkInformation.h"
@@ -1315,10 +1314,20 @@ int vtkLSMReader::RequestData(
 
   // get the info object
   vtkInformation *outInfo = outputVector->GetInformationObject(0);
-  vtkImageData *data = this->AllocateOutputData(outInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkImageData *data = vtkImageData::SafeDownCast(
+    outInfo->Get(vtkDataObject::DATA_OBJECT()));
+
+   data->SetExtent(
+     outInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
+#if VTK_MAJOR_VERSION >= 6
+  data->AllocateScalars(outInfo);
+#else
+  data->AllocateScalars();
+#endif
+
   data->GetPointData()->GetScalars()->SetName("LSM Scalars");
 
-    data->GetExtent(outExtent);
+  data->GetExtent(outExtent);
   if (!this->Identifier)
     {
     vtkDebugMacro(<<"Can not execute data since information has not been executed!");

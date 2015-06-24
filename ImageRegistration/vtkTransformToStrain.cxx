@@ -518,7 +518,11 @@ void vtkTransformToStrain::RequestData(
 
   output->SetExtent(
     outInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
+#if VTK_MAJOR_VERSION >= 6
+  output->AllocateScalars(outInfo);
+#else
   output->AllocateScalars();
+#endif
   int *extent = output->GetExtent();
 
   void *outPtr = output->GetScalarPointerForExtent(extent);

@@ -244,7 +244,11 @@ int read_transform(
       vtkSmartPointer<vtkGridTransform>::New();
     // use linear to match ANTS?
     gt->SetInterpolationModeToLinear();
+#if VTK_MAJOR_VERSION >= 6
+    gt->SetDisplacementGridData(image);
+#else
     gt->SetDisplacementGrid(image);
+#endif
     t = gt;
     }
   else
