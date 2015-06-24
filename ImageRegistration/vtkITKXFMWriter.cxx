@@ -117,13 +117,6 @@ int vtkITKXFMWriter::WriteLinearTransform(
   ostream &outfile, vtkHomogeneousTransform *transform)
 {
   vtkMatrix4x4 *matrix = transform->GetMatrix();
-  double c[4] = { 0.0, 0.0, 0.0, 1.0 };
-  this->GetTransformCenter(c);
-  double t[4];
-  matrix->MultiplyPoint(c, t);
-  t[0] -= c[0];
-  t[1] -= c[1];
-  t[2] -= c[2];
 
   if (matrix->GetElement(3,0) != 0.0 ||
       matrix->GetElement(3,1) != 0.0 ||
@@ -134,26 +127,89 @@ int vtkITKXFMWriter::WriteLinearTransform(
     return 0;
     }
 
-  outfile << "Transform: MatrixOffsetTransformBase_double_3_3\n";
+  double c[4] = { 0.0, 0.0, 0.0, 1.0 };
+  this->GetTransformCenter(c);
+  double t[4];
+  matrix->MultiplyPoint(c, t);
+  t[0] -= c[0];
+  t[1] -= c[1];
+  t[2] -= c[2];
 
-  outfile << "Parameters:";
-
-  outfile.precision(15);
-
+  double p[12];
   for (int i = 0; i < 3; i++)
     {
-    outfile << " " << matrix->GetElement(i, 0)
-            << " " << matrix->GetElement(i, 1)
-            << " " << matrix->GetElement(i, 2);
+    for (int j = 0; j < 3; j++)
+      {
+      p[3*i + j] =  matrix->GetElement(i, j);
+      }
+    p[9 + i] = t[i];
     }
 
-  outfile << " " << t[0] << " " << t[1] << " " << t[2];
-  outfile << "\n";
+  if (vtkITKXFMWriter::IsMatFile(this->FileName))
+    {
+    // write the transform as a Matlab Level 4 file, little endian
+    char head[20] = {
+      0x00,0x00,0x00,0x00, // type is IEEE little endian
+      0x0C,0x00,0x00,0x00, // 12 rows
+      0x01,0x00,0x00,0x00, // 1 column
+      0x00,0x00,0x00,0x00, // double-precision
+      0x1b,0x00,0x00,0x00  // array name is 27 bytes (with null)
+    };
 
-  outfile << "FixedParameters:";
-  outfile << " " << c[0] << " " << c[1] << " " << c[2];
+    for (int j = 0; j < 2; j++)
+      {
+      // first iteration writes the parameters,
+      // second iteration writes the fixed parameters
+      double *dp = (j == 0 ? p : c);
+      const char *name = (j == 0 ? "AffineTransform_double_3_3" : "fixed");
+      int n = (j == 0 ? 12 : 3);
+      int m = static_cast<int>(strlen(name) + 1);
+      head[4] = n;
+      head[16] = m;
 
-  outfile << "\n";
+      outfile.write(head, 20);
+      outfile.write(name, m);
+
+      for (int k = 0; k < n; k++)
+        {
+        // write little-endian double-precision
+        union { double d; unsigned long long l; } u;
+        u.d = dp[k];
+        unsigned long long l = u.l;
+        char op[8];
+        op[0] = static_cast<unsigned char>(l);
+        op[1] = static_cast<unsigned char>(l >> 8);
+        op[2] = static_cast<unsigned char>(l >> 16);
+        op[3] = static_cast<unsigned char>(l >> 24);
+        l >>= 32;
+        op[4] = static_cast<unsigned char>(l);
+        op[5] = static_cast<unsigned char>(l >> 8);
+        op[6] = static_cast<unsigned char>(l >> 16);
+        op[7] = static_cast<unsigned char>(l >> 24);
+        outfile.write(op, 8);
+        }
+      }
+    }
+  else
+    {
+    // write the transform as text
+    outfile << "Transform: MatrixOffsetTransformBase_double_3_3\n";
+
+    outfile << "Parameters:";
+
+    outfile.precision(15);
+
+    for (int k = 0; k < 12; k++)
+      {
+      outfile << " " << p[k];
+      }
+    outfile << "\n";
+
+    outfile << "FixedParameters:";
+    outfile << " " << c[0] << " " << c[1] << " " << c[2];
+
+    outfile << "\n";
+    }
 
   return 1;
 }
@@ -190,8 +246,13 @@ int vtkITKXFMWriter::WriteFile()
     return 0;
     }
 
+  // Is this a matlab file?
+  bool isMat = vtkITKXFMWriter::IsMatFile(this->FileName);
+
   // Open the file.
-  ofstream outfile(this->FileName, ios::out);
+  ofstream outfile(this->FileName,
+                   (isMat ? ios::out | ios::trunc | ios::binary :
+                            ios::out | ios::trunc));
 
   if (outfile.fail())
     {
@@ -199,8 +260,11 @@ int vtkITKXFMWriter::WriteFile()
     return 0;
     }
 
-  // Write the header
-  outfile << "#Insight Transform File V1.0\n";
+  if (!isMat)
+    {
+    // Write the header
+    outfile << "#Insight Transform File V1.0\n";
+    }
 
   // Push the transforms onto the stack in reverse order
   std::stack<vtkAbstractTransform *> tstack;
@@ -233,7 +297,10 @@ int vtkITKXFMWriter::WriteFile()
     else
       {
       // Write all other kinds of transforms
-      outfile << "#Transform " << count << "\n";
+      if (!isMat)
+        {
+        outfile << "#Transform " << count << "\n";
+        }
       status = this->WriteTransform(outfile, transform);
       count++;
       }
@@ -344,4 +411,26 @@ void vtkITKXFMWriter::AddTransform(vtkAbstractTransform *transform)
     this->Transforms->AddItem(transform);
     this->Modified();
     }
+}
+
+//-------------------------------------------------------------------------
+bool vtkITKXFMWriter::IsMatFile(const char *fname)
+{
+  // If filename exists and ends with .mat, assume it's a matlab file
+  if (fname)
+    {
+    size_t l = strlen(fname);
+    if (l > 4)
+      {
+      if (fname[l-4] == '.' &&
+          (fname[l-3] == 'm' || fname[l-3] == 'M') &&
+          (fname[l-2] == 'a' || fname[l-3] == 'A') &&
+          (fname[l-1] == 't' || fname[l-3] == 'T'))
+        {
+        return true;
+        }
+      }
+    }
+
+  return false;
 }

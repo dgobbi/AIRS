@@ -72,7 +72,7 @@ public:
   // Description:
   // Get the entension for this file format.
   virtual const char* GetFileExtensions() {
-    return ".txt" ".tfm"; }
+    return ".txt" ".tfm" ".mat"; }
 
   // Description:
   // Get the name of this file format.
@@ -115,13 +115,15 @@ protected:
   vtkCollection *Transforms;
   double TransformCenter[3];
 
-  int WriteLinearTransform(ostream &outfile,
-                           vtkHomogeneousTransform *transform);
+  int WriteLinearTransform(
+    ostream &outfile, vtkHomogeneousTransform *transform);
 
   virtual int WriteTransform(ostream &outfile,
                              vtkAbstractTransform *transform);
 
   virtual int WriteFile();
+
+  static bool IsMatFile(const char *fname);
 
   virtual int ProcessRequest(vtkInformation* request,
                              vtkInformationVector** inInfo,
