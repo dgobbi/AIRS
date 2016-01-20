@@ -133,17 +133,19 @@ protected:
   vtkIdType  RowEndIncrement;   // from end of row to start of next row
   vtkIdType  SliceEndIncrement; // from end of slice to start of next slice
 
-  // Index-related items
-  int        StartY;
+  // The span to cover
   int        MinX;
   int        MaxX;
   int        MinY;
   int        MaxY;
   int        MinZ;
   int        MaxZ;
+
+  // Index-related items
   int        IndexX;
   int        IndexY;
   int        IndexZ;
+  int        StartY;
 
   // Stencil-related items
   bool       HasStencil;

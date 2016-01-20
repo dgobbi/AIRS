@@ -20,22 +20,24 @@
 #include "vtkImageRegionIterator.h"
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
+#include "vtkDataArray.h"
+#include "vtkPointData.h"
 #include "vtkAlgorithm.h"
 
 //----------------------------------------------------------------------------
 class vtkImageStencilIteratorFriendship
 {
-  public:
+public:
 
-    static int *GetExtentListLengths(vtkImageStencilData *stencil)
-      {
-      return stencil->ExtentListLengths;
-      }
+  static int *GetExtentListLengths(vtkImageStencilData *stencil)
+    {
+    return stencil->ExtentListLengths;
+    }
 
-    static int **GetExtentLists(vtkImageStencilData *stencil)
-      {
-      return stencil->ExtentLists;
-      }
+  static int **GetExtentLists(vtkImageStencilData *stencil)
+    {
+    return stencil->ExtentLists;
+    }
 };
 
 //----------------------------------------------------------------------------
@@ -54,16 +56,17 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator()
   this->SliceEndIncrement = 0;
   this->SliceIncrement = 0;
 
-  this->StartY = 0;
   this->MinX = 0;
   this->MaxX = 0;
   this->MinY = 0;
   this->MaxY = 0;
   this->MinZ = 0;
   this->MaxZ = 0;
+
   this->IndexX = 0;
   this->IndexY = 0;
   this->IndexZ = 0;
+  this->StartY = 0;
 
   this->HasStencil = false;
   this->InStencil = false;
@@ -83,36 +86,54 @@ template <class DType>
 void vtkImageRegionIterator<DType>::Initialize(
   vtkImageData *image, vtkImageStencilData *stencil, int extent[6])
 {
-  image->GetIncrements(
-    this->PixelIncrement, this->RowIncrement, this->SliceIncrement);
+  // Get the data array to use.
+  vtkDataArray *array = image->GetPointData()->GetScalars();
 
-  vtkIdType tmp;
-  image->GetContinuousIncrements(
-    extent, tmp, this->RowEndIncrement, this->SliceEndIncrement);
+  int dataExtent[6];
+  image->GetExtent(dataExtent);
 
-  this->Pointer = static_cast<DType *>(
-    image->GetScalarPointerForExtent(extent));
+  // Compute the increments for marching through the data.
+  this->PixelIncrement = array->GetNumberOfComponents();
+  this->RowIncrement =
+    this->PixelIncrement*(dataExtent[1] - dataExtent[0] + 1);
+  this->SliceIncrement =
+    this->RowIncrement*(dataExtent[3] - dataExtent[2] + 1);
 
-  this->SpanEndPointer = this->Pointer;
-  this->RowEndPointer = this->Pointer;
-  this->SliceEndPointer = this->Pointer;
-  this->EndPointer = this->Pointer;
+  // Compute the span of the image region to be covered.
+  int rowSpan = 0;
+  int sliceSpan = 0;
+  int volumeSpan = 0;
+  vtkIdType idx = 0;
 
   if (extent[1] >= extent[0] &&
       extent[3] >= extent[2] &&
       extent[5] >= extent[4])
     {
-    this->SpanEndPointer = this->Pointer +
-      this->PixelIncrement*(extent[1] - extent[0] + 1);
-    this->RowEndPointer = this->SpanEndPointer;
-    this->SliceEndPointer = this->RowEndPointer +
-      this->RowIncrement*(extent[3] - extent[2]);
-    this->EndPointer = this->SliceEndPointer +
-      this->SliceIncrement*(extent[5] - extent[4]);
+    rowSpan = extent[1] - extent[0] + 1;
+    sliceSpan = extent[3] - extent[2] + 1;
+    volumeSpan = extent[5] - extent[4] + 1;
+    idx = (extent[0] - dataExtent[0]) +
+      (extent[2] - dataExtent[2])*this->RowIncrement +
+      (extent[4] - dataExtent[4])*this->SliceIncrement;
     }
 
-  this->StartY = extent[2];
+  // Compute the end increments (continous increments).
+  this->RowEndIncrement = this->RowIncrement - rowSpan;
+  this->SliceEndIncrement = this->RowEndIncrement +
+    this->SliceIncrement - this->RowIncrement*sliceSpan;
 
+  // Get the begin and end pointers for the first span.
+  this->Pointer = static_cast<DType *>(array->GetVoidPointer(idx));
+  this->SpanEndPointer = this->Pointer + this->PixelIncrement*rowSpan;
+
+  // Get the end pointers for row, slice, and volume.
+  this->RowEndPointer = this->Pointer + this->PixelIncrement*rowSpan;
+  this->SliceEndPointer = this->Pointer +
+    (this->RowIncrement*sliceSpan - this->RowEndIncrement);
+  this->EndPointer = this->Pointer +
+    (this->SliceIncrement*volumeSpan - this->SliceEndIncrement);
+
+  // Save the extent (will be adjusted if there is a stencil).
   this->MinX = extent[0];
   this->MaxX = extent[1];
   this->MinY = extent[2];
@@ -120,11 +141,15 @@ void vtkImageRegionIterator<DType>::Initialize(
   this->MinZ = extent[4];
   this->MaxZ = extent[5];
 
-  this->IndexX = extent[0];
-  this->IndexY = extent[2];
-  this->IndexZ = extent[4];
+  // For keeping track of the current x,y,z index.
+  this->IndexX = this->MinX;
+  this->IndexY = this->MinY;
+  this->IndexZ = this->MinZ;
 
-  // Code for when a stencil is provided
+  // For resetting the Y index after each slice.
+  this->StartY = this->IndexY;
+
+  // Code for when a stencil is provided.
   if (stencil)
     {
     this->HasStencil = true;
