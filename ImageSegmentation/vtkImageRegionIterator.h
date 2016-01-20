@@ -133,12 +133,7 @@ protected:
   vtkIdType  RowEndIncrement;   // from end of row to start of next row
   vtkIdType  SliceEndIncrement; // from end of slice to start of next slice
 
-  // Stencil-related items
-  bool       HasStencil;
-  bool       InStencil;
-  int        SpanSliceEndIncrement;
-  int        SpanSliceIncrement;
-  int        SpanIndex;
+  // Index-related items
   int        StartY;
   int        MinX;
   int        MaxX;
@@ -149,6 +144,13 @@ protected:
   int        IndexX;
   int        IndexY;
   int        IndexZ;
+
+  // Stencil-related items
+  bool       HasStencil;
+  bool       InStencil;
+  int        SpanSliceEndIncrement;
+  int        SpanSliceIncrement;
+  int        SpanIndex;
   int       *SpanCountPointer;
   int      **SpanListPointer;
 

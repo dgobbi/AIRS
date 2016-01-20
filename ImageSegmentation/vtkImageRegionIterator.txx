@@ -54,11 +54,6 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator()
   this->SliceEndIncrement = 0;
   this->SliceIncrement = 0;
 
-  this->HasStencil = false;
-  this->InStencil = false;
-  this->SpanSliceEndIncrement = 0;
-  this->SpanSliceIncrement = 0;
-  this->SpanIndex = 0;
   this->StartY = 0;
   this->MinX = 0;
   this->MaxX = 0;
@@ -69,6 +64,12 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator()
   this->IndexX = 0;
   this->IndexY = 0;
   this->IndexZ = 0;
+
+  this->HasStencil = false;
+  this->InStencil = false;
+  this->SpanSliceEndIncrement = 0;
+  this->SpanSliceIncrement = 0;
+  this->SpanIndex = 0;
   this->SpanCountPointer = 0;
   this->SpanListPointer = 0;
 
