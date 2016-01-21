@@ -14,6 +14,7 @@ SET(Kit_SRCS
   vtkImageConnectivityFilter.cxx
   vtkImageIslandRemoval.cxx
   vtkImageMRIBrainExtractor.cxx
+  vtkImageExtractPoints.cxx
   vtkImageRegionIterator.cxx
 )
 
