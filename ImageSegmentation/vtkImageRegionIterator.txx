@@ -88,7 +88,7 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator()
 //----------------------------------------------------------------------------
 template <class DType>
 void vtkImageRegionIterator<DType>::Initialize(
-  vtkImageData *image, vtkImageStencilData *stencil, int extent[6])
+  vtkImageData *image, vtkImageStencilData *stencil, const int extent[6])
 {
   // Get the data array to use.
   vtkDataArray *array = image->GetPointData()->GetScalars();
@@ -253,7 +253,7 @@ void vtkImageRegionIterator<DType>::Initialize(
 //----------------------------------------------------------------------------
 template <class DType>
 vtkImageRegionIterator<DType>::vtkImageRegionIterator(
-  vtkImageData *image, vtkImageStencilData *stencil, int extent[6],
+  vtkImageData *image, vtkImageStencilData *stencil, const int extent[6],
   vtkAlgorithm *algorithm, int threadId)
 {
   this->Initialize(image, stencil, extent);

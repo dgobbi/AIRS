@@ -42,7 +42,7 @@ public:
   // provided, it must have an extent at least as large as the desired
   // extent.
   vtkImageRegionIterator(
-    vtkImageData *image, vtkImageStencilData *stencil, int extent[6],
+    vtkImageData *image, vtkImageStencilData *stencil, const int extent[6],
     vtkAlgorithm *algorithm=0, int threadId=0);
 
   // Description:
@@ -50,7 +50,7 @@ public:
   // provided, it must have an extent at least as large as the desired
   // extent.
   void Initialize(
-    vtkImageData *image, vtkImageStencilData *stencil, int extent[6]);
+    vtkImageData *image, vtkImageStencilData *stencil, const int extent[6]);
 
   // Description:
   // Check if the iterator is within the stencilled region.  This
