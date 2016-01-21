@@ -44,11 +44,15 @@ public:
 template <class DType>
 vtkImageRegionIterator<DType>::vtkImageRegionIterator()
 {
+  this->BasePointer = 0;
   this->Pointer = 0;
   this->SpanEndPointer = 0;
-  this->RowEndPointer = 0;
-  this->SliceEndPointer = 0;
-  this->EndPointer = 0;
+
+  this->PointId = 0;
+  this->SpanEnd = 0;
+  this->RowEnd = 0;
+  this->SliceEnd = 0;
+  this->End = 0;
 
   this->PixelIncrement = 0;
   this->RowEndIncrement = 0;
@@ -94,8 +98,7 @@ void vtkImageRegionIterator<DType>::Initialize(
 
   // Compute the increments for marching through the data.
   this->PixelIncrement = array->GetNumberOfComponents();
-  this->RowIncrement =
-    this->PixelIncrement*(dataExtent[1] - dataExtent[0] + 1);
+  this->RowIncrement = dataExtent[1] - dataExtent[0] + 1;
   this->SliceIncrement =
     this->RowIncrement*(dataExtent[3] - dataExtent[2] + 1);
 
@@ -103,7 +106,7 @@ void vtkImageRegionIterator<DType>::Initialize(
   int rowSpan = 0;
   int sliceSpan = 0;
   int volumeSpan = 0;
-  vtkIdType idx = 0;
+  this->PointId = 0;
 
   if (extent[1] >= extent[0] &&
       extent[3] >= extent[2] &&
@@ -112,25 +115,26 @@ void vtkImageRegionIterator<DType>::Initialize(
     rowSpan = extent[1] - extent[0] + 1;
     sliceSpan = extent[3] - extent[2] + 1;
     volumeSpan = extent[5] - extent[4] + 1;
-    idx = (extent[0] - dataExtent[0]) +
+    this->PointId = (extent[0] - dataExtent[0]) +
       (extent[2] - dataExtent[2])*this->RowIncrement +
       (extent[4] - dataExtent[4])*this->SliceIncrement;
     }
-
   // Compute the end increments (continous increments).
   this->RowEndIncrement = this->RowIncrement - rowSpan;
   this->SliceEndIncrement = this->RowEndIncrement +
     this->SliceIncrement - this->RowIncrement*sliceSpan;
 
   // Get the begin and end pointers for the first span.
-  this->Pointer = static_cast<DType *>(array->GetVoidPointer(idx));
+  this->BasePointer = static_cast<DType *>(array->GetVoidPointer(0));
+  this->Pointer = this->BasePointer + this->PixelIncrement*this->PointId;
   this->SpanEndPointer = this->Pointer + this->PixelIncrement*rowSpan;
 
   // Get the end pointers for row, slice, and volume.
-  this->RowEndPointer = this->Pointer + this->PixelIncrement*rowSpan;
-  this->SliceEndPointer = this->Pointer +
+  this->SpanEnd = this->PointId + rowSpan;
+  this->RowEnd = this->PointId + rowSpan;
+  this->SliceEnd = this->PointId +
     (this->RowIncrement*sliceSpan - this->RowEndIncrement);
-  this->EndPointer = this->Pointer +
+  this->End = this->PointId +
     (this->SliceIncrement*volumeSpan - this->SliceEndIncrement);
 
   // Save the extent (will be adjusted if there is a stencil).
@@ -300,48 +304,52 @@ void vtkImageRegionIterator<DType>::SetSpanState(int idX)
     }
 
   // Compute the pointers for idX and endIdX
-  DType *rowStartPointer =
-    this->RowEndPointer - (this->RowIncrement - this->RowEndIncrement);
+  vtkIdType rowStart =
+    this->RowEnd - (this->RowIncrement - this->RowEndIncrement);
 
-  this->Pointer =
-    rowStartPointer + (idX - this->MinX)*this->PixelIncrement;
+  this->PointId = rowStart + (idX - this->MinX);
+  this->SpanEnd = rowStart + (endIdX - this->MinX);
 
+  this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
   this->SpanEndPointer =
-    rowStartPointer + (endIdX - this->MinX)*this->PixelIncrement;
+    this->BasePointer + this->SpanEnd*this->PixelIncrement;
 }
 
 //----------------------------------------------------------------------------
 template <class DType>
 void vtkImageRegionIterator<DType>::NextSpan()
 {
-  if (this->SpanEndPointer == this->RowEndPointer)
+  if (this->SpanEnd == this->RowEnd)
     {
     int spanIncr = 1;
 
-    if (this->SpanEndPointer != this->SliceEndPointer)
+    if (this->SpanEnd != this->SliceEnd)
       {
       // Move to the next row
-      this->Pointer = this->RowEndPointer + this->RowEndIncrement;
-      this->RowEndPointer += this->RowIncrement;
-      this->SpanEndPointer = this->RowEndPointer;
+      this->PointId = this->RowEnd + this->RowEndIncrement;
+      this->RowEnd += this->RowIncrement;
+      this->SpanEnd = this->RowEnd;
       this->IndexY++;
       }
-    else if (this->SpanEndPointer != this->EndPointer)
+    else if (this->SpanEnd != this->End)
       {
       // Move to the next slice
-      this->Pointer = this->SliceEndPointer + this->SliceEndIncrement;
-      this->SliceEndPointer += this->SliceIncrement;
-      this->RowEndPointer = this->Pointer +
+      this->PointId = this->SliceEnd + this->SliceEndIncrement;
+      this->SliceEnd += this->SliceIncrement;
+      this->RowEnd = this->PointId +
         (this->RowIncrement - this->RowEndIncrement);
-      this->SpanEndPointer = this->RowEndPointer;
+      this->SpanEnd = this->RowEnd;
       this->IndexY = this->StartY;
       this->IndexZ++;
       spanIncr += this->SpanSliceEndIncrement;
       }
     else
       {
-      // reached EndPointer
-      this->Pointer = this->EndPointer;
+      // reached End
+      this->PointId = this->End;
+      this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
+      this->SpanEndPointer =
+        this->BasePointer + this->SpanEnd*this->PixelIncrement;
       return;
       }
 
@@ -373,7 +381,7 @@ void vtkImageRegionIterator<DType>::NextSpan()
   else
     {
     // Move to the next span in the current row
-    this->Pointer = this->SpanEndPointer;
+    this->PointId = this->SpanEnd;
     int spanCount = *this->SpanCountPointer;
     int endIdX = this->MaxX + 1;
     this->IndexX = endIdX;
@@ -397,14 +405,18 @@ void vtkImageRegionIterator<DType>::NextSpan()
         }
       }
 
-    // Compute the pointer for endIdX
-    this->SpanEndPointer = this->RowEndPointer -
+    // Compute the end of the span
+    this->SpanEnd = this->RowEnd -
       (this->RowIncrement - this->RowEndIncrement) +
-      (endIdX - this->MinX)*this->PixelIncrement;
+      (endIdX - this->MinX);
 
     // Flip the state
     this->InStencil = !this->InStencil;
     }
+
+  this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
+  this->SpanEndPointer =
+    this->BasePointer + this->SpanEnd*this->PixelIncrement;
 }
 
 //----------------------------------------------------------------------------
@@ -415,10 +427,10 @@ void vtkImageRegionIterator<DType>::ReportProgress()
     {
     if (this->Algorithm->GetAbortExecute())
       {
-      this->Pointer = this->EndPointer;
-      this->SpanEndPointer = this->EndPointer;
-      this->RowEndPointer = this->EndPointer;
-      this->SliceEndPointer = this->EndPointer;
+      this->PointId = this->End;
+      this->SpanEnd = this->End;
+      this->RowEnd = this->End;
+      this->SliceEnd = this->End;
       }
     else
       {

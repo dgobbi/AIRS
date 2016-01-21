@@ -69,7 +69,7 @@ public:
   // Test if the end of the extent has been reached
   bool IsAtEnd()
     {
-    return (this->Pointer == this->EndPointer);
+    return (this->PointId == this->End);
     }
 
   // Description:
@@ -107,6 +107,13 @@ public:
     return this->IndexZ;
     }
 
+  // Description:
+  // The PointId at the beginning of the current span.
+  int GetPointId()
+    {
+    return this->PointId;
+    }
+
 protected:
 
   // Description
@@ -120,11 +127,15 @@ protected:
   void ReportProgress();
 
   // Pointers
+  DType     *BasePointer;       // pointer to the first voxel
   DType     *Pointer;           // current iterator position within data
   DType     *SpanEndPointer;    // end of current span
-  DType     *RowEndPointer;     // end of current row
-  DType     *SliceEndPointer;   // end of current slice
-  DType     *EndPointer;        // end of data
+
+  vtkIdType  PointId;           // the current point Id
+  vtkIdType  SpanEnd;           // end of current span
+  vtkIdType  RowEnd;            // end of current row
+  vtkIdType  SliceEnd;          // end of current slice
+  vtkIdType  End;               // end of data
 
   // Increments
   vtkIdType  PixelIncrement;    // to next pixel
