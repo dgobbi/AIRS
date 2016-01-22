@@ -15,12 +15,20 @@ SET(Kit_SRCS
   vtkImageIslandRemoval.cxx
   vtkImageMRIBrainExtractor.cxx
   vtkImageExtractPoints.cxx
-  vtkImageRegionIterator.cxx
+  vtkImageRegionIteratorBase.cxx
+  vtkImageRegionIterator.h
 )
 
 SET_SOURCE_FILES_PROPERTIES(
+  vtkImageRegionIteratorBase
   vtkImageRegionIterator
   WRAP_EXCLUDE
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  vtkImageRegionIteratorBase
+  vtkImageRegionIterator
+  WRAP_PYTHON_EXCLUDE
 )
 
 SET(Kit_EXTRA_SRCS)

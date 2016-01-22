@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Visualization Toolkit
-  Module:    vtkImageRegionIterator.txx
+  Module:    vtkImageRegionIteratorBase.cxx
 
   Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
@@ -12,12 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// Include blockers needed since vtkImageRegionIterator.h includes
-// this file when VTK_NO_EXPLICIT_TEMPLATE_INSTANTIATION is defined.
-
-#ifndef __vtkImageRegionIterator_txx
-#define __vtkImageRegionIterator_txx
-#include "vtkImageRegionIterator.h"
+#include "vtkImageRegionIteratorBase.h"
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 #include "vtkDataArray.h"
@@ -41,20 +36,14 @@ public:
 };
 
 //----------------------------------------------------------------------------
-template <class DType>
-vtkImageRegionIterator<DType>::vtkImageRegionIterator()
+vtkImageRegionIteratorBase::vtkImageRegionIteratorBase()
 {
-  this->BasePointer = 0;
-  this->Pointer = 0;
-  this->SpanEndPointer = 0;
-
   this->PointId = 0;
   this->SpanEnd = 0;
   this->RowEnd = 0;
   this->SliceEnd = 0;
   this->End = 0;
 
-  this->PixelIncrement = 0;
   this->RowEndIncrement = 0;
   this->RowIncrement = 0;
   this->SliceEndIncrement = 0;
@@ -86,18 +75,13 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator()
 }
 
 //----------------------------------------------------------------------------
-template <class DType>
-void vtkImageRegionIterator<DType>::Initialize(
+void vtkImageRegionIteratorBase::Initialize(
   vtkImageData *image, vtkImageStencilData *stencil, const int extent[6])
 {
-  // Get the data array to use.
-  vtkDataArray *array = image->GetPointData()->GetScalars();
-
   int dataExtent[6];
   image->GetExtent(dataExtent);
 
   // Compute the increments for marching through the data.
-  this->PixelIncrement = array->GetNumberOfComponents();
   this->RowIncrement = dataExtent[1] - dataExtent[0] + 1;
   this->SliceIncrement =
     this->RowIncrement*(dataExtent[3] - dataExtent[2] + 1);
@@ -123,11 +107,6 @@ void vtkImageRegionIterator<DType>::Initialize(
   this->RowEndIncrement = this->RowIncrement - rowSpan;
   this->SliceEndIncrement = this->RowEndIncrement +
     this->SliceIncrement - this->RowIncrement*sliceSpan;
-
-  // Get the begin and end pointers for the first span.
-  this->BasePointer = static_cast<DType *>(array->GetVoidPointer(0));
-  this->Pointer = this->BasePointer + this->PixelIncrement*this->PointId;
-  this->SpanEndPointer = this->Pointer + this->PixelIncrement*rowSpan;
 
   // Get the end pointers for row, slice, and volume.
   this->SpanEnd = this->PointId + rowSpan;
@@ -251,8 +230,7 @@ void vtkImageRegionIterator<DType>::Initialize(
 }
 
 //----------------------------------------------------------------------------
-template <class DType>
-vtkImageRegionIterator<DType>::vtkImageRegionIterator(
+vtkImageRegionIteratorBase::vtkImageRegionIteratorBase(
   vtkImageData *image, vtkImageStencilData *stencil, const int extent[6],
   vtkAlgorithm *algorithm, int threadId)
 {
@@ -275,8 +253,7 @@ vtkImageRegionIterator<DType>::vtkImageRegionIterator(
 }
 
 //----------------------------------------------------------------------------
-template <class DType>
-void vtkImageRegionIterator<DType>::SetSpanState(int idX)
+void vtkImageRegionIteratorBase::SetSpanState(int idX)
 {
   // Find the span that includes idX
   bool inStencil = false;
@@ -309,15 +286,10 @@ void vtkImageRegionIterator<DType>::SetSpanState(int idX)
 
   this->PointId = rowStart + (idX - this->MinX);
   this->SpanEnd = rowStart + (endIdX - this->MinX);
-
-  this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
-  this->SpanEndPointer =
-    this->BasePointer + this->SpanEnd*this->PixelIncrement;
 }
 
 //----------------------------------------------------------------------------
-template <class DType>
-void vtkImageRegionIterator<DType>::NextSpan()
+void vtkImageRegionIteratorBase::NextSpan()
 {
   if (this->SpanEnd == this->RowEnd)
     {
@@ -347,9 +319,6 @@ void vtkImageRegionIterator<DType>::NextSpan()
       {
       // reached End
       this->PointId = this->End;
-      this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
-      this->SpanEndPointer =
-        this->BasePointer + this->SpanEnd*this->PixelIncrement;
       return;
       }
 
@@ -413,15 +382,20 @@ void vtkImageRegionIterator<DType>::NextSpan()
     // Flip the state
     this->InStencil = !this->InStencil;
     }
-
-  this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
-  this->SpanEndPointer =
-    this->BasePointer + this->SpanEnd*this->PixelIncrement;
 }
 
 //----------------------------------------------------------------------------
-template <class DType>
-void vtkImageRegionIterator<DType>::ReportProgress()
+void *vtkImageRegionIteratorBase::GetBasePointer(
+  vtkImageData *image, int *pixelIncrement)
+{
+  // Get the data array to use.
+  vtkDataArray *array = image->GetPointData()->GetScalars();
+  *pixelIncrement = array->GetNumberOfComponents();
+  return array->GetVoidPointer(0);
+}
+
+//----------------------------------------------------------------------------
+void vtkImageRegionIteratorBase::ReportProgress()
 {
   if (this->Count % this->Target == 0)
     {
@@ -439,5 +413,3 @@ void vtkImageRegionIterator<DType>::ReportProgress()
     }
   this->Count++;
 }
-
-#endif
