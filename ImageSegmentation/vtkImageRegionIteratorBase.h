@@ -67,6 +67,29 @@ public:
   void NextSpan();
 
   // Description:
+  // Get the size of the span.
+  int GetSpanSize()
+    {
+    return (this->SpanEnd - this->Id);
+    }
+
+  // Description:
+  // Move to the next position (rather than to the next span).
+  // This will automatically advance to the next span if the end of the
+  // current span is reached.
+  void Next()
+    {
+    if (++(this->Id) == this->SpanEnd)
+      {
+      this->NextSpan();
+      }
+    else
+      {
+      this->Index[0]++;
+      }
+    }
+
+  // Description:
   // Test if the end of the extent has been reached
   bool IsAtEnd()
     {
