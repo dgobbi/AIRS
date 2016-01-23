@@ -264,7 +264,7 @@ void vtkImageExtractPointsExecute(
       {
       inPtr = inIter.BeginSpan();
       T *inPtrEnd = inIter.EndSpan();
-      vtkIdType ptId = inIter.GetPointId();
+      vtkIdType ptId = inIter.GetId();
       const int *idx = inIter.GetIndex();
       int i = idx[0];
       double y = origin[1] + spacing[1]*idx[1];

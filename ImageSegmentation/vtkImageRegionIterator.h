@@ -103,7 +103,7 @@ protected:
 
   void UpdatePointer()
     {
-    this->Pointer = this->BasePointer + this->PointId*this->PixelIncrement;
+    this->Pointer = this->BasePointer + this->Id*this->PixelIncrement;
     this->SpanEndPointer =
       this->BasePointer + this->SpanEnd*this->PixelIncrement;
     }

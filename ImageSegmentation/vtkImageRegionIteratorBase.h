@@ -69,7 +69,7 @@ public:
   // Test if the end of the extent has been reached
   bool IsAtEnd()
     {
-    return (this->PointId == this->End);
+    return (this->Id == this->End);
     }
 
   // Description:
@@ -89,10 +89,10 @@ public:
     }
 
   // Description:
-  // The PointId at the beginning of the current span.
-  vtkIdType GetPointId()
+  // The Id at the beginning of the current span.
+  vtkIdType GetId()
     {
-    return this->PointId;
+    return this->Id;
     }
 
 protected:
@@ -111,7 +111,7 @@ protected:
   // Algorithm is not null.
   void ReportProgress();
 
-  vtkIdType  PointId;           // the current point Id
+  vtkIdType  Id;                // the current point Id
   vtkIdType  SpanEnd;           // end of current span
   vtkIdType  RowEnd;            // end of current row
   vtkIdType  SliceEnd;          // end of current slice
