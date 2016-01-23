@@ -12,72 +12,79 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// .NAME vtkImageRegionIteratorBase - an image region iterator
+// .NAME vtkImageRegionIteratorBase - iterate over point data in an image.
 // .SECTION Description
-// This is an image iterator that can be used to iterate over a
-// region of an image.
-
+// This class will iterate over an image.  For each position, it will
+// provide the (I,J,K) index, the point Id, and if a stencil is supplied,
+// it will report whether the point is inside or outside of the stencil.
+// <p>For efficiency, this class iterates over spans rather than points.
+// Each span is one image row or partial row, defined by a start position
+// and a size.  Within a span, only the X index and the point Id will change.
+// The vtkImageRegionIteratorBase and related iterators are the preferred
+// method of iterating over image data within the VTK image filters.
 // .SECTION See also
 // vtkImageData vtkImageStencilData vtkImageProgressIterator
 
-#ifndef __vtkImageRegionIteratorBase_h
-#define __vtkImageRegionIteratorBase_h
+#ifndef __WRAP__
+#ifndef vtkImageRegionIteratorBase_h
+#define vtkImageRegionIteratorBase_h
 
 #include "vtkSystemIncludes.h"
+
 class vtkDataArray;
 class vtkImageData;
 class vtkImageStencilData;
 class vtkAlgorithm;
 
-#ifndef __WRAP__
 class VTK_EXPORT vtkImageRegionIteratorBase
 {
 public:
   // Description:
-  // Default empty constructor, useful only when creating an array of
-  // iterators. Call Initialize() on each iterator before using.
+  // Default constructor, its use must be followed by Initialize().
   vtkImageRegionIteratorBase();
 
   // Description:
-  // Create an iterator for an extent of an image.  If a stencil is
-  // provided, it must have an extent at least as large as the desired
-  // extent.
-  vtkImageRegionIteratorBase(
-    vtkImageData *image, vtkImageStencilData *stencil, const int extent[6],
-    vtkAlgorithm *algorithm=0, int threadId=0);
-
-  // Description:
-  // Initialize  an iterator for an extent of the image.  If a stencil is
-  // provided, it must have an extent at least as large as the desired
-  // extent.
-  void Initialize(
-    vtkImageData *image, vtkImageStencilData *stencil, const int extent[6]);
-
-  // Description:
-  // Check if the iterator is within the stencilled region.  This
-  // is updated when NextSpan() is called.
-  bool IsInStencil()
+  // Create an iterator for the given image, with several options.
+  // If a stencil is provided, then the iterator's IsInStencil() method
+  // reports whether each span is inside the stencil.  If an extent is
+  // provided, it iterates over the extent and ignores the rest of the
+  // image (the provided extent must be within the image extent).  If
+  // a pointer to the algorithm is provided and threadId is set to zero,
+  // then progress events will provided for the algorithm.
+  vtkImageRegionIteratorBase(vtkImageData *image,
+                            const int extent[6] = 0,
+                            vtkImageStencilData *stencil=0,
+                            vtkAlgorithm *algorithm=0,
+                            int threadId=0)
     {
-    return this->InStencil;
+    this->Initialize(image, extent, stencil, algorithm, threadId);
     }
 
   // Description:
-  // Move the iterator to the start of the next span.  A span is a
-  // contiguous region over which nothing but the X index changes.
+  // Initialize an iterator.  See constructor for more details.
+  void Initialize(vtkImageData *image, const int extent[6] = 0,
+                  vtkImageStencilData *stencil=0,
+                  vtkAlgorithm *algorithm=0, int threadId=0);
+
+  // Description:
+  // Move the iterator to the beginning of the next span.
+  // A span is a contiguous region of the image over which nothing but
+  // the point Id and the X index changes.
   void NextSpan();
 
   // Description:
-  // Get the size of the span.
-  int GetSpanSize()
-    {
-    return (this->SpanEnd - this->Id);
-    }
-
-  // Description:
-  // Test if the end of the extent has been reached
+  // Test if the iterator has completed iterating over the entire extent.
   bool IsAtEnd()
     {
     return (this->Id == this->End);
+    }
+
+  // Description:
+  // Check if the iterator is within the region specified by the stencil.
+  // This is updated when NextSpan() is called.
+  bool IsInStencil()
+    {
+    return this->InStencil;
     }
 
   // Description:
@@ -97,23 +104,33 @@ public:
     }
 
   // Description:
-  // The Id at the beginning of the current span.
+  // Get the point Id at the beginning of the current span.
   vtkIdType GetId()
     {
     return this->Id;
     }
 
-  // Description
-  // Get a void pointer and pixel increment for the given Id.
-  // The pixel increment is the number of scalar components.
-  static void *GetVoidPointer(
-    vtkImageData *image, int *pixelIncrement, vtkIdType i);
+  // Description:
+  // Get the end of the span.
+  vtkIdType SpanEndId()
+    {
+    return this->SpanEnd;
+    }
 
   // Description
-  // Get a void pointer and pixel increment for the given Id.
-  // The array should hold point attributes of the image.
-  static void *GetVoidPointer(
-    vtkDataArray *image, int *pixelIncrement, vtkIdType i);
+  // Get a void pointer and pixel increment for the given point Id.
+  // The pixel increment is the number of scalar components.
+  static void *GetVoidPointer(vtkImageData *image,
+                              vtkIdType i=0,
+                              int *pixelIncrement=0);
+
+  // Description
+  // Get a void pointer and pixel increment for the given point Id.
+  // The array must be the same size as the image.  The pixel increment
+  // that is returned will be the number of components for the array.
+  static void *GetVoidPointer(vtkDataArray *array,
+                              vtkIdType i=0,
+                              int *pixelIncrement=0);
 
 protected:
 
@@ -122,9 +139,9 @@ protected:
   void SetSpanState(int idX);
 
   // Description
-  // Report the progress and do an abort check.  This must be called
-  // every time that one row of the image is completed. Only called if
-  // Algorithm is not null.
+  // Report the progress and do an abort check, for compatibility with
+  // existing image filters.  If an algorithm was provided to the constructor,
+  // then this is called every time that one row of the image is completed.
   void ReportProgress();
 
   vtkIdType  Id;                // the current point Id
@@ -159,8 +176,9 @@ protected:
   vtkAlgorithm *Algorithm;
   vtkIdType  Count;
   vtkIdType  Target;
+  int        ThreadId;
 };
-#endif
 
+#endif
 #endif
 // VTK-HeaderTest-Exclude: vtkImageRegionIteratorBase.h

@@ -72,14 +72,19 @@ vtkImageRegionIteratorBase::vtkImageRegionIteratorBase()
   this->Algorithm = 0;
   this->Count = 0;
   this->Target = 0;
+  this->ThreadId = 0;
 }
 
 //----------------------------------------------------------------------------
 void vtkImageRegionIteratorBase::Initialize(
-  vtkImageData *image, vtkImageStencilData *stencil, const int extent[6])
+  vtkImageData *image, const int extent[6], vtkImageStencilData *stencil,
+  vtkAlgorithm *algorithm, int threadId)
 {
-  int dataExtent[6];
-  image->GetExtent(dataExtent);
+  const int *dataExtent = image->GetExtent();
+  if (extent == 0)
+    {
+    extent = dataExtent;
+    }
 
   // Compute the increments for marching through the data.
   this->RowIncrement = dataExtent[1] - dataExtent[0] + 1;
@@ -227,28 +232,22 @@ void vtkImageRegionIteratorBase::Initialize(
     this->SpanCountPointer = 0;
     this->SpanListPointer = 0;
     }
-}
 
-//----------------------------------------------------------------------------
-vtkImageRegionIteratorBase::vtkImageRegionIteratorBase(
-  vtkImageData *image, vtkImageStencilData *stencil, const int extent[6],
-  vtkAlgorithm *algorithm, int threadId)
-{
-  this->Initialize(image, stencil, extent);
-
-  if (algorithm && threadId == 0)
+  if (algorithm)
     {
     this->Algorithm = algorithm;
     vtkIdType maxCount = extent[3] - extent[2] + 1;
     maxCount *= extent[5] - extent[4] + 1;
     this->Target = maxCount/50 + 1;
     this->Count = this->Target*50 - (maxCount/this->Target)*this->Target + 1;
+    this->ThreadId = threadId;
     }
   else
     {
     this->Algorithm = 0;
     this->Target = 0;
     this->Count = 0;
+    this->ThreadId = 0;
     }
 }
 
@@ -386,19 +385,22 @@ void vtkImageRegionIteratorBase::NextSpan()
 
 //----------------------------------------------------------------------------
 void *vtkImageRegionIteratorBase::GetVoidPointer(
-  vtkImageData *image, int *pixelIncrement, vtkIdType i)
+  vtkDataArray *array, vtkIdType i, int *pixelIncrement)
 {
-  vtkDataArray *array = image->GetPointData()->GetScalars();
-  *pixelIncrement = array->GetNumberOfComponents();
-  return array->GetVoidPointer(*pixelIncrement * i);
+  int n = array->GetNumberOfComponents();
+  if (pixelIncrement)
+    {
+    *pixelIncrement = n;
+    }
+  return array->GetVoidPointer(i*n);
 }
 
 //----------------------------------------------------------------------------
 void *vtkImageRegionIteratorBase::GetVoidPointer(
-  vtkDataArray *array, int *pixelIncrement, vtkIdType i)
+  vtkImageData *image, vtkIdType i, int *pixelIncrement)
 {
-  *pixelIncrement = array->GetNumberOfComponents();
-  return array->GetVoidPointer(*pixelIncrement * i);
+  return vtkImageRegionIteratorBase::GetVoidPointer(
+    image->GetPointData()->GetScalars(), i, pixelIncrement);
 }
 
 //----------------------------------------------------------------------------
@@ -413,7 +415,7 @@ void vtkImageRegionIteratorBase::ReportProgress()
       this->RowEnd = this->End;
       this->SliceEnd = this->End;
       }
-    else
+    else if (this->ThreadId == 0)
       {
       this->Algorithm->UpdateProgress(0.02*(this->Count/this->Target));
       }

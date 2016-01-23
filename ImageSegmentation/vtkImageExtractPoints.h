@@ -31,75 +31,64 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =========================================================================*/
-// .NAME vtkImageExtractPoints - Extract all voxels within stencil
+// .NAME vtkImageExtractPoints - Extract all image voxels as points.
 // .SECTION Description
-// vtkImageExtractPoints takes an input image and a stencil, and outputs
-// a flat array that contains all of the voxels withing the stencil.
+// This filter takes an input image and an optional stencil, and creates
+// a vtkPolyData that contains the points and the point attributes but no
+// cells.  If a stencil is provided, only the points inside the stencil
+// are included.
+// .SECTION Thanks
+// Thanks to David Gobbi, Calgary Image Processing and Analysis Centre,
+// University of Calgary, for providing this class.
 
-#ifndef __vtkImageExtractPoints_h
-#define __vtkImageExtractPoints_h
+#ifndef vtkImageExtractPoints_h
+#define vtkImageExtractPoints_h
 
-#include "vtkThreadedImageAlgorithm.h"
+#include "vtkPolyDataAlgorithm.h"
 
 class vtkImageStencilData;
-class vtkPoints;
-class vtkIdTypeArray;
-class vtkDoubleArray;
 
-class VTK_EXPORT vtkImageExtractPoints : public vtkImageAlgorithm
+class VTK_EXPORT vtkImageExtractPoints :
+  public vtkPolyDataAlgorithm
 {
 public:
   static vtkImageExtractPoints *New();
-  vtkTypeMacro(vtkImageExtractPoints,vtkImageAlgorithm);
-
+  vtkTypeMacro(vtkImageExtractPoints,vtkPolyDataAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
-  // Set the scalar component to extract from multi-component data.
-  // The default value is -1, which extracts all components into a
-  // multi-component array.
-  vtkSetMacro(ActiveComponent, int);
-  vtkGetMacro(ActiveComponent, int);
-
-  // Description:
-  // Use a stencil to compute the histogram for just a part of the image.
+  // Only extract the points that lie within the stencil.
   void SetStencilConnection(vtkAlgorithmOutput *port);
   vtkAlgorithmOutput *GetStencilConnection();
   void SetStencilData(vtkImageStencilData *stencil);
 
   // Description:
-  // Get all the points within the stencil.
-  vtkPoints *GetPoints();
-
-  // Description:
-  // Get an array that contains all the point Ids within the stencil.
-  vtkIdTypeArray *GetPointIds();
-
-  // Description:
-  // Get an array that contains all the scalars within the stencil.
-  vtkDataArray *GetScalars();
+  // Set the desired precision for the output points.
+  // See vtkAlgorithm::DesiredOutputPrecision for the available choices.
+  // The default is double precision.
+  vtkSetMacro(OutputPointsPrecision, int);
+  vtkGetMacro(OutputPointsPrecision, int);
 
 protected:
   vtkImageExtractPoints();
   ~vtkImageExtractPoints();
 
-  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
+  virtual int RequestInformation(vtkInformation *request,
                                  vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
+                                 vtkInformationVector *outInfo);
+
+  virtual int RequestUpdateExtent(vtkInformation *request,
                                  vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestData(vtkInformation *,
-                          vtkInformationVector **,
-                          vtkInformationVector *);
+                                 vtkInformationVector *outInfo);
+
+  virtual int RequestData(vtkInformation *request,
+                          vtkInformationVector **inInfo,
+                          vtkInformationVector *outInfo);
 
   virtual int FillInputPortInformation(int port, vtkInformation *info);
   virtual int FillOutputPortInformation(int port, vtkInformation *info);
 
-  int ActiveComponent;
-  vtkPoints *Points;
-  vtkIdTypeArray *PointIds;
-  vtkDoubleArray *Scalars;
+  int OutputPointsPrecision;
 
 private:
   vtkImageExtractPoints(const vtkImageExtractPoints&);  // Not implemented.
