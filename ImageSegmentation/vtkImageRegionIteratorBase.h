@@ -24,6 +24,7 @@
 #define __vtkImageRegionIteratorBase_h
 
 #include "vtkSystemIncludes.h"
+class vtkDataArray;
 class vtkImageData;
 class vtkImageStencilData;
 class vtkAlgorithm;
@@ -95,11 +96,19 @@ public:
     return this->Id;
     }
 
-protected:
+  // Description
+  // Get a void pointer and pixel increment for the given Id.
+  // The pixel increment is the number of scalar components.
+  static void *GetVoidPointer(
+    vtkImageData *image, int *pixelIncrement, vtkIdType i);
 
   // Description
-  // Get the pointer to the image scalars, and the increment.
-  void *GetBasePointer(vtkImageData *image, int *pixelIncrement);
+  // Get a void pointer and pixel increment for the given Id.
+  // The array should hold point attributes of the image.
+  static void *GetVoidPointer(
+    vtkDataArray *image, int *pixelIncrement, vtkIdType i);
+
+protected:
 
   // Description
   // Set all the state variables for the stencil span that includes idX.

@@ -385,13 +385,20 @@ void vtkImageRegionIteratorBase::NextSpan()
 }
 
 //----------------------------------------------------------------------------
-void *vtkImageRegionIteratorBase::GetBasePointer(
-  vtkImageData *image, int *pixelIncrement)
+void *vtkImageRegionIteratorBase::GetVoidPointer(
+  vtkImageData *image, int *pixelIncrement, vtkIdType i)
 {
-  // Get the data array to use.
   vtkDataArray *array = image->GetPointData()->GetScalars();
   *pixelIncrement = array->GetNumberOfComponents();
-  return array->GetVoidPointer(0);
+  return array->GetVoidPointer(*pixelIncrement * i);
+}
+
+//----------------------------------------------------------------------------
+void *vtkImageRegionIteratorBase::GetVoidPointer(
+  vtkDataArray *array, int *pixelIncrement, vtkIdType i)
+{
+  *pixelIncrement = array->GetNumberOfComponents();
+  return array->GetVoidPointer(*pixelIncrement * i);
 }
 
 //----------------------------------------------------------------------------

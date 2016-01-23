@@ -52,7 +52,7 @@ public:
     : vtkImageRegionIteratorBase(image, stencil, extent, algorithm, threadId)
     {
     this->BasePointer = static_cast<DType *>(
-      this->GetBasePointer(image, &this->PixelIncrement));
+      vtkImageRegionIterator::GetVoidPointer(image, &this->PixelIncrement, 0));
     this->UpdatePointer();
     }
 
