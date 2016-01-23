@@ -73,24 +73,19 @@ public:
     }
 
   // Description:
-  // The X index at the beginning of the current span.
-  int GetIndexX()
+  // Get the index at the beginning of the current span.
+  void GetIndex(int result[3])
     {
-    return this->IndexX;
+    result[0] = this->Index[0];
+    result[1] = this->Index[1];
+    result[2] = this->Index[2];
     }
 
   // Description:
-  // The Y index at the beginning of the current span.
-  int GetIndexY()
+  // Get the index at the beginning of the current span.
+  const int *GetIndex()
     {
-    return this->IndexY;
-    }
-
-  // Description:
-  // The Z index at the beginning of the current span.
-  int GetIndexZ()
-    {
-    return this->IndexZ;
+    return this->Index;
     }
 
   // Description:
@@ -128,18 +123,11 @@ protected:
   vtkIdType  RowEndIncrement;   // from end of row to start of next row
   vtkIdType  SliceEndIncrement; // from end of slice to start of next slice
 
-  // The span to cover
-  int        MinX;
-  int        MaxX;
-  int        MinY;
-  int        MaxY;
-  int        MinZ;
-  int        MaxZ;
+  // The extent, adjusted for the stencil
+  int        Extent[6];
 
   // Index-related items
-  int        IndexX;
-  int        IndexY;
-  int        IndexZ;
+  int        Index[3];
   int        StartY;
 
   // Stencil-related items

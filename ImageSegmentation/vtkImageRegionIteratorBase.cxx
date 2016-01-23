@@ -49,16 +49,16 @@ vtkImageRegionIteratorBase::vtkImageRegionIteratorBase()
   this->SliceEndIncrement = 0;
   this->SliceIncrement = 0;
 
-  this->MinX = 0;
-  this->MaxX = 0;
-  this->MinY = 0;
-  this->MaxY = 0;
-  this->MinZ = 0;
-  this->MaxZ = 0;
+  this->Extent[0] = 0;
+  this->Extent[1] = 0;
+  this->Extent[2] = 0;
+  this->Extent[3] = 0;
+  this->Extent[4] = 0;
+  this->Extent[5] = 0;
 
-  this->IndexX = 0;
-  this->IndexY = 0;
-  this->IndexZ = 0;
+  this->Index[0] = 0;
+  this->Index[1] = 0;
+  this->Index[2] = 0;
   this->StartY = 0;
 
   this->HasStencil = false;
@@ -117,20 +117,20 @@ void vtkImageRegionIteratorBase::Initialize(
     (this->SliceIncrement*volumeSpan - this->SliceEndIncrement);
 
   // Save the extent (will be adjusted if there is a stencil).
-  this->MinX = extent[0];
-  this->MaxX = extent[1];
-  this->MinY = extent[2];
-  this->MaxY = extent[3];
-  this->MinZ = extent[4];
-  this->MaxZ = extent[5];
+  this->Extent[0] = extent[0];
+  this->Extent[1] = extent[1];
+  this->Extent[2] = extent[2];
+  this->Extent[3] = extent[3];
+  this->Extent[4] = extent[4];
+  this->Extent[5] = extent[5];
 
   // For keeping track of the current x,y,z index.
-  this->IndexX = this->MinX;
-  this->IndexY = this->MinY;
-  this->IndexZ = this->MinZ;
+  this->Index[0] = this->Extent[0];
+  this->Index[1] = this->Extent[2];
+  this->Index[2] = this->Extent[4];
 
   // For resetting the Y index after each slice.
-  this->StartY = this->IndexY;
+  this->StartY = this->Index[1];
 
   // Code for when a stencil is provided.
   if (stencil)
@@ -169,7 +169,7 @@ void vtkImageRegionIteratorBase::Initialize(
     int yOffset = extent[2] - stencilExtent[2];
     if (yOffset < 0)
       {
-      this->MinY = stencilExtent[2];
+      this->Extent[2] = stencilExtent[2];
       }
     else
       {
@@ -178,13 +178,13 @@ void vtkImageRegionIteratorBase::Initialize(
 
     if (stencilExtent[3] <= extent[3])
       {
-      this->MaxY = stencilExtent[3];
+      this->Extent[3] = stencilExtent[3];
       }
 
     int zOffset = extent[4] - stencilExtent[4];
     if (zOffset < 0)
       {
-      this->MinZ = stencilExtent[4];
+      this->Extent[4] = stencilExtent[4];
       }
     else
       {
@@ -193,11 +193,11 @@ void vtkImageRegionIteratorBase::Initialize(
 
     if (stencilExtent[5] <= extent[5])
       {
-      this->MaxZ = stencilExtent[5];
+      this->Extent[5] = stencilExtent[5];
       }
 
-    if (this->MinY <= this->MaxY &&
-        this->MinZ <= this->MaxZ)
+    if (this->Extent[2] <= this->Extent[3] &&
+        this->Extent[4] <= this->Extent[5])
       {
       this->SpanCountPointer =
         vtkImageStencilIteratorFriendship::GetExtentListLengths(stencil) +
@@ -208,7 +208,7 @@ void vtkImageRegionIteratorBase::Initialize(
         startOffset;
 
       // Holds the current position within the span list for the current row
-      this->SetSpanState(this->MinX);
+      this->SetSpanState(this->Extent[0]);
       }
     else
       {
@@ -274,8 +274,8 @@ void vtkImageRegionIteratorBase::SetSpanState(int idX)
   this->InStencil = inStencil;
 
   // Clamp the span end to MaxX+1
-  int endIdX = this->MaxX + 1;
-  if (i < n && spans[i] <= this->MaxX)
+  int endIdX = this->Extent[1] + 1;
+  if (i < n && spans[i] <= this->Extent[1])
     {
     endIdX = spans[i];
     }
@@ -284,8 +284,8 @@ void vtkImageRegionIteratorBase::SetSpanState(int idX)
   vtkIdType rowStart =
     this->RowEnd - (this->RowIncrement - this->RowEndIncrement);
 
-  this->PointId = rowStart + (idX - this->MinX);
-  this->SpanEnd = rowStart + (endIdX - this->MinX);
+  this->PointId = rowStart + (idX - this->Extent[0]);
+  this->SpanEnd = rowStart + (endIdX - this->Extent[0]);
 }
 
 //----------------------------------------------------------------------------
@@ -301,7 +301,7 @@ void vtkImageRegionIteratorBase::NextSpan()
       this->PointId = this->RowEnd + this->RowEndIncrement;
       this->RowEnd += this->RowIncrement;
       this->SpanEnd = this->RowEnd;
-      this->IndexY++;
+      this->Index[1]++;
       }
     else if (this->SpanEnd != this->End)
       {
@@ -311,8 +311,8 @@ void vtkImageRegionIteratorBase::NextSpan()
       this->RowEnd = this->PointId +
         (this->RowIncrement - this->RowEndIncrement);
       this->SpanEnd = this->RowEnd;
-      this->IndexY = this->StartY;
-      this->IndexZ++;
+      this->Index[1] = this->StartY;
+      this->Index[2]++;
       spanIncr += this->SpanSliceEndIncrement;
       }
     else
@@ -323,18 +323,18 @@ void vtkImageRegionIteratorBase::NextSpan()
       }
 
     // Start of next row
-    this->IndexX = this->MinX;
+    this->Index[0] = this->Extent[0];
 
     if (this->HasStencil)
       {
-      if ((this->IndexY >= this->MinY) &&
-          (this->IndexY <= this->MaxY) &&
-          (this->IndexZ >= this->MinZ) &&
-          (this->IndexZ <= this->MaxZ))
+      if ((this->Index[1] >= this->Extent[2]) &&
+          (this->Index[1] <= this->Extent[3]) &&
+          (this->Index[2] >= this->Extent[4]) &&
+          (this->Index[2] <= this->Extent[5]))
         {
         this->SpanCountPointer += spanIncr;
         this->SpanListPointer += spanIncr;
-        this->SetSpanState(this->MinX);
+        this->SetSpanState(this->Extent[0]);
         }
       else
         {
@@ -352,14 +352,14 @@ void vtkImageRegionIteratorBase::NextSpan()
     // Move to the next span in the current row
     this->PointId = this->SpanEnd;
     int spanCount = *this->SpanCountPointer;
-    int endIdX = this->MaxX + 1;
-    this->IndexX = endIdX;
+    int endIdX = this->Extent[1] + 1;
+    this->Index[0] = endIdX;
     if (this->SpanIndex < spanCount)
       {
       int tmpIdX = (*this->SpanListPointer)[this->SpanIndex];
       if (tmpIdX < endIdX)
         {
-        this->IndexX = tmpIdX;
+        this->Index[0] = tmpIdX;
         }
       }
 
@@ -377,7 +377,7 @@ void vtkImageRegionIteratorBase::NextSpan()
     // Compute the end of the span
     this->SpanEnd = this->RowEnd -
       (this->RowIncrement - this->RowEndIncrement) +
-      (endIdX - this->MinX);
+      (endIdX - this->Extent[0]);
 
     // Flip the state
     this->InStencil = !this->InStencil;

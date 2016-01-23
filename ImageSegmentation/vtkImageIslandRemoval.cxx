@@ -724,9 +724,10 @@ void vtkImageIslandRemovalExecute(
 
     if (iter.IsInStencil())
       {
-      int xIdx = iter.GetIndexX() - extent[0];
-      int yIdx = iter.GetIndexY() - extent[2];
-      int zIdx = iter.GetIndexZ() - extent[4];
+      const int *idx = iter.GetIndex();
+      int xIdx = idx[0] - extent[0];
+      int yIdx = idx[1] - extent[2];
+      int zIdx = idx[2] - extent[4];
 
       IT *inPtr0 = inPtr + (xIdx*inInc[0] + yIdx*inInc[1] + zIdx*inInc[2]);
 

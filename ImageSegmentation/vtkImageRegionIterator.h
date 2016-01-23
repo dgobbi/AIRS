@@ -70,14 +70,6 @@ public:
     }
 
   // Description:
-  // Check if the iterator is within the stencilled region.  This
-  // is updated when NextSpan() is called.
-  bool IsInStencil()
-    {
-    return this->vtkImageRegionIteratorBase::IsInStencil();
-    }
-
-  // Description:
   // Move the iterator to the start of the next span.  A span is a
   // contiguous region over which nothing but the X index changes.
   void NextSpan()
@@ -105,34 +97,6 @@ public:
   DType *EndSpan()
     {
     return this->SpanEndPointer;
-    }
-
-  // Description:
-  // The X index at the beginning of the current span.
-  int GetIndexX()
-    {
-    return this->vtkImageRegionIteratorBase::GetIndexX();
-    }
-
-  // Description:
-  // The Y index at the beginning of the current span.
-  int GetIndexY()
-    {
-    return this->vtkImageRegionIteratorBase::GetIndexY();
-    }
-
-  // Description:
-  // The Z index at the beginning of the current span.
-  int GetIndexZ()
-    {
-    return this->vtkImageRegionIteratorBase::GetIndexZ();
-    }
-
-  // Description:
-  // The PointId at the beginning of the current span.
-  vtkIdType GetPointId()
-    {
-    return this->vtkImageRegionIteratorBase::GetPointId();
     }
 
 protected:
