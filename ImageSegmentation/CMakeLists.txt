@@ -16,7 +16,7 @@ SET(Kit_SRCS
   vtkImageMRIBrainExtractor.cxx
   vtkImageExtractPoints.cxx
   vtkImageRegionIteratorBase.cxx
-  vtkImageRegionIterator.h
+  vtkImageRegionIterator.cxx
   vtkImagePointsIterator.cxx
 )
 
