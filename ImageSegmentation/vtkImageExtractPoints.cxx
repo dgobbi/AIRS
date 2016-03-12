@@ -45,6 +45,7 @@
 #include <vtkInformationVector.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
 #include <vtkSmartPointer.h>
+#include <vtkVersion.h>
 
 vtkStandardNewMacro(vtkImageExtractPoints);
 
