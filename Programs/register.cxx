@@ -93,7 +93,7 @@ Module:    register.cxx
 #endif
 
 // Check for vtkImageReslice::SetOutputScalarType()
-#if VTK_MAJOR_VERSION >= 6 || (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 2)
+#if VTK_MAJOR_VERSION > 6 || (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 2)
 #define VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
 #endif
 
