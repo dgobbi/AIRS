@@ -402,10 +402,10 @@ double vtkPowellMinimizer::PowellBrent(
     // compute the new position
     double u = x + d;
 
-    // make sure step is at least as large as tol1erance
+    // make sure step is at least as large as tolerance
     if (fabs(d) < tol1)
       {
-      // update by tol1erance
+      // update by tolerance
       u = x + ((d < 0) ? -tol1 : tol1);
       }
 
