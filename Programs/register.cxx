@@ -197,7 +197,10 @@ int GuessFileType(const char *filename)
     return MINCImage;
     }
   if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
-      (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
+      (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0) ||
+      (n > 4 && strcmp(&filename[n-4], ".hdr") == 0) ||
+      (n > 4 && strcmp(&filename[n-4], ".img") == 0) ||
+      (n > 7 && strcmp(&filename[n-7], ".img.gz") == 0))
     {
     return NIFTIImage;
     }
