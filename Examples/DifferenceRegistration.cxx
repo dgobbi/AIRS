@@ -11,6 +11,8 @@ Module:    DifferenceRegistration.cxx
 // This example registers two images (assumed to be of the same patient)
 // and then subtracts first image from the second.
 
+#include "AIRSConfig.h"
+
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
