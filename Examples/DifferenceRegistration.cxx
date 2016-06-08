@@ -23,6 +23,9 @@ Module:    DifferenceRegistration.cxx
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
 #include <vtkMath.h>
+#include <vtkGlobFileNames.h>
+#include <vtkIntArray.h>
+#include <vtkStringArray.h>
 
 #include <vtkMINCImageReader.h>
 #include <vtkDICOMImageReader.h>
@@ -34,6 +37,8 @@ Module:    DifferenceRegistration.cxx
 #include <vtkNIFTIReader.h>
 #include <vtkNIFTIWriter.h>
 #include <vtkDICOMReader.h>
+#include <vtkDICOMFileSorter.h>
+#include <vtkDICOMMetaData.h>
 #endif
 
 #include <vtkRenderer.h>
@@ -54,6 +59,8 @@ Module:    DifferenceRegistration.cxx
 
 #include <vtkImageRegistration.h>
 
+#include <vtksys/SystemTools.hxx>
+
 // A macro to assist VTK 5 backwards compatibility
 #if VTK_MAJOR_VERSION >= 6
 #define SET_INPUT_DATA SetInputData
@@ -65,6 +72,125 @@ Module:    DifferenceRegistration.cxx
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
 namespace {
+
+#ifdef AIRS_USE_DICOM
+
+void ReadDICOMImage(
+  vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
+{
+  vtkDICOMReader *reader = vtkDICOMReader::New();
+
+  bool singleFile = true;
+  if (vtksys::SystemTools::FileIsDirectory(directoryName))
+    {
+    // get all the DICOM files in the directory
+    singleFile = false;
+    std::string dirString = directoryName;
+    vtksys::SystemTools::ConvertToUnixSlashes(dirString);
+    vtkSmartPointer<vtkGlobFileNames> glob =
+      vtkSmartPointer<vtkGlobFileNames>::New();
+    glob->SetDirectory(dirString.c_str());
+    glob->AddFileNames("*");
+
+    // sort the files
+    vtkSmartPointer<vtkDICOMFileSorter> sorter =
+      vtkSmartPointer<vtkDICOMFileSorter>::New();
+    sorter->SetInputFileNames(glob->GetFileNames());
+    sorter->Update();
+
+    if (sorter->GetNumberOfSeries() == 0)
+      {
+      fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
+      exit(1);
+      }
+    else if (sorter->GetNumberOfSeries() > 1)
+      {
+      fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
+              directoryName);
+      exit(1);
+      }
+    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+    }
+  else
+    {
+    // was given a single file instead of a directory
+    reader->SetFileName(directoryName);
+    }
+
+  // For NIfTI coordinate system, use BottomUp
+  reader->SetMemoryRowOrderToFileNative();
+
+  reader->UpdateInformation();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
+
+  vtkStringArray *stackArray = reader->GetStackIDs();
+  vtkIdType numStacks = stackArray->GetNumberOfValues();
+  for (vtkIdType stackId = 0; stackId+1 < numStacks; stackId++)
+    {
+    // Find the first stack that has more than one image
+    if (reader->GetFileIndexArray()->GetNumberOfTuples() > 1)
+      {
+      break;
+      }
+    reader->SetDesiredStackID(stackArray->GetValue(stackId+1));
+    reader->UpdateInformation();
+    }
+
+  if (!singleFile)
+    {
+    // when reading images, only read 1st component if the
+    // image has multiple components or multiple time points
+    vtkIntArray *fileArray = reader->GetFileIndexArray();
+
+    // create a filtered list of files
+    vtkSmartPointer<vtkStringArray> fileNames =
+      vtkSmartPointer<vtkStringArray>::New();
+    vtkIdType n = fileArray->GetNumberOfTuples();
+    for (vtkIdType i = 0; i < n; i++)
+      {
+      std::string newFileName =
+        reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
+      bool alreadyThere = false;
+      vtkIdType m = fileNames->GetNumberOfTuples();
+      for (vtkIdType j = 0; j < m; j++)
+        {
+        if (newFileName == fileNames->GetValue(j))
+          {
+          alreadyThere = true;
+          break;
+          }
+        }
+      if (!alreadyThere)
+        {
+        fileNames->InsertNextValue(newFileName);
+        }
+      }
+    reader->SetFileNames(fileNames);
+    }
+  reader->SetDesiredTimeIndex(0);
+
+  reader->Update();
+  if (reader->GetErrorCode())
+    {
+    exit(1);
+    }
+
+  vtkImageData *image = reader->GetOutput();
+
+  // get the data
+  data->CopyStructure(image);
+  data->GetPointData()->PassData(image->GetPointData());
+
+  // get the matrix
+  matrix->DeepCopy(reader->GetPatientMatrix());
+
+  return;
+}
+
+#else /* AIRS_USE_DICOM */
 
 void ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
@@ -113,6 +239,8 @@ void ReadDICOMImage(
   matrix->Element[3][3] = 1;
   matrix->Modified();
 }
+
+#endif /* AIRS_USE_DICOM */
 
 void ReadMINCImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
@@ -627,10 +755,10 @@ int main (int argc, char *argv[])
     lastTime = newTime;
 
     // prepare for next iteration
-    //if (stage == 1)
+    if (stage == 1)
       {
       blurFactor /= 2.0;
-      if (blurFactor < 1.9)
+      if (blurFactor < 0.9)
         {
         break;
         }
@@ -666,6 +794,7 @@ int main (int argc, char *argv[])
   resample->SET_INPUT_DATA(sourceImage);
   resample->SetInformationInput(targetImage);
   resample->SetInterpolator(sincInterpolator);
+  registration->GetTransform()->GetMatrix()->Print(cerr);
   resample->SetResliceTransform(registration->GetTransform()->GetInverse());
   resample->Update();
 
