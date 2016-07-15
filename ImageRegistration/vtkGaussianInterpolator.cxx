@@ -1008,6 +1008,7 @@ void vtkGaussianInterpolatorPrecomputeWeights(
   blur[2] = ((mode & VTK_INTERPOLATION_WINDOW_ZBLUR_MASK) != 0);
 
   // set up input positions table for interpolation
+  bool validClip = true;
   for (int j = 0; j < 3; j++)
     {
     // set k to the row for which the element in column j is nonzero,
@@ -1155,9 +1156,19 @@ void vtkGaussianInterpolatorPrecomputeWeights(
         }
       }
 
-    if (region == 0)
+    if (region == 0 || clipExt[2*j] > clipExt[2*j+1])
       { // never entered input extent!
-      clipExt[2*j] = clipExt[2*j+1] + 1;
+      validClip = false;
+      }
+    }
+
+  if (!validClip)
+    {
+    // output extent doesn't itersect input extent
+    for (int j = 0; j < 3; j++)
+      {
+      clipExt[2*j] = outExt[2*j];
+      clipExt[2*j + 1] = outExt[2*j] - 1;
       }
     }
 }
