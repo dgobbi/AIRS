@@ -27,9 +27,94 @@
 #include "vtkPointData.h"
 #include "vtkVersion.h"
 
+#if VTK_MAJOR_VERSION > 7 || (VTK_MAJOR_VERSION == 7 && VTK_MINOR_VERSION >= 0)
+#define USE_SMP_THREADED_IMAGE_ALGORITHM
+#include "vtkSMPTools.h"
+#endif
+
 #include <math.h>
 
 vtkStandardNewMacro(vtkImageMutualInformation);
+
+//----------------------------------------------------------------------------
+// Data needed for each thread.
+class vtkImageMutualInformationThreadData
+{
+public:
+  vtkImageMutualInformationThreadData() : Data(0) {}
+
+  vtkIdType *Data;
+};
+
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+//----------------------------------------------------------------------------
+// Holds thread-local data for SMP implementation.
+class vtkImageMutualInformationSMPThreadLocal
+  : public vtkSMPThreadLocal<vtkImageMutualInformationThreadData>
+{
+public:
+  typedef vtkSMPThreadLocal<vtkImageMutualInformationThreadData>::iterator
+    iterator;
+};
+
+//----------------------------------------------------------------------------
+template<class T, class TLS>
+class vtkImageMutualInformationThreadIteratorTemplate
+{
+public:
+  vtkImageMutualInformationThreadIteratorTemplate(
+    const typename TLS::iterator& iter) : Pter(0), Iter(iter) {}
+
+  vtkImageMutualInformationThreadIteratorTemplate(T *iter) : Pter(iter) {}
+
+  vtkImageMutualInformationThreadIteratorTemplate& operator++()
+    {
+    if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
+    return *this;
+    }
+
+  vtkImageMutualInformationThreadIteratorTemplate operator++(int)
+    {
+    vtkImageMutualInformationThreadIteratorTemplate copy = *this;
+    if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
+    return copy;
+    }
+
+  bool operator==(const vtkImageMutualInformationThreadIteratorTemplate& other)
+    {
+    return (this->Pter ? (this->Pter == other.Pter)
+                       : (this->Iter == other.Iter));
+    }
+
+  bool operator!=(const vtkImageMutualInformationThreadIteratorTemplate& other)
+    {
+    return (this->Pter ? (this->Pter != other.Pter)
+                       : (this->Iter != other.Iter));
+    }
+
+  T& operator*()
+    {
+    return (this->Pter ? *this->Pter : *this->Iter);
+    }
+
+  T* operator->()
+    {
+    return (this->Pter ? this->Pter : &*this->Iter);
+    }
+
+private:
+  T *Pter;
+  typename TLS::iterator Iter;
+};
+
+typedef vtkImageMutualInformationThreadIteratorTemplate<
+    vtkImageMutualInformationThreadData,
+    vtkImageMutualInformationSMPThreadLocal>
+  vtkImageMutualInformationThreadIterator;
+#else
+typedef vtkImageMutualInformationThreadData *
+  vtkImageMutualInformationThreadIterator;
+#endif
 
 //----------------------------------------------------------------------------
 // Constructor sets default values
@@ -48,6 +133,9 @@ vtkImageMutualInformation::vtkImageMutualInformation()
 
   this->MutualInformation = 0.0;
   this->NormalizedMutualInformation = 0.0;
+
+  this->ThreadData = 0;
+  this->SMPThreadData = 0;
 
   this->SetNumberOfInputPorts(3);
   this->SetNumberOfOutputPorts(1);
@@ -396,7 +484,80 @@ void vtkImageMutualInformationCopyRow(
   while (--n);
 }
 
+
+
 } // end anonymous namespace
+
+//----------------------------------------------------------------------------
+// A helper function for combining thread results
+static void vtkImageMutualInformationReduce(
+  vtkImageMutualInformation *self,
+  vtkImageMutualInformationThreadIterator begin,
+  vtkImageMutualInformationThreadIterator end,
+  vtkInformationVector *outputVector,
+  double *mutualInformationPtr,
+  double *normalizedMutualInformationPtr);
+
+//----------------------------------------------------------------------------
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+// Functor for vtkSMPTools execution
+class vtkImageMutualInformationFunctor
+{
+public:
+  // Create the functor, provide all info it needs to execute.
+  vtkImageMutualInformationFunctor(
+    vtkImageMutualInformationThreadStruct *pipelineInfo,
+    vtkImageMutualInformationSMPThreadLocal *threadLocal,
+    const int extent[6],
+    vtkIdType pieces,
+    double *mutualInformation,
+    double *normalizedMutualInformation)
+    : PipelineInfo(pipelineInfo), ThreadLocal(threadLocal),
+      NumberOfPieces(pieces), MutualInformation(mutualInformation),
+      NormalizedMutualInformation(normalizedMutualInformation)
+  {
+    for (int i = 0; i < 6; i++)
+      {
+      this->Extent[i] = extent[i];
+      }
+  }
+
+  void Initialize() {}
+  void operator()(vtkIdType begin, vtkIdType end);
+  void Reduce();
+
+private:
+  vtkImageMutualInformationThreadStruct *PipelineInfo;
+  vtkImageMutualInformationSMPThreadLocal *ThreadLocal;
+  int Extent[6];
+  vtkIdType NumberOfPieces;
+  double *MutualInformation;
+  double *NormalizedMutualInformation;
+};
+
+// Called by vtkSMPTools to execute the algorithm over specific pieces.
+void vtkImageMutualInformationFunctor::operator()(
+  vtkIdType begin, vtkIdType end)
+{
+  vtkImageMutualInformationThreadStruct *ts = this->PipelineInfo;
+
+  ts->Algorithm->SMPRequestData(
+    ts->Request, ts->InputsInfo, ts->OutputsInfo, NULL, NULL,
+    begin, end, this->NumberOfPieces, this->Extent);
+}
+
+// Called by vtkSMPTools once the multi-threading has finished.
+void vtkImageMutualInformationFunctor::Reduce()
+{
+  vtkImageMutualInformationReduce(
+    static_cast<vtkImageMutualInformation *>(this->PipelineInfo->Algorithm),
+    this->ThreadLocal->begin(),
+    this->ThreadLocal->end(),
+    this->PipelineInfo->OutputsInfo,
+    this->MutualInformation,
+    this->NormalizedMutualInformation);
+}
+#endif
 
 //----------------------------------------------------------------------------
 // override from vtkThreadedImageAlgorithm to customize the multithreading
@@ -405,18 +566,6 @@ int vtkImageMutualInformation::RequestData(
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  // specifics for vtkImageMutualInformation:
-  // allocate workspace for each thread
-  vtkIdType memSize = this->NumberOfBins[0];
-  memSize *= this->NumberOfBins[1];
-
-  int n = this->GetNumberOfThreads();
-  for (int k = 0; k < n; k++)
-    {
-    this->ThreadOutput[k] = new vtkIdType[memSize];
-    this->ThreadExecuted[k] = false;
-    }
-
   // start of code copied from vtkThreadedImageAlgorithm
 
   // setup the threads structure
@@ -467,17 +616,70 @@ int vtkImageMutualInformation::RequestData(
       }
     }
 
-  this->Threader->SetNumberOfThreads(this->NumberOfThreads);
-  this->Threader->SetSingleMethod(vtkImageMutualInformationThreadedExecute, &ts);
-
-  // always shut off debugging to avoid threading problems with GetMacros
-  int debug = this->Debug;
-  this->Debug = 0;
-  this->Threader->SingleMethodExecute();
-  this->Debug = debug;
-
   // end of code copied from vtkThreadedImageAlgorithm
 
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+  if (this->EnableSMP)
+    {
+    // code for vtkSMPTools
+    vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+    vtkImageData *inData = vtkImageData::SafeDownCast(
+      inInfo->Get(vtkDataObject::DATA_OBJECT()));
+    int extent[6];
+    inData->GetExtent(extent);
+
+    // do a dummy execution of SplitExtent to compute the number of pieces
+    vtkIdType pieces = this->SplitExtent(0, extent, 0, this->NumberOfThreads);
+
+    // create the thread-local object and the functor
+    vtkImageMutualInformationSMPThreadLocal tlocal;
+    vtkImageMutualInformationFunctor functor(
+      &ts, &tlocal, extent, pieces,
+      &this->MutualInformation, &this->NormalizedMutualInformation);
+
+    this->SMPThreadData = &tlocal;
+    bool debug = this->Debug;
+    this->Debug = false;
+    vtkSMPTools::For(0, pieces, functor);
+    this->Debug = debug;
+    this->SMPThreadData = 0;
+    }
+  else
+#endif
+    {
+    // code for vtkMultiThreader
+    int n = this->NumberOfThreads;
+    this->ThreadData = new vtkImageMutualInformationThreadData[n];
+    this->Threader->SetNumberOfThreads(this->NumberOfThreads);
+    this->Threader->SetSingleMethod(
+      vtkImageMutualInformationThreadedExecute, &ts);
+
+    // always shut off debugging to avoid threading problems with GetMacros
+    int debug = this->Debug;
+    this->Debug = 0;
+    this->Threader->SingleMethodExecute();
+    this->Debug = debug;
+
+    vtkImageMutualInformationReduce(this,
+      this->ThreadData, this->ThreadData + this->NumberOfThreads,
+      outputVector,
+      &this->MutualInformation, &this->NormalizedMutualInformation);
+
+    delete [] this->ThreadData;
+    this->ThreadData = 0;
+    }
+
+  return 1;
+}
+
+void vtkImageMutualInformationReduce(
+  vtkImageMutualInformation *self,
+  vtkImageMutualInformationThreadIterator begin,
+  vtkImageMutualInformationThreadIterator end,
+  vtkInformationVector *outputVector,
+  double *mutualInformationPtr,
+  double *normalizedMutualInformationPtr)
+{
   // get the output
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
   int updateExtent[6];
@@ -492,8 +694,8 @@ int vtkImageMutualInformation::RequestData(
   int outScalarSize = outData->GetScalarSize();
 
   // get the dimensions of the joint histogram
-  int nx = this->NumberOfBins[0];
-  int ny = this->NumberOfBins[1];
+  int nx, ny;
+  self->GetNumberOfBins(nx, ny);
 
   // various variables for computing the mutual information
   double xEntropy = 0;
@@ -530,12 +732,12 @@ int vtkImageMutualInformation::RequestData(
 
     // add the contribution from thread j
     vtkIdType a = 0;
-    for (int j = 0; j < n; j++)
+    for (vtkImageMutualInformationThreadIterator
+         iter = begin; iter != end; ++iter)
       {
-      if (this->ThreadExecuted[j])
+      if (iter->Data)
         {
-        vtkIdType *outPtr2 =
-          this->ThreadOutput[j] + static_cast<vtkIdType>(nx)*iy;
+        vtkIdType *outPtr2 = iter->Data + static_cast<vtkIdType>(nx)*iy;
 
         for (ix = 0; ix < nx; ++ix)
           {
@@ -555,7 +757,7 @@ int vtkImageMutualInformation::RequestData(
           vtkImageMutualInformationCopyRow(
             xyHist, static_cast<VTK_TT *>(outPtr), outStart, outEnd));
         default:
-          vtkErrorMacro(<< "Execute: Unknown output ScalarType");
+          vtkErrorWithObjectMacro(self, "Execute: Unknown output ScalarType");
         }
       // increment outPtr to the next row
       outPtr =
@@ -595,6 +797,15 @@ int vtkImageMutualInformation::RequestData(
       }
     }
 
+  for (vtkImageMutualInformationThreadIterator
+       iter = begin; iter != end; ++iter)
+    {
+    // delete the temporary memory
+    delete [] iter->Data;
+    }
+
+  delete [] xyHist;
+
   // minimum possible values
   double mutualInformation = 0.0;
   double normalizedMutualInformation = 1.0;
@@ -615,19 +826,8 @@ int vtkImageMutualInformation::RequestData(
     normalizedMutualInformation = (xEntropy + yEntropy)/xyEntropy;
     }
 
-  // delete the temporary memory
-  for (int j = 0; j < n; j++)
-    {
-    delete [] this->ThreadOutput[j];
-    }
-
-  delete [] xyHist;
-
-  // output values
-  this->MutualInformation = mutualInformation;
-  this->NormalizedMutualInformation = normalizedMutualInformation;
-
-  return 1;
+  *mutualInformationPtr = mutualInformation;
+  *normalizedMutualInformationPtr = normalizedMutualInformation;
 }
 
 //----------------------------------------------------------------------------
@@ -675,15 +875,34 @@ void vtkImageMutualInformation::ThreadedRequestData(
   vtkImageData **vtkNotUsed(outData),
   int extent[6], int threadId)
 {
-  this->ThreadExecuted[threadId] = true;
-  vtkIdType *outPtr = this->ThreadOutput[threadId];
+  vtkImageMutualInformationThreadData *threadLocal;
 
-  // initialize the joint histogram to zero
-  vtkIdType outIncY = this->NumberOfBins[0];
-  vtkIdType outCount = outIncY;
-  outCount *= this->NumberOfBins[1];
-  vtkIdType *outPtr1 = outPtr;
-  do { *outPtr1++ = 0; } while (--outCount > 0);
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+  if (this->EnableSMP)
+    {
+    threadLocal = &this->SMPThreadData->Local();
+    }
+  else
+#endif
+    {
+    threadLocal = &this->ThreadData[threadId];
+    }
+
+  vtkIdType *outPtr = threadLocal->Data;
+
+  if (outPtr == 0)
+    {
+    // initialize the joint histogram to zero
+    vtkIdType outIncY = this->NumberOfBins[0];
+    vtkIdType outCount = outIncY;
+    outCount *= this->NumberOfBins[1];
+
+    threadLocal->Data = new vtkIdType[outCount];
+    outPtr = threadLocal->Data; 
+
+    vtkIdType *outPtr1 = outPtr;
+    do { *outPtr1++ = 0; } while (--outCount > 0);
+    }
 
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
