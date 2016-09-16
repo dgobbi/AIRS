@@ -6,8 +6,8 @@ IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRendering vtkIO)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingFreeType vtkIOImage vtkIOMINC vtkIOLegacy
-      vtkImagingStencil vtkImagingStatistics vtksys)
+      vtkRenderingFreeType vtkIOImage vtkIOMINC vtkIOGeometry vtkIOLegacy
+      vtkImagingStencil vtkImagingStatistics vtkCommonSystem vtksys)
   SET(VTK_EXTRA_LIBS vtkIOMPIImage
       vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
       vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
