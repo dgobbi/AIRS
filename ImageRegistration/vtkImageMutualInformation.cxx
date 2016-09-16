@@ -36,57 +36,37 @@
 
 vtkStandardNewMacro(vtkImageMutualInformation);
 
-//----------------------------------------------------------------------------
-// Data needed for each thread.
-class vtkImageMutualInformationThreadData
-{
-public:
-  vtkImageMutualInformationThreadData() : Data(0) {}
-
-  vtkIdType *Data;
-};
-
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
 //----------------------------------------------------------------------------
-// Holds thread-local data for SMP implementation.
-class vtkImageMutualInformationSMPThreadLocal
-  : public vtkSMPThreadLocal<vtkImageMutualInformationThreadData>
-{
-public:
-  typedef vtkSMPThreadLocal<vtkImageMutualInformationThreadData>::iterator
-    iterator;
-};
-
-//----------------------------------------------------------------------------
 template<class T, class TLS>
-class vtkImageMutualInformationThreadIteratorTemplate
+class vtkImageSimilarityMetricTLSIterator
 {
 public:
-  vtkImageMutualInformationThreadIteratorTemplate(
+  vtkImageSimilarityMetricTLSIterator(
     const typename TLS::iterator& iter) : Pter(0), Iter(iter) {}
 
-  vtkImageMutualInformationThreadIteratorTemplate(T *iter) : Pter(iter) {}
+  vtkImageSimilarityMetricTLSIterator(T *iter) : Pter(iter) {}
 
-  vtkImageMutualInformationThreadIteratorTemplate& operator++()
+  vtkImageSimilarityMetricTLSIterator& operator++()
     {
     if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
     return *this;
     }
 
-  vtkImageMutualInformationThreadIteratorTemplate operator++(int)
+  vtkImageSimilarityMetricTLSIterator operator++(int)
     {
-    vtkImageMutualInformationThreadIteratorTemplate copy = *this;
+    vtkImageSimilarityMetricTLSIterator copy = *this;
     if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
     return copy;
     }
 
-  bool operator==(const vtkImageMutualInformationThreadIteratorTemplate& other)
+  bool operator==(const vtkImageSimilarityMetricTLSIterator& other)
     {
     return (this->Pter ? (this->Pter == other.Pter)
                        : (this->Iter == other.Iter));
     }
 
-  bool operator!=(const vtkImageMutualInformationThreadIteratorTemplate& other)
+  bool operator!=(const vtkImageSimilarityMetricTLSIterator& other)
     {
     return (this->Pter ? (this->Pter != other.Pter)
                        : (this->Iter != other.Iter));
@@ -107,14 +87,143 @@ private:
   typename TLS::iterator Iter;
 };
 
-typedef vtkImageMutualInformationThreadIteratorTemplate<
-    vtkImageMutualInformationThreadData,
-    vtkImageMutualInformationSMPThreadLocal>
-  vtkImageMutualInformationThreadIterator;
+//----------------------------------------------------------------------------
+template<typename T>
+class vtkImageSimilarityMetricTLS
+{
+public:
+  typedef vtkImageSimilarityMetricTLSIterator<
+    T, vtkSMPThreadLocal<T> > iterator;
+
+  vtkImageSimilarityMetricTLS(size_t threads=0)
+    {
+    if (threads > 0)
+      {
+      this->SMP = NULL;
+      this->MT = new T[threads];
+      this->NumberOfThreads = threads;
+      }
+    else
+      {
+      this->SMP = new vtkSMPThreadLocal<T>;
+      this->MT = NULL;
+      this->NumberOfThreads = 0;
+      }
+    }
+
+  ~vtkImageSimilarityMetricTLS()
+    {
+    delete this->SMP;
+    delete [] this->MT;
+    }
+
+  T& Local(size_t threadId)
+    {
+    if (this->SMP)
+      {
+      return this->SMP->Local();
+      }
+    else
+      {
+      return this->MT[threadId];
+      }
+    }
+
+  iterator begin()
+    {
+    if (this->SMP)
+      {
+      return this->SMP->begin();
+      }
+    else
+      {
+      return this->MT;
+      }
+    }
+
+  iterator end()
+    {
+    if (this->SMP)
+      {
+      return this->SMP->end();
+      }
+    else
+      {
+      return this->MT + this->NumberOfThreads;
+      }
+    }
+
+private:
+  vtkImageSimilarityMetricTLS(const vtkImageSimilarityMetricTLS&);
+  void operator=(const vtkImageSimilarityMetricTLS&);
+
+  vtkSMPThreadLocal<T> *SMP;
+  T *MT;
+  size_t NumberOfThreads;
+};
+
 #else
-typedef vtkImageMutualInformationThreadData *
-  vtkImageMutualInformationThreadIterator;
+
+template<typename T>
+class vtkImageSimilarityMetricTLS
+{
+public:
+  typedef T* iterator;
+
+  vtkImageSimilarityMetricTLS(size_t threads)
+    {
+    this->MT = new T[threads];
+    this->NumberOfThreads = threads;
+    }
+
+  ~vtkImageSimilarityMetricTLS()
+    {
+    delete [] this->MT;
+    }
+
+  T& Local(size_t threadId)
+    {
+    return this->MT[threadId];
+    }
+
+  iterator begin()
+    {
+    return this->MT;
+    }
+
+  iterator end()
+    {
+    return this->MT + this->NumberOfThreads;
+    }
+
+private:
+  vtkImageSimilarityMetricTLS(const vtkImageSimilarityMetricTLS&);
+  void operator=(const vtkImageSimilarityMetricTLS&);
+
+  T *MT;
+  size_t NumberOfThreads;
+};
+
 #endif
+
+//----------------------------------------------------------------------------
+// Data needed for each thread.
+class vtkImageMutualInformationThreadData
+{
+public:
+  vtkImageMutualInformationThreadData() : Data(0) {}
+
+  vtkIdType *Data;
+};
+
+class vtkImageMutualInformationTLS
+  : public vtkImageSimilarityMetricTLS<vtkImageMutualInformationThreadData>
+{
+public:
+  vtkImageMutualInformationTLS(size_t threads=0) :
+    vtkImageSimilarityMetricTLS<vtkImageMutualInformationThreadData>(threads)
+  {}
+};
 
 //----------------------------------------------------------------------------
 // Constructor sets default values
@@ -135,7 +244,6 @@ vtkImageMutualInformation::vtkImageMutualInformation()
   this->NormalizedMutualInformation = 0.0;
 
   this->ThreadData = 0;
-  this->SMPThreadData = 0;
 
   this->SetNumberOfInputPorts(3);
   this->SetNumberOfOutputPorts(1);
@@ -489,16 +597,6 @@ void vtkImageMutualInformationCopyRow(
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
-// A helper function for combining thread results
-static void vtkImageMutualInformationReduce(
-  vtkImageMutualInformation *self,
-  vtkImageMutualInformationThreadIterator begin,
-  vtkImageMutualInformationThreadIterator end,
-  vtkInformationVector *outputVector,
-  double *mutualInformationPtr,
-  double *normalizedMutualInformationPtr);
-
-//----------------------------------------------------------------------------
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
 // Functor for vtkSMPTools execution
 class vtkImageMutualInformationFunctor
@@ -507,14 +605,10 @@ public:
   // Create the functor, provide all info it needs to execute.
   vtkImageMutualInformationFunctor(
     vtkImageMutualInformationThreadStruct *pipelineInfo,
-    vtkImageMutualInformationSMPThreadLocal *threadLocal,
     const int extent[6],
-    vtkIdType pieces,
-    double *mutualInformation,
-    double *normalizedMutualInformation)
-    : PipelineInfo(pipelineInfo), ThreadLocal(threadLocal),
-      NumberOfPieces(pieces), MutualInformation(mutualInformation),
-      NormalizedMutualInformation(normalizedMutualInformation)
+    vtkIdType pieces)
+    : PipelineInfo(pipelineInfo),
+      NumberOfPieces(pieces)
   {
     for (int i = 0; i < 6; i++)
       {
@@ -528,11 +622,8 @@ public:
 
 private:
   vtkImageMutualInformationThreadStruct *PipelineInfo;
-  vtkImageMutualInformationSMPThreadLocal *ThreadLocal;
   int Extent[6];
   vtkIdType NumberOfPieces;
-  double *MutualInformation;
-  double *NormalizedMutualInformation;
 };
 
 // Called by vtkSMPTools to execute the algorithm over specific pieces.
@@ -549,13 +640,11 @@ void vtkImageMutualInformationFunctor::operator()(
 // Called by vtkSMPTools once the multi-threading has finished.
 void vtkImageMutualInformationFunctor::Reduce()
 {
-  vtkImageMutualInformationReduce(
-    static_cast<vtkImageMutualInformation *>(this->PipelineInfo->Algorithm),
-    this->ThreadLocal->begin(),
-    this->ThreadLocal->end(),
-    this->PipelineInfo->OutputsInfo,
-    this->MutualInformation,
-    this->NormalizedMutualInformation);
+  vtkImageMutualInformation *self =
+    static_cast<vtkImageMutualInformation *>(this->PipelineInfo->Algorithm);
+  vtkImageMutualInformationThreadStruct *ts = this->PipelineInfo;
+
+  self->ReduceRequestData(ts->Request, ts->InputsInfo, ts->OutputsInfo);
 }
 #endif
 
@@ -632,24 +721,22 @@ int vtkImageMutualInformation::RequestData(
     vtkIdType pieces = this->SplitExtent(0, extent, 0, this->NumberOfThreads);
 
     // create the thread-local object and the functor
-    vtkImageMutualInformationSMPThreadLocal tlocal;
-    vtkImageMutualInformationFunctor functor(
-      &ts, &tlocal, extent, pieces,
-      &this->MutualInformation, &this->NormalizedMutualInformation);
+    vtkImageMutualInformationTLS tlocal;
+    vtkImageMutualInformationFunctor functor(&ts, extent, pieces);
 
-    this->SMPThreadData = &tlocal;
+    this->ThreadData = &tlocal;
     bool debug = this->Debug;
     this->Debug = false;
     vtkSMPTools::For(0, pieces, functor);
     this->Debug = debug;
-    this->SMPThreadData = 0;
+    this->ThreadData = 0;
     }
   else
 #endif
     {
     // code for vtkMultiThreader
-    int n = this->NumberOfThreads;
-    this->ThreadData = new vtkImageMutualInformationThreadData[n];
+    vtkImageMutualInformationTLS tlocal(this->NumberOfThreads);
+    this->ThreadData = &tlocal;
     this->Threader->SetNumberOfThreads(this->NumberOfThreads);
     this->Threader->SetSingleMethod(
       vtkImageMutualInformationThreadedExecute, &ts);
@@ -660,25 +747,18 @@ int vtkImageMutualInformation::RequestData(
     this->Threader->SingleMethodExecute();
     this->Debug = debug;
 
-    vtkImageMutualInformationReduce(this,
-      this->ThreadData, this->ThreadData + this->NumberOfThreads,
-      outputVector,
-      &this->MutualInformation, &this->NormalizedMutualInformation);
+    this->ReduceRequestData(request, inputVector, outputVector);
 
-    delete [] this->ThreadData;
     this->ThreadData = 0;
     }
 
   return 1;
 }
 
-void vtkImageMutualInformationReduce(
-  vtkImageMutualInformation *self,
-  vtkImageMutualInformationThreadIterator begin,
-  vtkImageMutualInformationThreadIterator end,
-  vtkInformationVector *outputVector,
-  double *mutualInformationPtr,
-  double *normalizedMutualInformationPtr)
+//----------------------------------------------------------------------------
+int vtkImageMutualInformation::ReduceRequestData(
+  vtkInformation *, vtkInformationVector **,
+  vtkInformationVector *outputVector)
 {
   // get the output
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
@@ -694,8 +774,8 @@ void vtkImageMutualInformationReduce(
   int outScalarSize = outData->GetScalarSize();
 
   // get the dimensions of the joint histogram
-  int nx, ny;
-  self->GetNumberOfBins(nx, ny);
+  int nx = this->NumberOfBins[0];
+  int ny = this->NumberOfBins[1];
 
   // various variables for computing the mutual information
   double xEntropy = 0;
@@ -732,8 +812,9 @@ void vtkImageMutualInformationReduce(
 
     // add the contribution from thread j
     vtkIdType a = 0;
-    for (vtkImageMutualInformationThreadIterator
-         iter = begin; iter != end; ++iter)
+    for (vtkImageMutualInformationTLS::iterator
+         iter = this->ThreadData->begin();
+         iter != this->ThreadData->end(); ++iter)
       {
       if (iter->Data)
         {
@@ -757,7 +838,7 @@ void vtkImageMutualInformationReduce(
           vtkImageMutualInformationCopyRow(
             xyHist, static_cast<VTK_TT *>(outPtr), outStart, outEnd));
         default:
-          vtkErrorWithObjectMacro(self, "Execute: Unknown output ScalarType");
+          vtkErrorMacro("Execute: Unknown output ScalarType");
         }
       // increment outPtr to the next row
       outPtr =
@@ -797,8 +878,9 @@ void vtkImageMutualInformationReduce(
       }
     }
 
-  for (vtkImageMutualInformationThreadIterator
-       iter = begin; iter != end; ++iter)
+  for (vtkImageMutualInformationTLS::iterator
+       iter = this->ThreadData->begin();
+       iter != this->ThreadData->end(); ++iter)
     {
     // delete the temporary memory
     delete [] iter->Data;
@@ -826,8 +908,10 @@ void vtkImageMutualInformationReduce(
     normalizedMutualInformation = (xEntropy + yEntropy)/xyEntropy;
     }
 
-  *mutualInformationPtr = mutualInformation;
-  *normalizedMutualInformationPtr = normalizedMutualInformation;
+  this->MutualInformation = mutualInformation;
+  this->NormalizedMutualInformation = normalizedMutualInformation;
+
+  return 1;
 }
 
 //----------------------------------------------------------------------------
@@ -875,18 +959,8 @@ void vtkImageMutualInformation::ThreadedRequestData(
   vtkImageData **vtkNotUsed(outData),
   int extent[6], int threadId)
 {
-  vtkImageMutualInformationThreadData *threadLocal;
-
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
-  if (this->EnableSMP)
-    {
-    threadLocal = &this->SMPThreadData->Local();
-    }
-  else
-#endif
-    {
-    threadLocal = &this->ThreadData[threadId];
-    }
+  vtkImageMutualInformationThreadData *threadLocal =
+    &this->ThreadData->Local(threadId);
 
   vtkIdType *outPtr = threadLocal->Data;
 
@@ -898,7 +972,7 @@ void vtkImageMutualInformation::ThreadedRequestData(
     outCount *= this->NumberOfBins[1];
 
     threadLocal->Data = new vtkIdType[outCount];
-    outPtr = threadLocal->Data; 
+    outPtr = threadLocal->Data;
 
     vtkIdType *outPtr1 = outPtr;
     do { *outPtr1++ = 0; } while (--outCount > 0);

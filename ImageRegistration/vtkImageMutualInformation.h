@@ -40,8 +40,7 @@
 #include "vtkThreadedImageAlgorithm.h"
 
 class vtkImageStencilData;
-class vtkImageMutualInformationThreadData;
-class vtkImageMutualInformationSMPThreadLocal;
+class vtkImageMutualInformationTLS;
 
 class VTK_EXPORT vtkImageMutualInformation : public vtkThreadedImageAlgorithm
 {
@@ -131,8 +130,12 @@ protected:
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
   virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+                          vtkInformationVector **,
+                          vtkInformationVector *);
+
+  virtual int ReduceRequestData(vtkInformation *request,
+                                vtkInformationVector **inInfo,
+                                vtkInformationVector *outInfo);
 
   virtual int FillInputPortInformation(int port, vtkInformation *info);
   virtual int FillOutputPortInformation(int port, vtkInformation *info);
@@ -146,8 +149,7 @@ protected:
   double MutualInformation;
   double NormalizedMutualInformation;
 
-  vtkImageMutualInformationThreadData *ThreadData;
-  vtkImageMutualInformationSMPThreadLocal *SMPThreadData;
+  vtkImageMutualInformationTLS *ThreadData;
 
 private:
   vtkImageMutualInformation(const vtkImageMutualInformation&);  // Not implemented.
