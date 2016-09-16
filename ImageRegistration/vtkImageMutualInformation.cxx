@@ -46,10 +46,6 @@ public:
 class vtkImageMutualInformationTLS
   : public vtkImageSimilarityMetricTLS<vtkImageMutualInformationThreadData>
 {
-public:
-  vtkImageMutualInformationTLS(size_t threads=0) :
-    vtkImageSimilarityMetricTLS<vtkImageMutualInformationThreadData>(threads)
-  {}
 };
 
 //----------------------------------------------------------------------------
@@ -562,7 +558,8 @@ int vtkImageMutualInformation::RequestData(
 #endif
     {
     // code for vtkMultiThreader
-    vtkImageMutualInformationTLS tlocal(this->NumberOfThreads);
+    vtkImageMutualInformationTLS tlocal;
+    tlocal.SetNumberOfThreads(this->NumberOfThreads);
     this->ThreadData = &tlocal;
     this->Threader->SetNumberOfThreads(this->NumberOfThreads);
     this->Threader->SetSingleMethod(

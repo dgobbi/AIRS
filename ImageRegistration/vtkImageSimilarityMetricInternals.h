@@ -89,33 +89,25 @@ public:
   typedef vtkImageSimilarityMetricTLSIterator<
     T, vtkSMPThreadLocal<T> > iterator;
 
-  vtkImageSimilarityMetricTLS(size_t threads=0)
-    {
-    if (threads > 0)
-      {
-      this->SMP = NULL;
-      this->MT = new T[threads];
-      this->NumberOfThreads = threads;
-      }
-    else
-      {
-      this->SMP = new vtkSMPThreadLocal<T>;
-      this->MT = NULL;
-      this->NumberOfThreads = 0;
-      }
-    }
+  vtkImageSimilarityMetricTLS()
+    : MT(0), NumberOfThreads(0) {}
 
   ~vtkImageSimilarityMetricTLS()
     {
-    delete this->SMP;
     delete [] this->MT;
+    }
+
+  void SetNumberOfThreads(size_t n)
+    {
+    this->MT = new T[n];
+    this->NumberOfThreads = n;
     }
 
   T& Local(size_t threadId)
     {
-    if (this->SMP)
+    if (this->MT == 0)
       {
-      return this->SMP->Local();
+      return this->SMP.Local();
       }
     else
       {
@@ -125,9 +117,9 @@ public:
 
   iterator begin()
     {
-    if (this->SMP)
+    if (this->MT == 0)
       {
-      return this->SMP->begin();
+      return this->SMP.begin();
       }
     else
       {
@@ -137,9 +129,9 @@ public:
 
   iterator end()
     {
-    if (this->SMP)
+    if (this->MT == 0)
       {
-      return this->SMP->end();
+      return this->SMP.end();
       }
     else
       {
@@ -151,7 +143,7 @@ private:
   vtkImageSimilarityMetricTLS(const vtkImageSimilarityMetricTLS&);
   void operator=(const vtkImageSimilarityMetricTLS&);
 
-  vtkSMPThreadLocal<T> *SMP;
+  vtkSMPThreadLocal<T> SMP;
   T *MT;
   size_t NumberOfThreads;
 };
@@ -168,15 +160,17 @@ class vtkImageSimilarityMetricTLS
 public:
   typedef T* iterator;
 
-  vtkImageSimilarityMetricTLS(size_t threads)
-    {
-    this->MT = new T[threads];
-    this->NumberOfThreads = threads;
-    }
+  vtkImageSimilarityMetricTLS() : MT(0), NumberOfThreads(0) {}
 
   ~vtkImageSimilarityMetricTLS()
     {
     delete [] this->MT;
+    }
+
+  void SetNumberOfThreads(size_t threads)
+    {
+    this->MT = new T[threads];
+    this->NumberOfThreads = threads;
     }
 
   T& Local(size_t threadId)
