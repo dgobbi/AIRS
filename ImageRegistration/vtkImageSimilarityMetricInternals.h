@@ -19,10 +19,12 @@
 #ifndef vtkImageSimilarityMetricInternals_h
 #define vtkImageSimilarityMetricInternals_h
 
+#include <vtkThreadedImageAlgorithm.h>
+
 // Do the VTK version check to see if vtkSMPTools will be used
 #if VTK_MAJOR_VERSION > 7 || (VTK_MAJOR_VERSION == 7 && VTK_MINOR_VERSION >= 0)
 #define USE_SMP_THREADED_IMAGE_ALGORITHM
-#include "vtkSMPTools.h"
+#include <vtkSMPTools.h>
 #endif
 
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
@@ -97,10 +99,14 @@ public:
     delete [] this->MT;
     }
 
-  void SetNumberOfThreads(size_t n)
+  void Initialize(vtkImageSimilarityMetric *a)
     {
-    this->MT = new T[n];
-    this->NumberOfThreads = n;
+    if (!a->GetEnableSMP())
+      {
+      size_t n = a->GetNumberOfThreads();
+      this->MT = new T[n];
+      this->NumberOfThreads = n;
+      }
     }
 
   T& Local(size_t threadId)
@@ -167,10 +173,11 @@ public:
     delete [] this->MT;
     }
 
-  void SetNumberOfThreads(size_t threads)
+  void Initialize(vtkImageSimilarityMetric *a)
     {
-    this->MT = new T[threads];
-    this->NumberOfThreads = threads;
+    size_t n = a->GetNumberOfThreads();
+    this->MT = new T[n];
+    this->NumberOfThreads = n;
     }
 
   T& Local(size_t threadId)

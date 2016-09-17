@@ -1,11 +1,11 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageMutualInformation.cxx
+  Module: vtkImageMutualInformation.cxx
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2006 Atamai, Inc.
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -16,18 +16,17 @@
 
 #include "vtkImageSimilarityMetricInternals.h"
 
-#include "vtkObjectFactory.h"
-#include "vtkMath.h"
-#include "vtkImageData.h"
-#include "vtkImageStencilData.h"
-#include "vtkImageStencilIterator.h"
-#include "vtkInformation.h"
-#include "vtkInformationVector.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkMultiThreader.h"
-#include "vtkTemplateAliasMacro.h"
-#include "vtkPointData.h"
-#include "vtkVersion.h"
+#include <vtkObjectFactory.h>
+#include <vtkMath.h>
+#include <vtkImageData.h>
+#include <vtkImageStencilData.h>
+#include <vtkImageStencilIterator.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkTemplateAliasMacro.h>
+#include <vtkPointData.h>
+#include <vtkVersion.h>
 
 #include <math.h>
 
@@ -68,7 +67,6 @@ vtkImageMutualInformation::vtkImageMutualInformation()
 
   this->ThreadData = 0;
 
-  this->SetNumberOfInputPorts(3);
   this->SetNumberOfOutputPorts(1);
 }
 
@@ -82,8 +80,6 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 
-  os << indent << "Stencil: " << this->GetStencil() << "\n";
-
   os << indent << "NumberOfBins: " << this->NumberOfBins[0] << " "
      << this->NumberOfBins[1] << "\n";
   os << indent << "BinOrigin: " << this->BinOrigin[0] << " "
@@ -94,54 +90,6 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MutualInformation: " << this->MutualInformation << "\n";
   os << indent << "NormalizedMutualInformation: "
      << this->NormalizedMutualInformation << "\n";
-}
-
-//----------------------------------------------------------------------------
-void vtkImageMutualInformation::SetStencilData(vtkImageStencilData *stencil)
-{
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputData(2, stencil);
-#else
-  this->SetInput(2, stencil);
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageStencilData *vtkImageMutualInformation::GetStencil()
-{
-  if (this->GetNumberOfInputConnections(2) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageStencilData::SafeDownCast(
-    this->GetExecutive()->GetInputData(2, 0));
-}
-
-//----------------------------------------------------------------------------
-int vtkImageMutualInformation::FillInputPortInformation(int port, vtkInformation *info)
-{
-  if (port == 0 || port == 1)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
-  else if (port == 2)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
-    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageMutualInformation::FillOutputPortInformation(int port, vtkInformation* info)
-{
-  if (port == 0 || port == 1)
-    {
-    info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkImageData");
-    }
-
-  return 1;
 }
 
 //----------------------------------------------------------------------------
@@ -185,97 +133,8 @@ int vtkImageMutualInformation::RequestInformation(
 }
 
 //----------------------------------------------------------------------------
-int vtkImageMutualInformation::RequestUpdateExtent(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  int inExt0[6], inExt1[6];
-  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
-  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
-
-  inInfo0->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt0);
-  inInfo1->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt1);
-
-  inInfo0->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt0, 6);
-  inInfo1->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt1, 6);
-
-  // need to set the stencil update extent to the input extent
-  if (this->GetNumberOfInputConnections(2) > 0)
-    {
-    vtkInformation *stencilInfo = inputVector[2]->GetInformationObject(0);
-    stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
-                     inExt0, 6);
-    }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-// anonymous namespace for internal classes and functions
+// anonymous namespace for internal functions
 namespace {
-
-struct vtkImageMutualInformationThreadStruct
-{
-  vtkImageMutualInformation *Algorithm;
-  vtkInformation *Request;
-  vtkInformationVector **InputsInfo;
-  vtkInformationVector *OutputsInfo;
-};
-
-//----------------------------------------------------------------------------
-// override from vtkThreadedImageAlgorithm to split input extent, instead
-// of splitting the output extent
-VTK_THREAD_RETURN_TYPE vtkImageMutualInformationThreadedExecute(void *arg)
-{
-  vtkMultiThreader::ThreadInfo *ti =
-    static_cast<vtkMultiThreader::ThreadInfo *>(arg);
-  vtkImageMutualInformationThreadStruct *ts =
-    static_cast<vtkImageMutualInformationThreadStruct *>(ti->UserData);
-
-  int extent[6] = { 0, -1, 0, -1, 0, -1 };
-
-  bool foundConnection = false;
-  int numPorts = ts->Algorithm->GetNumberOfInputPorts();
-  for (int inPort = 0; inPort < numPorts; ++inPort)
-    {
-    int numConnections = ts->Algorithm->GetNumberOfInputConnections(inPort);
-    if (numConnections)
-      {
-      vtkInformation *inInfo =
-        ts->InputsInfo[inPort]->GetInformationObject(0);
-      vtkImageData *inData = vtkImageData::SafeDownCast(
-        inInfo->Get(vtkDataObject::DATA_OBJECT()));
-      if (inData)
-        {
-        inData->GetExtent(extent);
-        foundConnection = true;
-        break;
-        }
-      }
-    }
-
-  if (foundConnection)
-    {
-    // execute the actual method with appropriate extent
-    // first find out how many pieces extent can be split into.
-    int splitExt[6];
-    int total = ts->Algorithm->SplitExtent(
-      splitExt, extent, ti->ThreadID, ti->NumberOfThreads);
-
-    if (ti->ThreadID < total &&
-        splitExt[1] >= splitExt[0] &&
-        splitExt[3] >= splitExt[2] &&
-        splitExt[5] >= splitExt[4])
-      {
-      ts->Algorithm->ThreadedRequestData(
-        ts->Request, ts->InputsInfo, ts->OutputsInfo, NULL, NULL,
-        splitExt, ti->ThreadID);
-      }
-    }
-
-  return VTK_THREAD_RETURN_VALUE;
-}
 
 //----------------------------------------------------------------------------
 template<class T1, class T2>
@@ -284,10 +143,10 @@ void vtkImageMutualInformationExecute(
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
   T1 *inPtr, T2 *inPtr1, int extent[6],
   vtkIdType *outPtr, int numBins[2], double binOrigin[2], double binSpacing[2],
-  int threadId)
+  vtkIdType pieceId)
 {
   vtkImageStencilIterator<T1>
-    inIter(inData0, stencil, extent, ((threadId == 0) ? self : NULL));
+    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<T2>
     inIter1(inData1, stencil, extent, NULL);
 
@@ -352,10 +211,10 @@ void vtkImageMutualInformationExecutePreScaled(
   vtkImageMutualInformation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
   unsigned char *inPtr, unsigned char *inPtr1, int extent[6],
-  vtkIdType *outPtr, int numBins[2], int threadId)
+  vtkIdType *outPtr, int numBins[2], vtkIdType pieceId)
 {
   vtkImageStencilIterator<unsigned char>
-    inIter(inData0, stencil, extent, ((threadId == 0) ? self : NULL));
+    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
 
   vtkImageStencilIterator<unsigned char>
     inIter1(inData1, stencil, extent, NULL);
@@ -415,172 +274,156 @@ void vtkImageMutualInformationCopyRow(
   while (--n);
 }
 
-
-
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
-// Functor for vtkSMPTools execution
-class vtkImageMutualInformationFunctor
-{
-public:
-  // Create the functor, provide all info it needs to execute.
-  vtkImageMutualInformationFunctor(
-    vtkImageMutualInformationThreadStruct *pipelineInfo,
-    const int extent[6],
-    vtkIdType pieces)
-    : PipelineInfo(pipelineInfo),
-      NumberOfPieces(pieces)
-  {
-    for (int i = 0; i < 6; i++)
-      {
-      this->Extent[i] = extent[i];
-      }
-  }
-
-  void Initialize() {}
-  void operator()(vtkIdType begin, vtkIdType end);
-  void Reduce();
-
-private:
-  vtkImageMutualInformationThreadStruct *PipelineInfo;
-  int Extent[6];
-  vtkIdType NumberOfPieces;
-};
-
-// Called by vtkSMPTools to execute the algorithm over specific pieces.
-void vtkImageMutualInformationFunctor::operator()(
-  vtkIdType begin, vtkIdType end)
-{
-  vtkImageMutualInformationThreadStruct *ts = this->PipelineInfo;
-
-  ts->Algorithm->SMPRequestData(
-    ts->Request, ts->InputsInfo, ts->OutputsInfo, NULL, NULL,
-    begin, end, this->NumberOfPieces, this->Extent);
-}
-
-// Called by vtkSMPTools once the multi-threading has finished.
-void vtkImageMutualInformationFunctor::Reduce()
-{
-  vtkImageMutualInformation *self =
-    static_cast<vtkImageMutualInformation *>(this->PipelineInfo->Algorithm);
-  vtkImageMutualInformationThreadStruct *ts = this->PipelineInfo;
-
-  self->ReduceRequestData(ts->Request, ts->InputsInfo, ts->OutputsInfo);
-}
-#endif
-
-//----------------------------------------------------------------------------
-// override from vtkThreadedImageAlgorithm to customize the multithreading
 int vtkImageMutualInformation::RequestData(
   vtkInformation* request,
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  // start of code copied from vtkThreadedImageAlgorithm
+  // create the thread-local object
+  vtkImageMutualInformationTLS tlocal;
+  tlocal.Initialize(this);
+  this->ThreadData = &tlocal;
 
-  // setup the threads structure
-  vtkImageMutualInformationThreadStruct ts;
-  ts.Algorithm = this;
-  ts.Request = request;
-  ts.InputsInfo = inputVector;
-  ts.OutputsInfo = outputVector;
+  this->Superclass::RequestData(request, inputVector, outputVector);
 
-  // allocate the output data
-  int numberOfOutputs = this->GetNumberOfOutputPorts();
-  if (numberOfOutputs > 0)
-    {
-    for (int i = 0; i < numberOfOutputs; ++i)
-      {
-      vtkInformation* info = outputVector->GetInformationObject(i);
-      vtkImageData *outData = vtkImageData::SafeDownCast(
-        info->Get(vtkDataObject::DATA_OBJECT()));
-      if (outData)
-        {
-        int updateExtent[6];
-        info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
-                  updateExtent);
-#if VTK_MAJOR_VERSION >= 6
-        this->AllocateOutputData(outData, info, updateExtent);
-#else
-        this->AllocateOutputData(outData, updateExtent);
-#endif
-        }
-      }
-    }
-
-  // copy arrays from first input to output
-  int numberOfInputs = this->GetNumberOfInputPorts();
-  if (numberOfInputs > 0)
-    {
-    vtkInformationVector* portInfo = inputVector[0];
-    int numberOfConnections = portInfo->GetNumberOfInformationObjects();
-    if (numberOfConnections && numberOfOutputs)
-      {
-      vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-      vtkImageData *inData = vtkImageData::SafeDownCast(
-        inInfo->Get(vtkDataObject::DATA_OBJECT()));
-      vtkInformation* outInfo = outputVector->GetInformationObject(0);
-      vtkImageData *outData = vtkImageData::SafeDownCast(
-        outInfo->Get(vtkDataObject::DATA_OBJECT()));
-      this->CopyAttributeData(inData, outData, inputVector);
-      }
-    }
-
-  // end of code copied from vtkThreadedImageAlgorithm
-
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
-  if (this->EnableSMP)
-    {
-    // code for vtkSMPTools
-    vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-    vtkImageData *inData = vtkImageData::SafeDownCast(
-      inInfo->Get(vtkDataObject::DATA_OBJECT()));
-    int extent[6];
-    inData->GetExtent(extent);
-
-    // do a dummy execution of SplitExtent to compute the number of pieces
-    vtkIdType pieces = this->SplitExtent(0, extent, 0, this->NumberOfThreads);
-
-    // create the thread-local object and the functor
-    vtkImageMutualInformationTLS tlocal;
-    vtkImageMutualInformationFunctor functor(&ts, extent, pieces);
-
-    this->ThreadData = &tlocal;
-    bool debug = this->Debug;
-    this->Debug = false;
-    vtkSMPTools::For(0, pieces, functor);
-    this->Debug = debug;
-    this->ThreadData = 0;
-    }
-  else
-#endif
-    {
-    // code for vtkMultiThreader
-    vtkImageMutualInformationTLS tlocal;
-    tlocal.SetNumberOfThreads(this->NumberOfThreads);
-    this->ThreadData = &tlocal;
-    this->Threader->SetNumberOfThreads(this->NumberOfThreads);
-    this->Threader->SetSingleMethod(
-      vtkImageMutualInformationThreadedExecute, &ts);
-
-    // always shut off debugging to avoid threading problems with GetMacros
-    int debug = this->Debug;
-    this->Debug = 0;
-    this->Threader->SingleMethodExecute();
-    this->Debug = debug;
-
-    this->ReduceRequestData(request, inputVector, outputVector);
-
-    this->ThreadData = 0;
-    }
+  this->ThreadData = 0;
 
   return 1;
 }
 
 //----------------------------------------------------------------------------
-int vtkImageMutualInformation::ReduceRequestData(
+// turn off 64-bit ints when templating over all types
+# undef VTK_USE_INT64
+# define VTK_USE_INT64 0
+# undef VTK_USE_UINT64
+# define VTK_USE_UINT64 0
+
+namespace {
+
+//----------------------------------------------------------------------------
+template<class T1>
+void vtkImageMutualInformationExecute1(
+  vtkImageMutualInformation *self,
+  vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
+  T1 *inPtr, void *inPtr1, int extent[6],
+  vtkIdType *outPtr, int numBins[2], double binOrigin[2], double binSpacing[2],
+  vtkIdType pieceId)
+{
+  switch (inData1->GetScalarType())
+    {
+    vtkTemplateAliasMacro(
+      vtkImageMutualInformationExecute(
+        self, inData0, inData1, stencil,
+        inPtr, static_cast<VTK_TT *>(inPtr1), extent,
+        outPtr, numBins, binOrigin, binSpacing, pieceId));
+    default:
+      vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
+    }
+}
+
+} // end anonymous namespace
+
+//----------------------------------------------------------------------------
+// This method is passed a input and output region, and executes the filter
+// algorithm to fill the output from the input.
+// It just executes a switch statement to call the correct function for
+// the regions data types.
+void vtkImageMutualInformation::PieceRequestData(
+  vtkInformation *vtkNotUsed(request),
+  vtkInformationVector **inputVector,
+  vtkInformationVector *vtkNotUsed(outputVector),
+  const int pieceExtent[6], vtkIdType pieceId)
+{
+  vtkImageMutualInformationThreadData *threadLocal =
+    &this->ThreadData->Local(pieceId);
+
+  vtkIdType *outPtr = threadLocal->Data;
+
+  if (outPtr == 0)
+    {
+    // initialize the joint histogram to zero
+    vtkIdType outIncY = this->NumberOfBins[0];
+    vtkIdType outCount = outIncY;
+    outCount *= this->NumberOfBins[1];
+
+    threadLocal->Data = new vtkIdType[outCount];
+    outPtr = threadLocal->Data;
+
+    vtkIdType *outPtr1 = outPtr;
+    do { *outPtr1++ = 0; } while (--outCount > 0);
+    }
+
+  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
+  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
+
+  vtkImageData *inData0 = vtkImageData::SafeDownCast(
+    inInfo0->Get(vtkDataObject::DATA_OBJECT()));
+  vtkImageData *inData1 = vtkImageData::SafeDownCast(
+    inInfo1->Get(vtkDataObject::DATA_OBJECT()));
+
+  // make sure execute extent is not beyond the extent of any input
+  int inExt0[6], inExt1[6];
+  inData0->GetExtent(inExt0);
+  inData1->GetExtent(inExt1);
+
+  int extent[6];
+  for (int i = 0; i < 6; i += 2)
+    {
+    int j = i + 1;
+    extent[i] = pieceExtent[i];
+    extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
+    extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
+    extent[j] = pieceExtent[j];
+    extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
+    extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
+    if (extent[i] > extent[j])
+      {
+      return;
+      }
+    }
+
+  void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
+  void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
+
+  vtkImageStencilData *stencil = this->GetStencil();
+
+  double *binOrigin = this->BinOrigin;
+  double *binSpacing = this->BinSpacing;
+  int *numBins = this->NumberOfBins;
+  int maxX = numBins[0] - 1;
+  int maxY = numBins[1] - 1;
+
+  if (vtkMath::Floor(binOrigin[0] + 0.5) == 0 &&
+      vtkMath::Floor(binOrigin[1] + 0.5) == 0 &&
+      vtkMath::Floor(binOrigin[0] + binSpacing[0]*maxX + 0.5) == maxX &&
+      vtkMath::Floor(binOrigin[1] + binSpacing[1]*maxY + 0.5) == maxY &&
+      inData0->GetScalarType() == VTK_UNSIGNED_CHAR &&
+      inData1->GetScalarType() == VTK_UNSIGNED_CHAR)
+    {
+    vtkImageMutualInformationExecutePreScaled(
+      this, inData0, inData1, stencil,
+      static_cast<unsigned char *>(inPtr0),
+      static_cast<unsigned char *>(inPtr1),
+      extent, outPtr, numBins, pieceId);
+    }
+  else switch (inData0->GetScalarType())
+    {
+    vtkTemplateAliasMacro(
+      vtkImageMutualInformationExecute1(
+        this, inData0, inData1, stencil,
+        static_cast<VTK_TT *>(inPtr0), inPtr1,
+        extent, outPtr, numBins, binOrigin, binSpacing,
+        pieceId));
+    default:
+      vtkErrorMacro(<< "Execute: Unknown ScalarType");
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageMutualInformation::ReduceRequestData(
   vtkInformation *, vtkInformationVector **,
   vtkInformationVector *outputVector)
 {
@@ -735,132 +578,5 @@ int vtkImageMutualInformation::ReduceRequestData(
   this->MutualInformation = mutualInformation;
   this->NormalizedMutualInformation = normalizedMutualInformation;
 
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-// turn off 64-bit ints when templating over all types
-# undef VTK_USE_INT64
-# define VTK_USE_INT64 0
-# undef VTK_USE_UINT64
-# define VTK_USE_UINT64 0
-
-namespace {
-
-//----------------------------------------------------------------------------
-template<class T1>
-void vtkImageMutualInformationExecute1(
-  vtkImageMutualInformation *self,
-  vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, void *inPtr1, int extent[6],
-  vtkIdType *outPtr, int numBins[2], double binOrigin[2], double binSpacing[2],
-  int threadId)
-{
-  switch (inData1->GetScalarType())
-    {
-    vtkTemplateAliasMacro(
-      vtkImageMutualInformationExecute(
-        self, inData0, inData1, stencil,
-        inPtr, static_cast<VTK_TT *>(inPtr1), extent,
-        outPtr, numBins, binOrigin, binSpacing, threadId));
-    default:
-      vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
-    }
-}
-
-} // end anonymous namespace
-
-//----------------------------------------------------------------------------
-// This method is passed a input and output region, and executes the filter
-// algorithm to fill the output from the input.
-// It just executes a switch statement to call the correct function for
-// the regions data types.
-void vtkImageMutualInformation::ThreadedRequestData(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
-  vtkInformationVector *vtkNotUsed(outputVector),
-  vtkImageData ***vtkNotUsed(inData),
-  vtkImageData **vtkNotUsed(outData),
-  int extent[6], int threadId)
-{
-  vtkImageMutualInformationThreadData *threadLocal =
-    &this->ThreadData->Local(threadId);
-
-  vtkIdType *outPtr = threadLocal->Data;
-
-  if (outPtr == 0)
-    {
-    // initialize the joint histogram to zero
-    vtkIdType outIncY = this->NumberOfBins[0];
-    vtkIdType outCount = outIncY;
-    outCount *= this->NumberOfBins[1];
-
-    threadLocal->Data = new vtkIdType[outCount];
-    outPtr = threadLocal->Data;
-
-    vtkIdType *outPtr1 = outPtr;
-    do { *outPtr1++ = 0; } while (--outCount > 0);
-    }
-
-  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
-  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
-
-  vtkImageData *inData0 = vtkImageData::SafeDownCast(
-    inInfo0->Get(vtkDataObject::DATA_OBJECT()));
-  vtkImageData *inData1 = vtkImageData::SafeDownCast(
-    inInfo1->Get(vtkDataObject::DATA_OBJECT()));
-
-  // make sure execute extent is not beyond the extent of any input
-  int inExt0[6], inExt1[6];
-  inData0->GetExtent(inExt0);
-  inData1->GetExtent(inExt1);
-
-  for (int i = 0; i < 6; i += 2)
-    {
-    int j = i + 1;
-    extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
-    extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
-    extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
-    extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    if (extent[i] > extent[j])
-      {
-      return;
-      }
-    }
-
-  void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
-  void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
-
-  vtkImageStencilData *stencil = this->GetStencil();
-
-  double *binOrigin = this->BinOrigin;
-  double *binSpacing = this->BinSpacing;
-  int *numBins = this->NumberOfBins;
-  int maxX = numBins[0] - 1;
-  int maxY = numBins[1] - 1;
-
-  if (vtkMath::Floor(binOrigin[0] + 0.5) == 0 &&
-      vtkMath::Floor(binOrigin[1] + 0.5) == 0 &&
-      vtkMath::Floor(binOrigin[0] + binSpacing[0]*maxX + 0.5) == maxX &&
-      vtkMath::Floor(binOrigin[1] + binSpacing[1]*maxY + 0.5) == maxY &&
-      inData0->GetScalarType() == VTK_UNSIGNED_CHAR &&
-      inData1->GetScalarType() == VTK_UNSIGNED_CHAR)
-    {
-    vtkImageMutualInformationExecutePreScaled(
-      this, inData0, inData1, stencil,
-      static_cast<unsigned char *>(inPtr0),
-      static_cast<unsigned char *>(inPtr1),
-      extent, outPtr, numBins, threadId);
-    }
-  else switch (inData0->GetScalarType())
-    {
-    vtkTemplateAliasMacro(
-      vtkImageMutualInformationExecute1(
-        this, inData0, inData1, stencil,
-        static_cast<VTK_TT *>(inPtr0), inPtr1,
-        extent, outPtr, numBins, binOrigin, binSpacing,
-        threadId));
-    default:
-      vtkErrorMacro(<< "Execute: Unknown ScalarType");
-    }
+  this->SetMinimizable(mutualInformation);
 }

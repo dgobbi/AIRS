@@ -20,22 +20,17 @@ vtkGaussianInterpolator.cxx
 vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
+vtkImageSimilarityMetric.cxx
+vtkImageRegistration.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
 vtkPowellMinimizer.cxx
 )
 
-IF (${VTK_MAJOR_VERSION} GREATER 4)
-  SET( Kit_SRCS ${Kit_SRCS}
-    vtkImageRegistration.cxx
-    )
-ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
-
-##IF (${VTK_MAJOR_VERSION} GREATER 4)
-##  SET( Kit_SRCS ${Kit_SRCS}
-##    vtkImageMean3D.cxx
-##    )
-##ENDIF (${VTK_MAJOR_VERSION} GREATER 4)
+SET_SOURCE_FILES_PROPERTIES(
+vtkImageSimilarityMetric
+ABSTRACT
+)
 
 SET(Kit_EXTRA_SRCS)
 SET(Kit_EXTRA_CMDS)

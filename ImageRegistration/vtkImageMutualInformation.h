@@ -1,11 +1,11 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageMutualInformation.h
+  Module: vtkImageMutualInformation.h
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2006 Atamai, Inc.
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -34,19 +34,18 @@
 //      An Overlap Invariant Measure of 3D Medical Image Alignment,
 //      Pattern Recognition 32:71-86, 1999.
 
-#ifndef __vtkImageMutualInformation_h
-#define __vtkImageMutualInformation_h
+#ifndef vtkImageMutualInformation_h
+#define vtkImageMutualInformation_h
 
-#include "vtkThreadedImageAlgorithm.h"
+#include "vtkImageSimilarityMetric.h"
 
-class vtkImageStencilData;
 class vtkImageMutualInformationTLS;
 
-class VTK_EXPORT vtkImageMutualInformation : public vtkThreadedImageAlgorithm
+class VTK_EXPORT vtkImageMutualInformation : public vtkImageSimilarityMetric
 {
 public:
   static vtkImageMutualInformation *New();
-  vtkTypeMacro(vtkImageMutualInformation,vtkThreadedImageAlgorithm);
+  vtkTypeMacro(vtkImageMutualInformation, vtkImageSimilarityMetric);
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
@@ -94,14 +93,6 @@ public:
   vtkGetVector2Macro(BinSpacing, double);
 
   // Description:
-  // Use a stencil to limit the calculations to a specific region of
-  // the input images.
-  void SetStencilData(vtkImageStencilData *stencil);
-  void SetStencil(vtkImageStencilData *stencil) {
-    this->SetStencilData(stencil); }
-  vtkImageStencilData *GetStencil();
-
-  // Description:
   // Get the mutual information that was computed for the joint histogram.
   // The result is only valid after the filter has executed.
   vtkGetMacro(MutualInformation, double);
@@ -111,34 +102,26 @@ public:
   // histogram.  The result is only valid after the filter has executed.
   vtkGetMacro(NormalizedMutualInformation, double);
 
-  // Description:
-  // This is part of the executive, but is public so that it can be accessed
-  // by non-member functions.
-  virtual void ThreadedRequestData(vtkInformation *request,
-                                   vtkInformationVector **inputVector,
-                                   vtkInformationVector *outputVector,
-                                   vtkImageData ***inData,
-                                   vtkImageData **outData, int ext[6], int id);
 protected:
   vtkImageMutualInformation();
   ~vtkImageMutualInformation();
 
-  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestData(vtkInformation *,
-                          vtkInformationVector **,
-                          vtkInformationVector *);
+  int RequestInformation(vtkInformation *request,
+                         vtkInformationVector **inInfo,
+                         vtkInformationVector *outInfo);
 
-  virtual int ReduceRequestData(vtkInformation *request,
-                                vtkInformationVector **inInfo,
-                                vtkInformationVector *outInfo);
+  int RequestData(vtkInformation *request,
+                  vtkInformationVector **inputVector,
+                  vtkInformationVector *outputVector);
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info);
-  virtual int FillOutputPortInformation(int port, vtkInformation *info);
+  void PieceRequestData(vtkInformation *request,
+                        vtkInformationVector **inputVector,
+                        vtkInformationVector *outputVector,
+                        const int pieceExtent[6], vtkIdType pieceId);
+
+  void ReduceRequestData(vtkInformation *request,
+                         vtkInformationVector **inInfo,
+                         vtkInformationVector *outInfo);
 
   int NumberOfBins[2];
   double BinOrigin[2];
@@ -154,8 +137,6 @@ protected:
 private:
   vtkImageMutualInformation(const vtkImageMutualInformation&);  // Not implemented.
   void operator=(const vtkImageMutualInformation&);  // Not implemented.
-
-  friend class vtkImageMutualInformationFunctor;
 };
 
 #endif
