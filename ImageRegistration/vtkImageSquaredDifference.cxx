@@ -1,11 +1,10 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageSquaredDifference.cxx
+  Module: vtkImageSquaredDifference.cxx
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -14,16 +13,17 @@
 =========================================================================*/
 #include "vtkImageSquaredDifference.h"
 
-#include "vtkObjectFactory.h"
-#include "vtkImageData.h"
-#include "vtkImageStencilData.h"
-#include "vtkImageStencilIterator.h"
-#include "vtkInformation.h"
-#include "vtkInformationVector.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkMultiThreader.h"
-#include "vtkTemplateAliasMacro.h"
-#include "vtkVersion.h"
+#include "vtkImageSimilarityMetricInternals.h"
+
+#include <vtkObjectFactory.h>
+#include <vtkImageData.h>
+#include <vtkImageStencilData.h>
+#include <vtkImageStencilIterator.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkTemplateAliasMacro.h>
+#include <vtkVersion.h>
 
 // turn off 64-bit ints when templating over all types
 # undef VTK_USE_INT64
@@ -36,13 +36,26 @@
 vtkStandardNewMacro(vtkImageSquaredDifference);
 
 //----------------------------------------------------------------------------
+// Data needed for each thread.
+class vtkImageSquaredDifferenceThreadData
+{
+public:
+  vtkImageSquaredDifferenceThreadData() : SumSquares(0.0), Count(0) {}
+
+  double SumSquares;
+  vtkIdType Count;
+};
+
+class vtkImageSquaredDifferenceTLS
+  : public vtkImageSimilarityMetricTLS<vtkImageSquaredDifferenceThreadData>
+{
+};
+
+//----------------------------------------------------------------------------
 // Constructor sets default values
 vtkImageSquaredDifference::vtkImageSquaredDifference()
 {
   this->SquaredDifference = 0.0;
-
-  this->SetNumberOfInputPorts(3);
-  this->SetNumberOfOutputPorts(0);
 }
 
 //----------------------------------------------------------------------------
@@ -55,90 +68,7 @@ void vtkImageSquaredDifference::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 
-  os << indent << "Stencil: " << this->GetStencil() << "\n";
-
   os << indent << "SquaredDifference: " << this->SquaredDifference << "\n";
-}
-
-//----------------------------------------------------------------------------
-void vtkImageSquaredDifference::SetStencilData(vtkImageStencilData *stencil)
-{
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputData(2, stencil);
-#else
-  this->SetInput(2, stencil);
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageStencilData *vtkImageSquaredDifference::GetStencil()
-{
-  if (this->GetNumberOfInputConnections(2) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageStencilData::SafeDownCast(
-    this->GetExecutive()->GetInputData(2, 0));
-}
-
-//----------------------------------------------------------------------------
-int vtkImageSquaredDifference::FillInputPortInformation(
-  int port, vtkInformation *info)
-{
-  if (port == 0 || port == 1)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
-  else if (port == 2)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
-    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageSquaredDifference::FillOutputPortInformation(
-  int vtkNotUsed(port), vtkInformation* vtkNotUsed(info))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageSquaredDifference::RequestInformation(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageSquaredDifference::RequestUpdateExtent(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  int inExt0[6], inExt1[6];
-  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
-  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
-
-  inInfo0->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt0);
-  inInfo1->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt1);
-
-  inInfo0->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt0, 6);
-  inInfo1->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt1, 6);
-
-  // need to set the stencil update extent to the input extent
-  if (this->GetNumberOfInputConnections(2) > 0)
-    {
-    vtkInformation *stencilInfo = inputVector[2]->GetInformationObject(0);
-    stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
-                     inExt0, 6);
-    }
-
-  return 1;
 }
 
 // begin anonymous namespace
@@ -149,11 +79,11 @@ template<class T1, class T2>
 void vtkImageSquaredDifferenceExecute(
   vtkImageSquaredDifference *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, T2 *inPtr1, int extent[6], double output[2],
-  int threadId)
+  T1 *inPtr, T2 *inPtr1, const int extent[6], vtkIdType pieceId,
+  vtkImageSquaredDifferenceThreadData *output)
 {
   vtkImageStencilIterator<T1>
-    inIter(inData0, stencil, extent, ((threadId == 0) ? self : NULL));
+    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<T2>
     inIter1(inData1, stencil, extent, NULL);
 
@@ -187,8 +117,8 @@ void vtkImageSquaredDifferenceExecute(
     inIter1.NextSpan();
     }
 
-  output[0] = sqsum;
-  output[1] = count;
+  output->SumSquares += sqsum;
+  output->Count += count;
 }
 
 //----------------------------------------------------------------------------
@@ -196,14 +126,15 @@ template<class T1>
 void vtkImageSquaredDifferenceExecute1(
   vtkImageSquaredDifference *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, void *inPtr1, int extent[6], double output[6], int threadId)
+  T1 *inPtr, void *inPtr1, const int extent[6], vtkIdType pieceId,
+  vtkImageSquaredDifferenceThreadData *output)
 {
   switch (inData1->GetScalarType())
     {
     vtkTemplateAliasMacro(
       vtkImageSquaredDifferenceExecute(
         self, inData0, inData1, stencil,
-        inPtr, static_cast<VTK_TT *>(inPtr1), extent, output, threadId));
+        inPtr, static_cast<VTK_TT *>(inPtr1), extent, pieceId, output));
     default:
       vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
     }
@@ -212,40 +143,19 @@ void vtkImageSquaredDifferenceExecute1(
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
-// override from vtkThreadedImageAlgorithm to customize the multithreading
 int vtkImageSquaredDifference::RequestData(
   vtkInformation* request,
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  // specifics for vtkImageSquaredDifference:
-  // allocate workspace for each thread
+  // create the thread-local object
+  vtkImageSquaredDifferenceTLS tlocal;
+  tlocal.Initialize(this);
+  this->ThreadData = &tlocal;
 
-  int n = this->GetNumberOfThreads();
-  for (int k = 0; k < n; k++)
-    {
-    this->ThreadOutput[k][0] = 0;
-    this->ThreadOutput[k][1] = 0;
-    }
-
-  // defer to vtkThreadedImageAlgorithm
   this->Superclass::RequestData(request, inputVector, outputVector);
 
-  double sqsum = 0;
-  double count = 0;
-  for (int j = 0; j < n; j++)
-    {
-    sqsum += this->ThreadOutput[j][0];
-    count += this->ThreadOutput[j][1];
-    }
-
-  if (count == 0)
-    {
-    count = 1.0;
-    }
-
-  // output values
-  this->SquaredDifference = sqsum/count;
+  this->ThreadData = 0;
 
   return 1;
 }
@@ -255,13 +165,11 @@ int vtkImageSquaredDifference::RequestData(
 // algorithm to fill the output from the input.
 // It just executes a switch statement to call the correct function for
 // the regions data types.
-void vtkImageSquaredDifference::ThreadedRequestData(
+void vtkImageSquaredDifference::PieceRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *vtkNotUsed(outputVector),
-  vtkImageData ***vtkNotUsed(inData),
-  vtkImageData **vtkNotUsed(outData),
-  int extent[6], int threadId)
+  const int pieceExtent[6], vtkIdType pieceId)
 {
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
@@ -273,9 +181,9 @@ void vtkImageSquaredDifference::ThreadedRequestData(
 
   if (inData0->GetScalarType() != inData1->GetScalarType())
     {
-    if (threadId == 0)
+    if (pieceId == 0)
       {
-      vtkErrorMacro("input and output type must be the same.");
+      vtkErrorMacro("input image types must be the same.");
       }
     return;
     }
@@ -285,11 +193,14 @@ void vtkImageSquaredDifference::ThreadedRequestData(
   inData0->GetExtent(inExt0);
   inData1->GetExtent(inExt1);
 
+  int extent[6];
   for (int i = 0; i < 6; i += 2)
     {
     int j = i + 1;
+    extent[i] = pieceExtent[i];
     extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
     extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
+    extent[j] = pieceExtent[j];
     extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
     extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
     if (extent[i] > extent[j])
@@ -308,9 +219,35 @@ void vtkImageSquaredDifference::ThreadedRequestData(
     vtkTemplateAliasMacro(
       vtkImageSquaredDifferenceExecute1(
         this, inData0, inData1, stencil,
-        static_cast<VTK_TT *>(inPtr0), inPtr1, extent,
-        this->ThreadOutput[threadId], threadId));
+        static_cast<VTK_TT *>(inPtr0), inPtr1, extent, pieceId,
+        &this->ThreadData->Local(pieceId)));
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageSquaredDifference::ReduceRequestData(
+  vtkInformation *, vtkInformationVector **, vtkInformationVector *)
+{
+  double sqsum = 0;
+  vtkIdType count = 0;
+
+  for (vtkImageSquaredDifferenceTLS::iterator
+       iter = this->ThreadData->begin();
+       iter != this->ThreadData->end(); ++iter)
+    {
+    sqsum += iter->SumSquares;
+    count += iter->Count;
+    }
+
+  if (count == 0)
+    {
+    count = 1;
+    }
+
+  // output values
+  this->SquaredDifference = sqsum/count;
+
+  this->SetMinimizable(this->SquaredDifference);
 }

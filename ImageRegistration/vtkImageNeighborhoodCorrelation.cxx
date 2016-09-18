@@ -1,11 +1,10 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageNeighborhoodCorrelation.cxx
+  Module: vtkImageNeighborhoodCorrelation.cxx
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -14,15 +13,16 @@
 =========================================================================*/
 #include "vtkImageNeighborhoodCorrelation.h"
 
-#include "vtkObjectFactory.h"
-#include "vtkImageData.h"
-#include "vtkImageStencilData.h"
-#include "vtkInformation.h"
-#include "vtkInformationVector.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkMultiThreader.h"
-#include "vtkTemplateAliasMacro.h"
-#include "vtkVersion.h"
+#include "vtkImageSimilarityMetricInternals.h"
+
+#include <vtkObjectFactory.h>
+#include <vtkImageData.h>
+#include <vtkImageStencilData.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkTemplateAliasMacro.h>
+#include <vtkVersion.h>
 
 // turn off 64-bit ints when templating over all types
 # undef VTK_USE_INT64
@@ -35,15 +35,27 @@
 vtkStandardNewMacro(vtkImageNeighborhoodCorrelation);
 
 //----------------------------------------------------------------------------
+// Data needed for each thread.
+class vtkImageNeighborhoodCorrelationThreadData
+{
+public:
+  vtkImageNeighborhoodCorrelationThreadData() : Result(0.0) {}
+
+  double Result;
+};
+
+class vtkImageNeighborhoodCorrelationTLS
+  : public vtkImageSimilarityMetricTLS<vtkImageNeighborhoodCorrelationThreadData>
+{
+};
+
+//----------------------------------------------------------------------------
 // Constructor sets default values
 vtkImageNeighborhoodCorrelation::vtkImageNeighborhoodCorrelation()
 {
-  this->ValueToMinimize = 0.0;
   this->NeighborhoodRadius[0] = 7;
   this->NeighborhoodRadius[1] = 7;
   this->NeighborhoodRadius[2] = 7;
-  this->SetNumberOfInputPorts(3);
-  this->SetNumberOfOutputPorts(0);
 }
 
 //----------------------------------------------------------------------------
@@ -56,92 +68,8 @@ void vtkImageNeighborhoodCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 
-  os << indent << "Stencil: " << this->GetStencil() << "\n";
   os << indent << "NeighborhoodRadius: " << this->NeighborhoodRadius[0] << " "
      << this->NeighborhoodRadius[1] << " " << this->NeighborhoodRadius[2] << "\n";
-  os << indent << "ValueToMinimize: " << this->ValueToMinimize << "\n";
-}
-
-//----------------------------------------------------------------------------
-void vtkImageNeighborhoodCorrelation::SetStencilData(
-  vtkImageStencilData *stencil)
-{
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputData(2, stencil);
-#else
-  this->SetInput(2, stencil);
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageStencilData *vtkImageNeighborhoodCorrelation::GetStencil()
-{
-  if (this->GetNumberOfInputConnections(2) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageStencilData::SafeDownCast(
-    this->GetExecutive()->GetInputData(2, 0));
-}
-
-//----------------------------------------------------------------------------
-int vtkImageNeighborhoodCorrelation::FillInputPortInformation(
-  int port, vtkInformation *info)
-{
-  if (port == 0 || port == 1)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
-  else if (port == 2)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
-    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageNeighborhoodCorrelation::FillOutputPortInformation(
-  int vtkNotUsed(port), vtkInformation* vtkNotUsed(info))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageNeighborhoodCorrelation::RequestInformation(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageNeighborhoodCorrelation::RequestUpdateExtent(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  int inExt0[6], inExt1[6];
-  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
-  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
-
-  inInfo0->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt0);
-  inInfo1->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt1);
-
-  inInfo0->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt0, 6);
-  inInfo1->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt1, 6);
-
-  // need to set the stencil update extent to the input extent
-  if (this->GetNumberOfInputConnections(2) > 0)
-    {
-    vtkInformation *stencilInfo = inputVector[2]->GetInformationObject(0);
-    stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
-                     inExt0, 6);
-    }
-
-  return 1;
 }
 
 // begin anonymous namespace
@@ -406,7 +334,7 @@ void vtkImageNeighborhoodCorrelation2D(
   int radiusX, int radiusZ, int idY,
   U *workPtr, U *rowPtr)
 {
-/*  Sliding window
+  /*  Sliding window
 
   Each buffer element is one row of partial sums.
 
@@ -615,14 +543,14 @@ template<class T, class U>
 void vtkImageNeighborhoodCorrelation3D(
   const T *inPtr1, const T *inPtr2,
   const vtkIdType inInc1[3], const vtkIdType inInc2[3],
-  const int extent[6], const int threadExtent[6], vtkImageStencilData *stencil,
-  const int radius[3], U *workPtr, double *result,
-  vtkAlgorithm *progress)
+  const int extent[6], const int pieceExtent[6],
+  vtkImageStencilData *stencil,
+  const int radius[3], U *workPtr, vtkAlgorithm *progress,
+  vtkImageNeighborhoodCorrelationThreadData *threadLocal)
 {
   // apply filter in all three directions: first X, then Z, then Y
   // (doing Z second is most efficient, memory-wise, because it is
   // the dimension broken up between threads)
-  *result = 0;
 
   /*  Sliding window with rotating buffer:
 
@@ -657,6 +585,8 @@ void vtkImageNeighborhoodCorrelation3D(
         n-2    POBBBBBB--- Finish      O = P - O
         n-1    POBBBBB---- Finish      O = P - O
   */
+
+  double result = 0.0;
 
   int radiusX = radius[0];
   int radiusY = radius[1];
@@ -807,33 +737,33 @@ void vtkImageNeighborhoodCorrelation3D(
       {
       // the sums over the neighborhoods have been computed for all the
       // voxels in a slice, so compute the normalized cross-correlation
-      // (only compute the metric over the threadExtent)
+      // (only compute the metric over the pieceExtent)
       int outIdY = idY - radiusY + i;
-      if (outIdY >= threadExtent[2] && outIdY <= threadExtent[3])
+      if (outIdY >= pieceExtent[2] && outIdY <= pieceExtent[3])
         {
         double total = 0;
         workPtr = bufferPtr[1];
-        workPtr += elementSize*rowSize*(threadExtent[4] - extent[4]);
-        for (int idZ = threadExtent[4]; idZ <= threadExtent[5]; idZ++)
+        workPtr += elementSize*rowSize*(pieceExtent[4] - extent[4]);
+        for (int idZ = pieceExtent[4]; idZ <= pieceExtent[5]; idZ++)
           {
-          workPtr += elementSize*(threadExtent[0] - extent[0]);
+          workPtr += elementSize*(pieceExtent[0] - extent[0]);
 
           // only compute the metric within the stencil
           int iter = 0;
           int rval = 1;
-          int r1 = threadExtent[0];
-          int r2 = threadExtent[1];
+          int r1 = pieceExtent[0];
+          int r2 = pieceExtent[1];
 
           // loop over stencil extents (break at end if no stencil)
           do
             {
-            int s1 = ((iter == 0) ? threadExtent[0] : r2 + 1);
+            int s1 = ((iter == 0) ? pieceExtent[0] : r2 + 1);
             if (stencil)
               {
               rval = stencil->GetNextExtent(
-                r1, r2, threadExtent[0], threadExtent[1], outIdY, idZ, iter);
+                r1, r2, pieceExtent[0], pieceExtent[1], outIdY, idZ, iter);
               }
-            int s2 = ((rval == 0) ? threadExtent[1] : r1 - 1);
+            int s2 = ((rval == 0) ? pieceExtent[1] : r1 - 1);
             workPtr += elementSize*(s2 - s1 + 1);
 
             if (rval == 0)
@@ -869,15 +799,15 @@ void vtkImageNeighborhoodCorrelation3D(
             }
           while (stencil);
 
-          workPtr += elementSize*(extent[1] - threadExtent[1]);
+          workPtr += elementSize*(extent[1] - pieceExtent[1]);
           }
 
-        workPtr += elementSize*rowSize*(extent[5] - threadExtent[5]);
+        workPtr += elementSize*rowSize*(extent[5] - pieceExtent[5]);
 
-        *result += total;
+        result += total;
         }
 
-      if (idY < idYMax || outIdY >= threadExtent[3])
+      if (idY < idYMax || outIdY >= pieceExtent[3])
         {
         break;
         }
@@ -935,52 +865,39 @@ void vtkImageNeighborhoodCorrelation3D(
 
   delete [] workPtr2;
   delete [] bufferPtr;
+
+  threadLocal->Result += result;
 }
 
 } // end anonymous namespace
 
 //----------------------------------------------------------------------------
-// override from vtkThreadedImageAlgorithm to customize the multithreading
 int vtkImageNeighborhoodCorrelation::RequestData(
   vtkInformation* request,
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  // specifics for vtkImageNeighborhoodCorrelation:
-  // allocate workspace for each thread
+  // create the thread-local object
+  vtkImageNeighborhoodCorrelationTLS tlocal;
+  tlocal.Initialize(this);
+  this->ThreadData = &tlocal;
 
-  int n = this->GetNumberOfThreads();
-  for (int k = 0; k < n; k++)
-    {
-    this->ThreadOutput[k] = 0;
-    }
-
-  // defer to vtkThreadedImageAlgorithm
   this->Superclass::RequestData(request, inputVector, outputVector);
 
-  double result = 0;
-  for (int k = 0; k < n; k++)
-    {
-    result += this->ThreadOutput[k];
-    }
-
-  this->ValueToMinimize = - result;
+  this->ThreadData = 0;
 
   return 1;
 }
-
 //----------------------------------------------------------------------------
 // This method is passed a input and output region, and executes the filter
 // algorithm to fill the output from the input.
 // It just executes a switch statement to call the correct function for
 // the regions data types.
-void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
+void vtkImageNeighborhoodCorrelation::PieceRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *vtkNotUsed(outputVector),
-  vtkImageData ***vtkNotUsed(inData),
-  vtkImageData **vtkNotUsed(outData),
-  int threadExtent[6], int threadId)
+  const int pieceExtent[6], vtkIdType pieceId)
 {
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
@@ -992,9 +909,9 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
 
   if (inData0->GetScalarType() != inData1->GetScalarType())
     {
-    if (threadId == 0)
+    if (pieceId == 0)
       {
-      vtkErrorMacro("input and output type must be the same.");
+      vtkErrorMacro("input image types must be the same.");
       }
     return;
     }
@@ -1010,24 +927,24 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
   inData0->GetExtent(inExt0);
   inData1->GetExtent(inExt1);
 
-  int extent[6];
+  int extent[6], pExtent[6];
   for (int i = 0; i < 6; i += 2)
     {
-    // partial sums need to be computed over threadExtent + radius, to
+    // partial sums need to be computed over pieceExtent + radius, to
     // ensure there is no "gap" between slabs assigned to different threads
     int j = i + 1;
     int r = neighborhoodRadius[i/2];
-    extent[i] = threadExtent[i] - r;
-    extent[j] = threadExtent[j] + r;
+    extent[i] = pieceExtent[i] - r;
+    extent[j] = pieceExtent[j] + r;
     extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
     extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
     extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
     extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    threadExtent[i] =
-      ((threadExtent[i] > extent[i]) ? threadExtent[i] : extent[i]);
-    threadExtent[j] =
-      ((threadExtent[j] < extent[j]) ? threadExtent[j] : extent[j]);
-    if (threadExtent[i] > threadExtent[j])
+    pExtent[i] =
+      ((pieceExtent[i] > extent[i]) ? pieceExtent[i] : extent[i]);
+    pExtent[j] =
+      ((pieceExtent[j] < extent[j]) ? pieceExtent[j] : extent[j]);
+    if (pExtent[i] > pExtent[j])
       {
       return;
       }
@@ -1043,7 +960,7 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
   vtkImageStencilData *stencil = this->GetStencil();
 
   // only used for tracking progress
-  vtkAlgorithm *progress = (threadId == 0 ? this : 0);
+  vtkAlgorithm *progress = (pieceId == 0 ? this : 0);
 
   int scalarType = inData0->GetScalarType();
 
@@ -1056,15 +973,15 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
       {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<float *>(inPtr0), static_cast<float *>(inPtr1),
-        inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
-        &workVal, &this->ThreadOutput[threadId], progress);
+        inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+        &workVal, progress, &this->ThreadData->Local(pieceId));
       }
     else
       {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<double *>(inPtr0), static_cast<double *>(inPtr1),
-        inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
-        &workVal, &this->ThreadOutput[threadId], progress);
+        inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+        &workVal, progress, &this->ThreadData->Local(pieceId));
       }
     }
   else
@@ -1083,10 +1000,26 @@ void vtkImageNeighborhoodCorrelation::ThreadedRequestData(
       vtkTemplateAliasMacro(
         vtkImageNeighborhoodCorrelation3D(
           static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
-          inInc1, inInc2, extent, threadExtent, stencil, neighborhoodRadius,
-          &workVal, &this->ThreadOutput[threadId], progress));
+          inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+          &workVal, progress, &this->ThreadData->Local(pieceId)));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
       }
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageNeighborhoodCorrelation::ReduceRequestData(
+  vtkInformation *, vtkInformationVector **, vtkInformationVector *)
+{
+  double result = 0.0;
+
+  for (vtkImageNeighborhoodCorrelationTLS::iterator
+       iter = this->ThreadData->begin();
+       iter != this->ThreadData->end(); ++iter)
+    {
+    result += iter->Result;
+    }
+
+  this->SetMinimizable(-result);
 }

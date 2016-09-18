@@ -1,11 +1,11 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageCrossCorrelation.h
+  Module: vtkImageCrossCorrelation.h
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2006 Atamai, Inc.
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -18,28 +18,20 @@
 // cross correlation of two input images.  The images must have the same
 // origin and spacing.
 
-#ifndef __vtkImageCrossCorrelation_h
-#define __vtkImageCrossCorrelation_h
+#ifndef vtkImageCrossCorrelation_h
+#define vtkImageCrossCorrelation_h
 
-#include "vtkThreadedImageAlgorithm.h"
+#include "vtkImageSimilarityMetric.h"
 
-class vtkImageStencilData;
+class vtkImageCrossCorrelationTLS;
 
-class VTK_EXPORT vtkImageCrossCorrelation : public vtkThreadedImageAlgorithm
+class VTK_EXPORT vtkImageCrossCorrelation : public vtkImageSimilarityMetric
 {
 public:
   static vtkImageCrossCorrelation *New();
-  vtkTypeMacro(vtkImageCrossCorrelation,vtkThreadedImageAlgorithm);
+  vtkTypeMacro(vtkImageCrossCorrelation, vtkImageSimilarityMetric);
 
   void PrintSelf(ostream& os, vtkIndent indent);
-
-  // Description:
-  // Use a stencil to limit the calculations to a specific region of
-  // the input images.
-  void SetStencilData(vtkImageStencilData *stencil);
-  void SetStencil(vtkImageStencilData *stencil) {
-    this->SetStencilData(stencil); }
-  vtkImageStencilData *GetStencil();
 
   // Description:
   // Get the cross correlation of the two images, with no normalization.
@@ -51,35 +43,27 @@ public:
   // The result is only valid after the filter has executed.
   vtkGetMacro(NormalizedCrossCorrelation, double);
 
-  // Description:
-  // This is part of the executive, but is public so that it can be accessed
-  // by non-member functions.
-  virtual void ThreadedRequestData(vtkInformation *request,
-                                   vtkInformationVector **inputVector,
-                                   vtkInformationVector *outputVector,
-                                   vtkImageData ***inData,
-                                   vtkImageData **outData, int ext[6], int id);
 protected:
   vtkImageCrossCorrelation();
   ~vtkImageCrossCorrelation();
 
-  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+  int RequestData(vtkInformation *request,
+                  vtkInformationVector **inputVector,
+                  vtkInformationVector *outputVector);
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info);
-  virtual int FillOutputPortInformation(int port, vtkInformation *info);
+  void PieceRequestData(vtkInformation *request,
+                        vtkInformationVector **inputVector,
+                        vtkInformationVector *outputVector,
+                        const int pieceExtent[6], vtkIdType pieceId);
+
+  void ReduceRequestData(vtkInformation *request,
+                         vtkInformationVector **inInfo,
+                         vtkInformationVector *outInfo);
 
   double CrossCorrelation;
   double NormalizedCrossCorrelation;
 
-  double ThreadOutput[VTK_MAX_THREADS][6];
+  vtkImageCrossCorrelationTLS *ThreadData;
 
 private:
   vtkImageCrossCorrelation(const vtkImageCrossCorrelation&);  // Not implemented.

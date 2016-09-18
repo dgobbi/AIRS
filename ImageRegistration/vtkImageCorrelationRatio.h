@@ -1,11 +1,10 @@
 /*=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    vtkImageCorrelationRatio.h
+  Module: vtkImageCorrelationRatio.h
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright (c) 2016 David Gobbi
   All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -28,18 +27,18 @@
 //      The Correlation Ratio as a New Similarity Measure for Multimodal
 //      Image Registration, MICCAI '98, LNCS 1496:1115-1124, 1998.
 
-#ifndef __vtkImageCorrelationRatio_h
-#define __vtkImageCorrelationRatio_h
+#ifndef vtkImageCorrelationRatio_h
+#define vtkImageCorrelationRatio_h
 
-#include "vtkThreadedImageAlgorithm.h"
+#include "vtkImageSimilarityMetric.h"
 
-class vtkImageStencilData;
+class vtkImageCorrelationRatioTLS;
 
-class VTK_EXPORT vtkImageCorrelationRatio : public vtkThreadedImageAlgorithm
+class VTK_EXPORT vtkImageCorrelationRatio : public vtkImageSimilarityMetric
 {
 public:
   static vtkImageCorrelationRatio *New();
-  vtkTypeMacro(vtkImageCorrelationRatio,vtkThreadedImageAlgorithm);
+  vtkTypeMacro(vtkImageCorrelationRatio, vtkImageSimilarityMetric);
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
@@ -52,42 +51,26 @@ public:
   vtkSetVector2Macro(DataRange, double);
 
   // Description:
-  // Use a stencil to limit the calculations to a specific region of
-  // the input images.
-  void SetStencilData(vtkImageStencilData *stencil);
-  void SetStencil(vtkImageStencilData *stencil) {
-    this->SetStencilData(stencil); }
-  vtkImageStencilData *GetStencil();
-
-  // Description:
   // Get the correlation ratio between the two images.
   // The result is only valid after the filter has executed.
   vtkGetMacro(CorrelationRatio, double);
 
-  // Description:
-  // This is part of the executive, but is public so that it can be accessed
-  // by non-member functions.
-  virtual void ThreadedRequestData(vtkInformation *request,
-                                   vtkInformationVector **inputVector,
-                                   vtkInformationVector *outputVector,
-                                   vtkImageData ***inData,
-                                   vtkImageData **outData, int ext[6], int id);
 protected:
   vtkImageCorrelationRatio();
   ~vtkImageCorrelationRatio();
 
-  virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+  int RequestData(vtkInformation *request,
+                  vtkInformationVector **inputVector,
+                  vtkInformationVector *outputVector);
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info);
-  virtual int FillOutputPortInformation(int port, vtkInformation *info);
+  void PieceRequestData(vtkInformation *request,
+                        vtkInformationVector **inputVector,
+                        vtkInformationVector *outputVector,
+                        const int pieceExtent[6], vtkIdType pieceId);
+
+  void ReduceRequestData(vtkInformation *request,
+                         vtkInformationVector **inInfo,
+                         vtkInformationVector *outInfo);
 
   double DataRange[2];
 
@@ -99,8 +82,7 @@ protected:
 
   double CorrelationRatio;
 
-  double *ThreadOutput[VTK_MAX_THREADS];
-  bool ThreadExecuted[VTK_MAX_THREADS];
+  vtkImageCorrelationRatioTLS *ThreadData;
 
 private:
   vtkImageCorrelationRatio(const vtkImageCorrelationRatio&);  // Not implemented.
