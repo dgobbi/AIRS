@@ -26,6 +26,7 @@ vtkImageRegistration.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
 vtkPowellMinimizer.cxx
+vtkNelderMeadMinimizer.cxx
 )
 
 SET_SOURCE_FILES_PROPERTIES(
