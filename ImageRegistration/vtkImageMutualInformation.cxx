@@ -141,14 +141,15 @@ template<class T1, class T2>
 void vtkImageMutualInformationExecute(
   vtkImageMutualInformation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, T2 *inPtr1, int extent[6],
-  vtkIdType *outPtr, int numBins[2], double binOrigin[2], double binSpacing[2],
+  T1 *inPtr, T2 *inPtr1, const int extent[6], vtkIdType *outPtr,
+  const int numBins[2], const double binOrigin[2], const double binSpacing[2],
   vtkIdType pieceId)
 {
+  int *ext = const_cast<int *>(extent);
   vtkImageStencilIterator<T1>
-    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
+    inIter(inData0, stencil, ext, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<T2>
-    inIter1(inData1, stencil, extent, NULL);
+    inIter1(inData1, stencil, ext, NULL);
 
   int pixelInc = inData0->GetNumberOfScalarComponents();
   int pixelInc1 = inData1->GetNumberOfScalarComponents();
@@ -210,14 +211,14 @@ void vtkImageMutualInformationExecute(
 void vtkImageMutualInformationExecutePreScaled(
   vtkImageMutualInformation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  unsigned char *inPtr, unsigned char *inPtr1, int extent[6],
-  vtkIdType *outPtr, int numBins[2], vtkIdType pieceId)
+  unsigned char *inPtr, unsigned char *inPtr1, const int extent[6],
+  vtkIdType *outPtr, const int numBins[2], vtkIdType pieceId)
 {
+  int *ext = const_cast<int *>(extent);
   vtkImageStencilIterator<unsigned char>
-    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
-
+    inIter(inData0, stencil, ext, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<unsigned char>
-    inIter1(inData1, stencil, extent, NULL);
+    inIter1(inData1, stencil, ext, NULL);
 
   int pixelInc = inData0->GetNumberOfScalarComponents();
   int pixelInc1 = inData1->GetNumberOfScalarComponents();

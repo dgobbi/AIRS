@@ -74,8 +74,6 @@ void vtkImageCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 
-  os << indent << "Stencil: " << this->GetStencil() << "\n";
-
   os << indent << "CrossCorrelation: " << this->CrossCorrelation << "\n";
   os << indent << "NormalizedCrossCorrelation: "
      << this->NormalizedCrossCorrelation << "\n";
@@ -89,13 +87,14 @@ template<class T1, class T2>
 void vtkImageCrossCorrelationExecute(
   vtkImageCrossCorrelation *self,
   vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, T2 *inPtr1, int extent[6], double output[6],
+  T1 *inPtr, T2 *inPtr1, const int extent[6], double output[6],
   vtkIdType pieceId)
 {
+  int *ext = const_cast<int *>(extent);
   vtkImageStencilIterator<T1>
-    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
+    inIter(inData0, stencil, ext, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<T2>
-    inIter1(inData1, stencil, extent, NULL);
+    inIter1(inData1, stencil, ext, NULL);
 
   int pixelInc = inData0->GetNumberOfScalarComponents();
   int pixelInc1 = inData1->GetNumberOfScalarComponents();
@@ -149,8 +148,9 @@ void vtkImageCrossCorrelationExecute(
 template<class T1>
 void vtkImageCrossCorrelationExecute1(
   vtkImageCrossCorrelation *self,
-  vtkImageData *inData0, vtkImageData *inData1, vtkImageStencilData *stencil,
-  T1 *inPtr, void *inPtr1, int extent[6], double output[6], vtkIdType pieceId)
+  vtkImageData *inData0, vtkImageData *inData1,
+  vtkImageStencilData *stencil, T1 *inPtr, void *inPtr1,
+  const int extent[6], double output[6], vtkIdType pieceId)
 {
   switch (inData1->GetScalarType())
     {
@@ -192,7 +192,7 @@ void vtkImageCrossCorrelation::PieceRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *vtkNotUsed(outputVector),
-  const int pieceExtent[6], vtkIdType pieceId)
+  const int extent[6], vtkIdType pieceId)
 {
   vtkImageCrossCorrelationThreadData *threadLocal =
     &this->ThreadData->Local(pieceId);
@@ -207,29 +207,9 @@ void vtkImageCrossCorrelation::PieceRequestData(
   vtkImageData *inData1 = vtkImageData::SafeDownCast(
     inInfo1->Get(vtkDataObject::DATA_OBJECT()));
 
-  // make sure execute extent is not beyond the extent of any input
-  int inExt0[6], inExt1[6];
-  inData0->GetExtent(inExt0);
-  inData1->GetExtent(inExt1);
-
-  int extent[6];
-  for (int i = 0; i < 6; i += 2)
-    {
-    int j = i + 1;
-    extent[i] = pieceExtent[i];
-    extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
-    extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
-    extent[j] = pieceExtent[j];
-    extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
-    extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    if (extent[i] > extent[j])
-      {
-      return;
-      }
-    }
-
-  void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
-  void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
+  int *ext = const_cast<int *>(extent);
+  void *inPtr0 = inData0->GetScalarPointerForExtent(ext);
+  void *inPtr1 = inData1->GetScalarPointerForExtent(ext);
 
   vtkImageStencilData *stencil = this->GetStencil();
 

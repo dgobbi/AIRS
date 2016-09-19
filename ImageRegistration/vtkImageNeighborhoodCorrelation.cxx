@@ -927,7 +927,7 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
   inData0->GetExtent(inExt0);
   inData1->GetExtent(inExt1);
 
-  int extent[6], pExtent[6];
+  int extent[6];
   for (int i = 0; i < 6; i += 2)
     {
     // partial sums need to be computed over pieceExtent + radius, to
@@ -940,14 +940,6 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
     extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
     extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
     extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    pExtent[i] =
-      ((pieceExtent[i] > extent[i]) ? pieceExtent[i] : extent[i]);
-    pExtent[j] =
-      ((pieceExtent[j] < extent[j]) ? pieceExtent[j] : extent[j]);
-    if (pExtent[i] > pExtent[j])
-      {
-      return;
-      }
     }
 
   void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
@@ -973,14 +965,14 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
       {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<float *>(inPtr0), static_cast<float *>(inPtr1),
-        inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+        inInc1, inInc2, extent, pieceExtent, stencil, neighborhoodRadius,
         &workVal, progress, &this->ThreadData->Local(pieceId));
       }
     else
       {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<double *>(inPtr0), static_cast<double *>(inPtr1),
-        inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+        inInc1, inInc2, extent, pieceExtent, stencil, neighborhoodRadius,
         &workVal, progress, &this->ThreadData->Local(pieceId));
       }
     }
@@ -1000,7 +992,7 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
       vtkTemplateAliasMacro(
         vtkImageNeighborhoodCorrelation3D(
           static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
-          inInc1, inInc2, extent, pExtent, stencil, neighborhoodRadius,
+          inInc1, inInc2, extent, pieceExtent, stencil, neighborhoodRadius,
           &workVal, progress, &this->ThreadData->Local(pieceId)));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");

@@ -82,10 +82,11 @@ void vtkImageSquaredDifferenceExecute(
   T1 *inPtr, T2 *inPtr1, const int extent[6], vtkIdType pieceId,
   vtkImageSquaredDifferenceThreadData *output)
 {
+  int *ext = const_cast<int *>(extent);
   vtkImageStencilIterator<T1>
-    inIter(inData0, stencil, extent, ((pieceId == 0) ? self : NULL));
+    inIter(inData0, stencil, ext, ((pieceId == 0) ? self : NULL));
   vtkImageStencilIterator<T2>
-    inIter1(inData1, stencil, extent, NULL);
+    inIter1(inData1, stencil, ext, NULL);
 
   double sqsum = 0;
   vtkIdType count = 0;
@@ -169,7 +170,7 @@ void vtkImageSquaredDifference::PieceRequestData(
   vtkInformation *vtkNotUsed(request),
   vtkInformationVector **inputVector,
   vtkInformationVector *vtkNotUsed(outputVector),
-  const int pieceExtent[6], vtkIdType pieceId)
+  const int extent[6], vtkIdType pieceId)
 {
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
@@ -188,29 +189,9 @@ void vtkImageSquaredDifference::PieceRequestData(
     return;
     }
 
-  // make sure execute extent is not beyond the extent of any input
-  int inExt0[6], inExt1[6];
-  inData0->GetExtent(inExt0);
-  inData1->GetExtent(inExt1);
-
-  int extent[6];
-  for (int i = 0; i < 6; i += 2)
-    {
-    int j = i + 1;
-    extent[i] = pieceExtent[i];
-    extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
-    extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
-    extent[j] = pieceExtent[j];
-    extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
-    extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    if (extent[i] > extent[j])
-      {
-      return;
-      }
-    }
-
-  void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
-  void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
+  int *ext = const_cast<int *>(extent);
+  void *inPtr0 = inData0->GetScalarPointerForExtent(ext);
+  void *inPtr1 = inData1->GetScalarPointerForExtent(ext);
 
   vtkImageStencilData *stencil = this->GetStencil();
 

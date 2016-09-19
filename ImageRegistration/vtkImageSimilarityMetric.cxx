@@ -123,6 +123,7 @@ struct vtkImageSimilarityMetricThreadStruct
   vtkInformation *Request;
   vtkInformationVector **InputsInfo;
   vtkInformationVector *OutputsInfo;
+  int Extent[6];
 };
 
 //----------------------------------------------------------------------------
@@ -136,45 +137,20 @@ vtkImageSimilarityMetricThreadStruct::ThreadExecute(void *arg)
   vtkImageSimilarityMetricThreadStruct *ts =
     static_cast<vtkImageSimilarityMetricThreadStruct *>(ti->UserData);
 
-  int extent[6] = { 0, -1, 0, -1, 0, -1 };
+  // execute the actual method with appropriate extent
+  // first find out how many pieces extent can be split into.
+  int splitExt[6];
+  int total = ts->Algorithm->SplitExtent(
+    splitExt, ts->Extent, ti->ThreadID, ti->NumberOfThreads);
 
-  bool foundConnection = false;
-  int numPorts = ts->Algorithm->GetNumberOfInputPorts();
-  for (int inPort = 0; inPort < numPorts; ++inPort)
+  if (ti->ThreadID < total &&
+      splitExt[1] >= splitExt[0] &&
+      splitExt[3] >= splitExt[2] &&
+      splitExt[5] >= splitExt[4])
     {
-    int numConnections = ts->Algorithm->GetNumberOfInputConnections(inPort);
-    if (numConnections)
-      {
-      vtkInformation *inInfo =
-        ts->InputsInfo[inPort]->GetInformationObject(0);
-      vtkImageData *inData = vtkImageData::SafeDownCast(
-        inInfo->Get(vtkDataObject::DATA_OBJECT()));
-      if (inData)
-        {
-        inData->GetExtent(extent);
-        foundConnection = true;
-        break;
-        }
-      }
-    }
-
-  if (foundConnection)
-    {
-    // execute the actual method with appropriate extent
-    // first find out how many pieces extent can be split into.
-    int splitExt[6];
-    int total = ts->Algorithm->SplitExtent(
-      splitExt, extent, ti->ThreadID, ti->NumberOfThreads);
-
-    if (ti->ThreadID < total &&
-        splitExt[1] >= splitExt[0] &&
-        splitExt[3] >= splitExt[2] &&
-        splitExt[5] >= splitExt[4])
-      {
-      ts->Algorithm->PieceRequestData(
-        ts->Request, ts->InputsInfo, ts->OutputsInfo,
-        splitExt, ti->ThreadID);
-      }
+    ts->Algorithm->PieceRequestData(
+      ts->Request, ts->InputsInfo, ts->OutputsInfo,
+      splitExt, ti->ThreadID);
     }
 
   return VTK_THREAD_RETURN_VALUE;
@@ -188,17 +164,8 @@ class vtkImageSimilarityMetricFunctor
 public:
   // Create the functor, provide all info it needs to execute.
   vtkImageSimilarityMetricFunctor(
-    vtkImageSimilarityMetricThreadStruct *pipelineInfo,
-    const int extent[6],
-    vtkIdType pieces)
-    : PipelineInfo(pipelineInfo),
-      NumberOfPieces(pieces)
-  {
-    for (int i = 0; i < 6; i++)
-      {
-      this->Extent[i] = extent[i];
-      }
-  }
+    vtkImageSimilarityMetricThreadStruct *pipelineInfo, vtkIdType pieces)
+    : PipelineInfo(pipelineInfo), NumberOfPieces(pieces) {}
 
   void Initialize() {}
   void operator()(vtkIdType begin, vtkIdType end);
@@ -206,7 +173,6 @@ public:
 
 private:
   vtkImageSimilarityMetricThreadStruct *PipelineInfo;
-  int Extent[6];
   vtkIdType NumberOfPieces;
 };
 
@@ -221,7 +187,7 @@ void vtkImageSimilarityMetricFunctor::operator()(
     int splitExt[6] = { 0, -1, 0, -1, 0, -1 };
 
     vtkIdType total = ts->Algorithm->SplitExtent(
-      splitExt, this->Extent, piece, this->NumberOfPieces);
+      splitExt, ts->Extent, piece, this->NumberOfPieces);
 
     // check for valid piece and extent
     if (piece < total &&
@@ -253,14 +219,20 @@ int vtkImageSimilarityMetric::RequestData(
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
-  // start of code copied from vtkThreadedImageAlgorithm
-
   // setup the threads structure
   vtkImageSimilarityMetricThreadStruct ts;
   ts.Algorithm = this;
   ts.Request = request;
   ts.InputsInfo = inputVector;
   ts.OutputsInfo = outputVector;
+
+  vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
+  vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
+
+  vtkImageData *inData0 = vtkImageData::SafeDownCast(
+    inInfo0->Get(vtkDataObject::DATA_OBJECT()));
+  vtkImageData *inData1 = vtkImageData::SafeDownCast(
+    inInfo1->Get(vtkDataObject::DATA_OBJECT()));
 
   // allocate the output data
   int numberOfOutputs = this->GetNumberOfOutputPorts();
@@ -282,44 +254,42 @@ int vtkImageSimilarityMetric::RequestData(
         this->AllocateOutputData(outData, updateExtent);
 #endif
         }
+      // copy arrays from first input to output
+      if (i == 0)
+        {
+        this->CopyAttributeData(inData0, outData, inputVector);
+        }
       }
     }
 
-  // copy arrays from first input to output
-  int numberOfInputs = this->GetNumberOfInputPorts();
-  if (numberOfInputs > 0)
+  // Get the intersection of the input extents
+  int inExt1[6];
+  inData0->GetExtent(ts.Extent);
+  inData1->GetExtent(inExt1);
+
+  for (int i = 0; i < 6; i += 2)
     {
-    vtkInformationVector* portInfo = inputVector[0];
-    int numberOfConnections = portInfo->GetNumberOfInformationObjects();
-    if (numberOfConnections && numberOfOutputs)
+    int j = i + 1;
+    ts.Extent[i] = ((ts.Extent[i] > inExt1[i]) ? ts.Extent[i] : inExt1[i]);
+    ts.Extent[j] = ((ts.Extent[j] < inExt1[j]) ? ts.Extent[j] : inExt1[j]);
+    if (ts.Extent[i] > ts.Extent[j])
       {
-      vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-      vtkImageData *inData = vtkImageData::SafeDownCast(
-        inInfo->Get(vtkDataObject::DATA_OBJECT()));
-      vtkInformation* outInfo = outputVector->GetInformationObject(0);
-      vtkImageData *outData = vtkImageData::SafeDownCast(
-        outInfo->Get(vtkDataObject::DATA_OBJECT()));
-      this->CopyAttributeData(inData, outData, inputVector);
+      // no overlap, nothing to do!
+      return 1;
       }
     }
-
-  // end of code copied from vtkThreadedImageAlgorithm
 
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
   if (this->EnableSMP)
     {
     // code for vtkSMPTools
-    vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-    vtkImageData *inData = vtkImageData::SafeDownCast(
-      inInfo->Get(vtkDataObject::DATA_OBJECT()));
-    int extent[6];
-    inData->GetExtent(extent);
 
     // do a dummy execution of SplitExtent to compute the number of pieces
-    vtkIdType pieces = this->SplitExtent(0, extent, 0, this->NumberOfThreads);
+    vtkIdType pieces = this->SplitExtent(
+      0, ts.Extent, 0, this->NumberOfThreads);
 
-    // create the thread-local object and the functor
-    vtkImageSimilarityMetricFunctor functor(&ts, extent, pieces);
+    // create the functor
+    vtkImageSimilarityMetricFunctor functor(&ts, pieces);
 
     bool debug = this->Debug;
     this->Debug = false;
