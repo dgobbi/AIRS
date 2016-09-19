@@ -1300,8 +1300,9 @@ struct register_options
   int metric;          // -M --metric
   int transform;       // -T --transform
   int interpolator;    // -I --interpolator
+  int optimizer;       // -O --optimizer
   int coords;          // -C --coords
-  int maxiter[4];      // -M --maxiter
+  int maxiter[4];      // -N --maxiter
   int display;         // -d --display
   int translucent;     // -t --translucent
   int silent;          // -s --silent
@@ -1323,6 +1324,7 @@ void register_initialize_options(register_options *options)
   options->metric = vtkImageRegistration::MutualInformation;
   options->transform = vtkImageRegistration::Rigid;
   options->interpolator = vtkImageRegistration::Linear;
+  options->optimizer = vtkImageRegistration::Powell;
   options->coords = NativeCoords;
   options->maxiter[0] = 500;
   options->maxiter[1] = 500;
@@ -1490,6 +1492,13 @@ void register_show_help(FILE *fp, const char *command)
     "    the output sample spacing.  The image that is interpolated is the\n"
     "    target image.\n"
     "\n"
+    " -O --optimizer        (default: Powell)\n"
+    "                 PW        Powell\n"
+    "                 NM        Amoeba\n"
+    "\n"
+    "    The Powell optimizer generally converges much faster than Amoeba,\n"
+    "    where the latter is the Nelder-Mead downhill simplex method.\n"
+    "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
     "                 NIFTI     RAS\n"
@@ -1581,6 +1590,10 @@ int register_read_options(
     "WindowedSinc", "WS",
     "Antialiasing", "AS",
     "Label", "LA",
+    0 };
+  static const char *optimizer_args[] = {
+    "PW", "Powell",
+    "NM", "Amoeba",
     0 };
   static const char *coords_args[] = {
     "DICOM", "LPS",
@@ -1743,6 +1756,21 @@ int register_read_options(
                  strcmp(arg, "LA") == 0)
           {
           options->interpolator = vtkImageRegistration::Label;
+          }
+        }
+      else if (strcmp(arg, "-O") == 0 ||
+               strcmp(arg, "--optimizer") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, optimizer_args);
+        if (strcmp(arg, "Amoeba") == 0 ||
+            strcmp(arg, "NM") == 0)
+          {
+          options->optimizer = vtkImageRegistration::Amoeba;
+          }
+        else if (strcmp(arg, "Powell") == 0 ||
+                 strcmp(arg, "PW") == 0)
+          {
+          options->optimizer = vtkImageRegistration::Powell;
           }
         }
       else if (strcmp(arg, "-C") == 0 ||
@@ -2186,6 +2214,7 @@ int main(int argc, char *argv[])
   registration->SetTransformType(options.transform);
   registration->SetMetricType(options.metric);
   registration->SetInterpolatorType(interpolatorType);
+  registration->SetOptimizerType(options.optimizer);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
   registration->SetMetricTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
