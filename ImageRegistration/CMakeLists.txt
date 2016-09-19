@@ -12,6 +12,7 @@ SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)
 
 SET ( Kit_SRCS
 vtkFrameFinder.cxx
+vtkFunctionMinimizer.cxx
 vtkImageMutualInformation.cxx
 vtkImageSquaredDifference.cxx
 vtkMorphologicalInterpolator.cxx
@@ -28,6 +29,7 @@ vtkPowellMinimizer.cxx
 )
 
 SET_SOURCE_FILES_PROPERTIES(
+vtkFunctionMinimizer
 vtkImageSimilarityMetric
 ABSTRACT
 )
