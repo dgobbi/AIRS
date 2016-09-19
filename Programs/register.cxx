@@ -34,6 +34,7 @@ Module:    register.cxx
 #include <vtkStringArray.h>
 #include <vtkMath.h>
 #include <vtkCommand.h>
+#include <vtkMultiThreader.h>
 
 #include <vtkMINCImageReader.h>
 #include <vtkMINCImageWriter.h>
@@ -96,6 +97,13 @@ Module:    register.cxx
 #if VTK_MAJOR_VERSION > 6 || (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 2)
 #define VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
 #endif
+
+#if VTK_MAJOR_VERSION > 7 || (VTK_MAJOR_VERSION == 7 && VTK_MINOR_VERSION >= 0)
+#define USE_SMP_THREADED_IMAGE_ALGORITHM
+#endif
+
+// parallel processing
+enum { MultiThread = 1, ThreadPool = 2 };
 
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
@@ -1301,6 +1309,7 @@ struct register_options
   int transform;       // -T --transform
   int interpolator;    // -I --interpolator
   int optimizer;       // -O --optimizer
+  int parallel;        // -P --parallel
   int coords;          // -C --coords
   int maxiter[4];      // -N --maxiter
   int display;         // -d --display
@@ -1325,6 +1334,7 @@ void register_initialize_options(register_options *options)
   options->transform = vtkImageRegistration::Rigid;
   options->interpolator = vtkImageRegistration::Linear;
   options->optimizer = vtkImageRegistration::Powell;
+  options->parallel = MultiThread;
   options->coords = NativeCoords;
   options->maxiter[0] = 500;
   options->maxiter[1] = 500;
@@ -1499,6 +1509,19 @@ void register_show_help(FILE *fp, const char *command)
     "    The Powell optimizer generally converges much faster than Amoeba,\n"
     "    where the latter is the Nelder-Mead downhill simplex method.\n"
     "\n"
+    " -P --parallel         (default: MultiThread)\n"
+    "                 MT        MultiThread\n"
+    "                 TP        ThreadPool\n"
+    "                 Off\n"
+    "\n"
+    "    This option controls parallel processing.  The default is to use\n"
+    "    whichever option was configured when the program was built.  The\n"
+    "    MultiThread option breaks each image-processing operation into\n"
+    "    a number of pieces equal to the number of available threads, while\n"
+    "    the ThreadPool option breaks the operations into very small pieces\n"
+    "    that are submitted to a parallel queue for processing.  The thread\n"
+    "    pool can be configured to use TBB or OpenMP at build time.\n"
+    "\n"
     " -C --coords           (default: guess from file type)\n"
     "                 DICOM     LPS\n"
     "                 NIFTI     RAS\n"
@@ -1594,6 +1617,11 @@ int register_read_options(
   static const char *optimizer_args[] = {
     "PW", "Powell",
     "NM", "Amoeba",
+    0 };
+  static const char *parallel_args[] = {
+    "MT", "MultiThread",
+    "TP", "ThreadPool",
+    "Off",
     0 };
   static const char *coords_args[] = {
     "DICOM", "LPS",
@@ -1773,6 +1801,25 @@ int register_read_options(
           options->optimizer = vtkImageRegistration::Powell;
           }
         }
+      else if (strcmp(arg, "-P") == 0 ||
+               strcmp(arg, "--parallel") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, parallel_args);
+        if (strcmp(arg, "MultiThread") == 0 ||
+            strcmp(arg, "MT") == 0)
+          {
+          options->parallel = MultiThread;
+          }
+        else if (strcmp(arg, "ThreadPool") == 0 ||
+                 strcmp(arg, "TP") == 0)
+          {
+          options->parallel = ThreadPool;
+          }
+        else
+          {
+          options->parallel = 0;
+          }
+        }
       else if (strcmp(arg, "-C") == 0 ||
                strcmp(arg, "--coords") == 0)
         {
@@ -1912,6 +1959,32 @@ int main(int argc, char *argv[])
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
   double initialBlurFactor = 8.0;
+
+  // -------------------------------------------------------
+  // parameters for parallel processing
+  if (options.parallel == ThreadPool)
+    {
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+    vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(true);
+#else
+    cerr << "Warning: ThreadPool not available, ";
+    cerr << "no backend was configured at build time.\n";
+#endif
+    }
+  else if (options.parallel == MultiThread)
+    {
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+    vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
+#endif
+    }
+  else
+    {
+#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
+    vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
+#endif
+    vtkMultiThreader::SetGlobalMaximumNumberOfThreads(1);
+    vtkMultiThreader::SetGlobalDefaultNumberOfThreads(1);
+    }
 
   // -------------------------------------------------------
   // load and concatenate the initial matrix transforms
