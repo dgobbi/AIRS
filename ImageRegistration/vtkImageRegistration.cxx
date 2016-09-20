@@ -1,68 +1,49 @@
 /*=========================================================================
 
-  Program:   Atamai Classes for VTK
-  Module:    $RCSfile: vtkImageRegistration.cxx,v $
+  Module: vtkImageRegistration.cxx
 
-Copyright (c) 2005 Atamai, Inc.
-All rights reserved.
+  Copyright (c) 2006 Atamai, Inc.
+  Copyright (c) 2016 David Gobbi
+  All rights reserved.
+  See Copyright.txt or http://dgobbi.github.io/bsd3.txt for details.
 
-Use, modification and redistribution of the software, in source or
-binary forms, are permitted provided that the following terms and
-conditions are met:
-
-1) Redistribution of the source code, in verbatim or modified
-   form, must retain the above copyright notice, this license,
-   the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.
-
-2) Redistribution in binary form must include the above copyright
-   notice, a copy of this license and the following disclaimer
-   in the documentation or with other materials provided with the
-   distribution.
-
-3) Modified copies of the source code must be clearly marked as such,
-   and must not be misrepresented as verbatim copies of the source code.
-
-THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
-WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
-MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
-OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
-THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGES.
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+     PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
 
 #include "vtkImageRegistration.h"
 
 // VTK header files
-#include "vtkTimerLog.h"
-#include "vtkObjectFactory.h"
-#include "vtkImageData.h"
-#include "vtkImageStencilData.h"
-#include "vtkMath.h"
-#include "vtkTransform.h"
-#include "vtkMatrixToLinearTransform.h"
-#include "vtkMatrix4x4.h"
-#include "vtkImageReslice.h"
-#include "vtkImageShiftScale.h"
-#include "vtkCommand.h"
-#include "vtkPointData.h"
-#include "vtkCellData.h"
-#include "vtkInformation.h"
-#include "vtkInformationVector.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
+#include <vtkTimerLog.h>
+#include <vtkObjectFactory.h>
+#include <vtkImageData.h>
+#include <vtkImageStencilData.h>
+#include <vtkMath.h>
+#include <vtkTransform.h>
+#include <vtkMatrixToLinearTransform.h>
+#include <vtkMatrix4x4.h>
+#include <vtkImageReslice.h>
+#include <vtkImageShiftScale.h>
+#include <vtkCommand.h>
+#include <vtkPointData.h>
+#include <vtkCellData.h>
+#include <vtkInformation.h>
+#include <vtkInformationVector.h>
+#include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkImageHistogramStatistics.h>
+#include <vtkImageBSplineCoefficients.h>
+#include <vtkImageBSplineInterpolator.h>
+#include <vtkImageSincInterpolator.h>
+#include <vtkVersion.h>
+
+// Interpolator header files
+#include "vtkLabelInterpolator.h"
+
+// Optimizer header files
 #include "vtkNelderMeadMinimizer.h"
 #include "vtkPowellMinimizer.h"
-#include "vtkImageHistogramStatistics.h"
-#include "vtkImageBSplineCoefficients.h"
-#include "vtkImageBSplineInterpolator.h"
-#include "vtkImageSincInterpolator.h"
-#include "vtkLabelInterpolator.h"
-#include "vtkVersion.h"
 
 // Image metric header files
 #include "vtkImageSquaredDifference.h"
@@ -86,9 +67,9 @@ POSSIBILITY OF SUCH DAMAGES.
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
 {
-  vtkLinearTransform *Transform;
-  vtkObject *Optimizer;
-  vtkAlgorithm *Metric;
+  vtkTransform *Transform;
+  vtkFunctionMinimizer *Optimizer;
+  vtkImageSimilarityMetric *Metric;
   vtkMatrix4x4 *InitialMatrix;
 
   int TransformDimensionality;
@@ -243,6 +224,12 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
+vtkLinearTransform *vtkImageRegistration::GetTransform()
+{
+  return this->Transform;
+}
+
+//----------------------------------------------------------------------------
 int vtkImageRegistration::GetNumberOfEvaluations()
 {
   return this->RegistrationInfo->NumberOfEvaluations;
@@ -373,10 +360,8 @@ void vtkTransformRotation(
 
 void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
 {
-  vtkFunctionMinimizer* optimizer =
-    vtkFunctionMinimizer::SafeDownCast(registrationInfo->Optimizer);
-  vtkTransform* transform =
-    vtkTransform::SafeDownCast(registrationInfo->Transform);
+  vtkFunctionMinimizer* optimizer = registrationInfo->Optimizer;
+  vtkTransform* transform = registrationInfo->Transform;
   vtkMatrix4x4 *initialMatrix = registrationInfo->InitialMatrix;
   int transformType = registrationInfo->TransformType;
   int transformDim = registrationInfo->TransformDimensionality;
@@ -478,8 +463,7 @@ void vtkEvaluateFunction(void * arg)
 
   double val = 0.0;
 
-  vtkFunctionMinimizer* optimizer =
-    vtkFunctionMinimizer::SafeDownCast(registrationInfo->Optimizer);
+  vtkFunctionMinimizer* optimizer = registrationInfo->Optimizer;
   vtkImageMutualInformation *miMetric =
     vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
   vtkImageCrossCorrelation *ccMetric =
@@ -581,8 +565,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   size[1] = (bounds[3] - bounds[2]);
   size[2] = (bounds[5] - bounds[4]);
 
-  vtkTransform *transform =
-    vtkTransform::SafeDownCast(this->Transform);
+  vtkTransform *transform = this->Transform;
   vtkMatrix4x4 *initialMatrix = this->InitialTransformMatrix;
 
   // create an initial transform
@@ -750,7 +733,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   // coerce types if NeighborhoodCorrelation
   if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
-      this->MetricType == vtkImageRegistration::NeighborhoodCorrelation)
+      (this->MetricType == vtkImageRegistration::SquaredDifference ||
+       this->MetricType == vtkImageRegistration::NeighborhoodCorrelation))
     {
     // coerce the types to make them compatible
     int sourceType = sourceImage->GetScalarType();
@@ -852,18 +836,14 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     {
     this->Metric->RemoveAllInputs();
     this->Metric->Delete();
+    this->Metric = 0;
     }
 
   switch (this->MetricType)
     {
     case vtkImageRegistration::SquaredDifference:
       {
-      vtkImageSquaredDifference *metric = vtkImageSquaredDifference::New();
-      this->Metric = metric;
-
-      metric->SET_INPUT_DATA(sourceImage);
-      metric->SetInputConnection(1, reslice->GetOutputPort());
-      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+      this->Metric = vtkImageSquaredDifference::New();
       }
       break;
 
@@ -872,10 +852,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
-
-      metric->SET_INPUT_DATA(sourceImage);
-      metric->SetInputConnection(1, reslice->GetOutputPort());
-      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
       break;
 
@@ -884,10 +860,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageNeighborhoodCorrelation *metric =
         vtkImageNeighborhoodCorrelation::New();
       this->Metric = metric;
-
-      metric->SET_INPUT_DATA(sourceImage);
-      metric->SetInputConnection(1, reslice->GetOutputPort());
-      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       }
       break;
 
@@ -895,11 +867,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageCorrelationRatio *metric = vtkImageCorrelationRatio::New();
       this->Metric = metric;
-
-      metric->SET_INPUT_DATA(sourceImage);
-      metric->SetInputConnection(1, reslice->GetOutputPort());
-      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
-
       metric->SetDataRange(sourceImageRange);
       }
       break;
@@ -910,9 +877,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
-      metric->SET_INPUT_DATA(sourceImage);
-      metric->SetInputConnection(1, reslice->GetOutputPort());
-      metric->SetInputConnection(2, reslice->GetStencilOutputPort());
       metric->SetNumberOfBins(this->JointHistogramSize);
 
       metric->SetBinOrigin(
@@ -926,18 +890,17 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       break;
     }
 
-  if (this->Optimizer != NULL)
+  if (this->Optimizer)
     {
     this->Optimizer->Delete();
+    this->Optimizer = 0;
     }
-
-  vtkFunctionMinimizer *optimizer = 0;
 
   switch (this->OptimizerType)
     {
     case vtkImageRegistration::Powell:
       {
-      optimizer = vtkPowellMinimizer::New();
+      this->Optimizer = vtkPowellMinimizer::New();
       }
       break;
 
@@ -947,15 +910,18 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       // use golden ratio
       amoeba->SetExpansionRatio(1.618);
       amoeba->SetContractionRatio(0.618);
-      optimizer = amoeba;
+      this->Optimizer = amoeba;
       }
       break;
     }
 
-  this->Optimizer = optimizer;
-  optimizer->SetTolerance(this->MetricTolerance);
-  optimizer->SetParameterTolerance(this->TransformTolerance);
-  optimizer->SetMaxIterations(this->MaximumNumberOfIterations);
+  this->Metric->SET_INPUT_DATA(sourceImage);
+  this->Metric->SetInputConnection(1, reslice->GetOutputPort());
+  this->Metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+
+  this->Optimizer->SetTolerance(this->MetricTolerance);
+  this->Optimizer->SetParameterTolerance(this->TransformTolerance);
+  this->Optimizer->SetMaxIterations(this->MaximumNumberOfIterations);
 
   this->RegistrationInfo->Transform = this->Transform;
   this->RegistrationInfo->Optimizer = this->Optimizer;
@@ -974,6 +940,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Center[1] = center[1];
   this->RegistrationInfo->Center[2] = center[2];
 
+  vtkFunctionMinimizer *optimizer = this->Optimizer;
   optimizer->SetFunction(&vtkEvaluateFunction,
                          (void*)(this->RegistrationInfo));
 
@@ -1088,8 +1055,7 @@ int vtkImageRegistration::ExecuteRegistration()
 
   int converged = 0;
 
-  vtkFunctionMinimizer *optimizer =
-    vtkFunctionMinimizer::SafeDownCast(this->Optimizer);
+  vtkFunctionMinimizer *optimizer = this->Optimizer;
 
   if (optimizer)
     {
@@ -1125,8 +1091,7 @@ int vtkImageRegistration::ExecuteRegistration()
 //--------------------------------------------------------------------------
 int vtkImageRegistration::Iterate()
 {
-  vtkFunctionMinimizer *optimizer =
-    vtkFunctionMinimizer::SafeDownCast(this->Optimizer);
+  vtkFunctionMinimizer *optimizer = this->Optimizer;
 
   if (optimizer)
     {
