@@ -461,50 +461,14 @@ void vtkEvaluateFunction(void * arg)
   vtkImageRegistrationInfo *registrationInfo =
     static_cast<vtkImageRegistrationInfo*>(arg);
 
-  double val = 0.0;
-
-  vtkFunctionMinimizer* optimizer = registrationInfo->Optimizer;
-  vtkImageMutualInformation *miMetric =
-    vtkImageMutualInformation::SafeDownCast(registrationInfo->Metric);
-  vtkImageCrossCorrelation *ccMetric =
-    vtkImageCrossCorrelation::SafeDownCast(registrationInfo->Metric);
-  vtkImageSquaredDifference *sdMetric =
-    vtkImageSquaredDifference::SafeDownCast(registrationInfo->Metric);
-  vtkImageNeighborhoodCorrelation *ncMetric =
-    vtkImageNeighborhoodCorrelation::SafeDownCast(registrationInfo->Metric);
-  vtkImageCorrelationRatio *crMetric =
-    vtkImageCorrelationRatio::SafeDownCast(registrationInfo->Metric);
+  vtkFunctionMinimizer *optimizer = registrationInfo->Optimizer;
+  vtkImageSimilarityMetric *metric = registrationInfo->Metric;
 
   vtkSetTransformParameters(registrationInfo);
 
   registrationInfo->Metric->Update();
 
-  switch (registrationInfo->MetricType)
-    {
-    case vtkImageRegistration::SquaredDifference:
-      val = sdMetric->GetSquaredDifference();
-      break;
-    case vtkImageRegistration::CrossCorrelation:
-      val = - ccMetric->GetCrossCorrelation();
-      break;
-    case vtkImageRegistration::NormalizedCrossCorrelation:
-      val = - ccMetric->GetNormalizedCrossCorrelation();
-      break;
-    case vtkImageRegistration::NeighborhoodCorrelation:
-      val = ncMetric->GetValueToMinimize();
-      break;
-    case vtkImageRegistration::CorrelationRatio:
-      val = - crMetric->GetCorrelationRatio();
-      break;
-    case vtkImageRegistration::MutualInformation:
-      val = - miMetric->GetMutualInformation();
-      break;
-    case vtkImageRegistration::NormalizedMutualInformation:
-      val = - miMetric->GetNormalizedMutualInformation();
-      break;
-    }
-
-  optimizer->SetFunctionValue(val);
+  optimizer->SetFunctionValue(metric->GetCost());
 
   registrationInfo->NumberOfEvaluations++;
 }
@@ -852,6 +816,16 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
+
+      if (this->MetricType ==
+          vtkImageRegistration::NormalizedCrossCorrelation)
+        {
+        metric->SetMetricToNormalizedCrossCorrelation();
+        }
+      else
+        {
+        metric->SetMetricToCrossCorrelation();
+        }
       }
       break;
 
@@ -876,6 +850,16 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       {
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
+
+      if (this->MetricType ==
+          vtkImageRegistration::NormalizedMutualInformation)
+        {
+        metric->SetMetricToNormalizedMutualInformation();
+        }
+      else
+        {
+        metric->SetMetricToMutualInformation();
+        }
 
       metric->SetNumberOfBins(this->JointHistogramSize);
 

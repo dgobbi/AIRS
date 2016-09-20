@@ -22,7 +22,7 @@
 
 #include "vtkImageSimilarityMetric.h"
 
-class vtkImageSquaredDifferenceTLS; 
+class vtkImageSquaredDifferenceTLS;
 
 class VTK_EXPORT vtkImageSquaredDifference : public vtkImageSimilarityMetric
 {

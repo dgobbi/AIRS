@@ -230,5 +230,5 @@ void vtkImageSquaredDifference::ReduceRequestData(
   // output values
   this->SquaredDifference = sqsum/count;
 
-  this->SetMinimizable(this->SquaredDifference);
+  this->SetCost(this->SquaredDifference);
 }

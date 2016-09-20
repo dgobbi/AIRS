@@ -58,6 +58,7 @@ class vtkImageCrossCorrelationTLS
 // Constructor sets default values
 vtkImageCrossCorrelation::vtkImageCrossCorrelation()
 {
+  this->Metric = NCC;
   this->CrossCorrelation = 0.0;
   this->NormalizedCrossCorrelation = 0.0;
 
@@ -77,6 +78,9 @@ void vtkImageCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CrossCorrelation: " << this->CrossCorrelation << "\n";
   os << indent << "NormalizedCrossCorrelation: "
      << this->NormalizedCrossCorrelation << "\n";
+  os << indent << "Metric: "
+     << (this->Metric == NCC ? "NormalizedCrossCorrelation\n" :
+                               "CrossCorrelation\n");
 }
 
 // begin anonymous namespace
@@ -277,5 +281,12 @@ void vtkImageCrossCorrelation::ReduceRequestData(
   this->CrossCorrelation = crossCorrelation;
   this->NormalizedCrossCorrelation = normalizedCrossCorrelation;
 
-  this->SetMinimizable(crossCorrelation);
+  if (this->Metric == NCC)
+    {
+    this->SetCost(-normalizedCrossCorrelation);
+    }
+  else
+    {
+    this->SetCost(-crossCorrelation);
+    }
 }

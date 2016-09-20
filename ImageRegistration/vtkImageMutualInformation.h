@@ -102,6 +102,16 @@ public:
   // histogram.  The result is only valid after the filter has executed.
   vtkGetMacro(NormalizedMutualInformation, double);
 
+  // The metrics (MutualInformation, NormalizedMutualInformation).
+  enum { MI, NMI };
+
+  // Description:
+  // Set the metric to use for the cost. The default is Mutual Information.
+  void SetMetricToMutualInformation() { this->SetMetric(MI); }
+  void SetMetricToNormalizedMutualInformation() { this->SetMetric(NMI); }
+  vtkSetMacro(Metric, int);
+  vtkGetMacro(Metric, int);
+
 protected:
   vtkImageMutualInformation();
   ~vtkImageMutualInformation();
@@ -128,6 +138,8 @@ protected:
   double BinSpacing[2];
 
   int OutputScalarType;
+
+  int Metric;
 
   double MutualInformation;
   double NormalizedMutualInformation;

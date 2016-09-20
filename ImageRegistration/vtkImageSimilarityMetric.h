@@ -57,7 +57,7 @@ public:
    *  use general purpose optimization code with metric, this must return
    *  a value that is smallest when the images are most similar.
    */
-  double GetMinimizable() { return this->Minimizable; }
+  double GetCost() { return this->Cost; }
   //@}
 
 protected:
@@ -98,21 +98,21 @@ protected:
    *  After the threads have finished executing PieceRequestData() for all
    *  of the pieces, ReduceRequestData() will be called, and it should
    *  reduce the outputs for the various threads into a single output.
-   *  This method should call SetMinimizable().
+   *  This method should call SetCost().
    */
   virtual void ReduceRequestData(vtkInformation *request,
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *outInfo) = 0;
 
   //! Subclasses call this to set the value to be minimized.
-  void SetMinimizable(double x) { this->Minimizable = x; }
+  void SetCost(double x) { this->Cost = x; }
   //@}
 
 private:
   vtkImageSimilarityMetric(const vtkImageSimilarityMetric&);
   void operator=(const vtkImageSimilarityMetric&);
 
-  double Minimizable;
+  double Cost;
 
   friend class vtkImageSimilarityMetricFunctor;
   friend struct vtkImageSimilarityMetricThreadStruct;

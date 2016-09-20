@@ -457,5 +457,5 @@ void vtkImageCorrelationRatio::ReduceRequestData(
   // output values
   this->CorrelationRatio = correlationRatio;
 
-  this->SetMinimizable(correlationRatio);
+  this->SetCost(-correlationRatio);
 }

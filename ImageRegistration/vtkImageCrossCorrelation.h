@@ -43,6 +43,17 @@ public:
   // The result is only valid after the filter has executed.
   vtkGetMacro(NormalizedCrossCorrelation, double);
 
+  // The metrics (CrossCorrelation, NormalizedCrossCorrelation).
+  enum { CC, NCC };
+
+  // Description:
+  // Set the metric to use for the cost. The default metric is Normalized
+  // Cross Correlation.
+  void SetMetricToCrossCorrelation() { this->SetMetric(CC); }
+  void SetMetricToNormalizedCrossCorrelation() { this->SetMetric(NCC); }
+  vtkSetMacro(Metric, int);
+  vtkGetMacro(Metric, int);
+
 protected:
   vtkImageCrossCorrelation();
   ~vtkImageCrossCorrelation();
@@ -59,6 +70,8 @@ protected:
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
                          vtkInformationVector *outInfo);
+
+  int Metric;
 
   double CrossCorrelation;
   double NormalizedCrossCorrelation;

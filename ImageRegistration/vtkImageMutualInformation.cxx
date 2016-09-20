@@ -62,6 +62,8 @@ vtkImageMutualInformation::vtkImageMutualInformation()
 
   this->OutputScalarType = VTK_FLOAT;
 
+  this->Metric = 0;
+
   this->MutualInformation = 0.0;
   this->NormalizedMutualInformation = 0.0;
 
@@ -90,6 +92,10 @@ void vtkImageMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MutualInformation: " << this->MutualInformation << "\n";
   os << indent << "NormalizedMutualInformation: "
      << this->NormalizedMutualInformation << "\n";
+
+  os << indent << "Metric: "
+     << (this->Metric == NMI ? "NormalizedMutualInformation\n" :
+                               "MutualInformation\n");
 }
 
 //----------------------------------------------------------------------------
@@ -579,5 +585,12 @@ void vtkImageMutualInformation::ReduceRequestData(
   this->MutualInformation = mutualInformation;
   this->NormalizedMutualInformation = normalizedMutualInformation;
 
-  this->SetMinimizable(mutualInformation);
+  if (this->Metric == NMI)
+    {
+    this->SetCost(-normalizedMutualInformation);
+    }
+  else
+    {
+    this->SetCost(-mutualInformation);
+    }
 }
