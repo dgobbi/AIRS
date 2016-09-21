@@ -32,6 +32,7 @@ vtkFunctionMinimizer::vtkFunctionMinimizer()
   this->MaxIterations = 1000;
   this->Iterations = 0;
   this->FunctionEvaluations = 0;
+  this->AbortFlag = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -120,6 +121,7 @@ void vtkFunctionMinimizer::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MaxIterations: " << this->GetMaxIterations() << "\n";
   os << indent << "Tolerance: " << this->GetTolerance() << "\n";
   os << indent << "ParameterTolerance: " << this->GetParameterTolerance() << "\n";
+  os << indent << "AbortFlag: " << this->GetAbortFlag() << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -303,6 +305,7 @@ void vtkFunctionMinimizer::Initialize()
   this->NumberOfParameters = 0;
   this->Iterations = 0;
   this->FunctionEvaluations = 0;
+  this->AbortFlag = 0;
 
   this->Modified();
 }
@@ -310,11 +313,14 @@ void vtkFunctionMinimizer::Initialize()
 //----------------------------------------------------------------------------
 void vtkFunctionMinimizer::EvaluateFunction()
 {
-  if (this->Function)
+  if (!this->AbortFlag)
     {
-    this->Function(this->FunctionArg);
+    if (this->Function)
+      {
+      this->Function(this->FunctionArg);
+      }
+    this->FunctionEvaluations++;
     }
-  this->FunctionEvaluations++;
 }
 
 //----------------------------------------------------------------------------
@@ -330,7 +336,18 @@ int vtkFunctionMinimizer::Iterate()
     this->Start();
     }
 
+  if (this->AbortFlag)
+    {
+    return 0;
+    }
+
   int stillgood = this->Step();
+
+  if (this->AbortFlag)
+    {
+    return 0;
+    }
+
   this->Iterations++;
 
   return stillgood;

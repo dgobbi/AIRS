@@ -100,11 +100,13 @@ public:
 
   // Description:
   // Specify the value tolerance to aim for during the minimization.
+  // The minimizer continues iterating until (delta v) <= (tol*v).
   vtkSetMacro(Tolerance,double);
   vtkGetMacro(Tolerance,double);
 
   // Description:
   // Specify the parameter tolerance to aim for during the minimization.
+  // The minimizer continues iterating until (delta p) <= tol*(p scale).
   vtkSetMacro(ParameterTolerance,double);
   vtkGetMacro(ParameterTolerance,double);
 
@@ -112,6 +114,16 @@ public:
   // Specify the maximum number of iterations to try before giving up.
   vtkSetMacro(MaxIterations,int);
   vtkGetMacro(MaxIterations,int);
+
+  // Description:
+  // Tell the minimizer to abort before the next function evaluation.
+  // This method can be called by the function that the minimizer is
+  // calling, in order to tell the minimizer to return from Iterate()
+  // or Minimize() before the next funtion call.
+  void SetAbortFlag(int f) { this->AbortFlag = f; }
+  int GetAbortFlag() { return this->AbortFlag; }
+  void AbortFlagOn() { this->SetAbortFlag(1); }
+  void AbortFlagOff() { this->SetAbortFlag(0); }
 
   // Description:
   // Return the number of interations that have been performed.  This
@@ -154,6 +166,7 @@ protected:
   int MaxIterations;
   int Iterations;
   int FunctionEvaluations;
+  int AbortFlag;
 
 private:
   vtkFunctionMinimizer(const vtkFunctionMinimizer&);  // Not implemented.

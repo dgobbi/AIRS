@@ -66,7 +66,7 @@ double vtkPowellMinimizer::PowellBrent(
   double d = 1.0;
 
   // limit the number of line search iterations
-  for (int ii = 0; ii < this->MaxIterations; ii++)
+  for (int ii = 0; ii < this->MaxIterations && !this->AbortFlag; ii++)
     {
     // add a fractional component to the tolerance
     double tol1 = tol + fabs(x)*1e-8;
@@ -217,7 +217,7 @@ double vtkPowellMinimizer::PowellBracket(
     double denom = 2*val;
     double w = xb - ((xb - xc)*tmp2 - (xb - xa)*tmp1)/denom;
     double wlim = xb + growlim*(xc - xb);
-    if (ii++ > this->MaxIterations)
+    if (ii++ > this->MaxIterations || this->AbortFlag)
       {
       break;
       }
