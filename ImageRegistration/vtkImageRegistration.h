@@ -233,10 +233,11 @@ public:
   void Initialize(vtkMatrix4x4 *matrix);
 
   // Description:
-  // Set the tolerance that the optimizer will apply to the value returned
-  // by the image similarity metric.  The default value is 1e-4.
-  vtkSetMacro(MetricTolerance, double);
-  vtkGetMacro(MetricTolerance, double);
+  // Set the tolerance that the optimizer will apply to the cost value.
+  // This is a relative, rather than absolute, tolerance.  The default
+  // value is 1e-4.
+  vtkSetMacro(CostTolerance, double);
+  vtkGetMacro(CostTolerance, double);
 
   // Description:
   // Set the tolerance that the optimizer will apply to the transform
@@ -352,7 +353,7 @@ protected:
 
   int                              MaximumNumberOfIterations;
   int                              MaximumNumberOfEvaluations;
-  double                           MetricTolerance;
+  double                           CostTolerance;
   double                           TransformTolerance;
   double                           MetricValue;
   double                           CostValue;

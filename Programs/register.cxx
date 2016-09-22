@@ -2289,7 +2289,7 @@ int main(int argc, char *argv[])
   registration->SetInterpolatorType(interpolatorType);
   registration->SetOptimizerType(options.optimizer);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
-  registration->SetMetricTolerance(1e-4);
+  registration->SetCostTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
   if (xfminputs->size() > 0)
     {

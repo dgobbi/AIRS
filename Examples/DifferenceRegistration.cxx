@@ -648,7 +648,7 @@ int main (int argc, char *argv[])
   //registration->SetMetricTypeToNormalizedCrossCorrelation();
   registration->SetInterpolatorType(interpolatorType);
   registration->SetJointHistogramSize(numberOfBins,numberOfBins);
-  registration->SetMetricTolerance(1e-4);
+  registration->SetCostTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
   registration->SetMaximumNumberOfIterations(500);
 

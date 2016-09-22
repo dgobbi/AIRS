@@ -153,7 +153,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->CostValues = vtkDoubleArray::New();
   this->ParameterValues = vtkDoubleArray::New();
 
-  this->MetricTolerance = 1e-4;
+  this->CostTolerance = 1e-4;
   this->TransformTolerance = 1e-1;
   this->MaximumNumberOfIterations = 500;
   this->MaximumNumberOfEvaluations = 5000;
@@ -235,7 +235,7 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TransformDimensionality: "
      << this->TransformDimensionality << "\n";
   os << indent << "InitializerType: " << this->InitializerType << "\n";
-  os << indent << "MetricTolerance: " << this->MetricTolerance << "\n";
+  os << indent << "CostTolerance: " << this->CostTolerance << "\n";
   os << indent << "TransformTolerance: " << this->TransformTolerance << "\n";
   os << indent << "MaximumNumberOfIterations: "
      << this->MaximumNumberOfIterations << "\n";
@@ -957,7 +957,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->Metric->SetInputConnection(1, reslice->GetOutputPort());
   this->Metric->SetInputConnection(2, reslice->GetStencilOutputPort());
 
-  this->Optimizer->SetTolerance(this->MetricTolerance);
+  this->Optimizer->SetTolerance(this->CostTolerance);
   this->Optimizer->SetParameterTolerance(this->TransformTolerance);
   this->Optimizer->SetMaxIterations(this->MaximumNumberOfIterations);
 
