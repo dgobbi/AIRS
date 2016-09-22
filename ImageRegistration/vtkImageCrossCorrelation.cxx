@@ -283,10 +283,12 @@ void vtkImageCrossCorrelation::ReduceRequestData(
 
   if (this->Metric == NCC)
     {
+    this->SetValue(normalizedCrossCorrelation);
     this->SetCost(-normalizedCrossCorrelation);
     }
   else
     {
+    this->SetValue(crossCorrelation);
     this->SetCost(-crossCorrelation);
     }
 }

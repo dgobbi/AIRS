@@ -29,6 +29,7 @@
 // Constructor sets default values
 vtkImageSimilarityMetric::vtkImageSimilarityMetric()
 {
+  this->Value = 0.0;
   this->Cost = 0.0;
 
   this->SetNumberOfInputPorts(3);
@@ -46,6 +47,7 @@ void vtkImageSimilarityMetric::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os,indent);
 
   os << indent << "Stencil: " << this->GetStencil() << "\n";
+  os << indent << "Value: " << this->Value << "\n";
   os << indent << "Cost: " << this->Cost << "\n";
 }
 

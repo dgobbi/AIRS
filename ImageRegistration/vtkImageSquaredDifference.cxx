@@ -55,7 +55,6 @@ class vtkImageSquaredDifferenceTLS
 // Constructor sets default values
 vtkImageSquaredDifference::vtkImageSquaredDifference()
 {
-  this->SquaredDifference = 0.0;
 }
 
 //----------------------------------------------------------------------------
@@ -67,8 +66,6 @@ vtkImageSquaredDifference::~vtkImageSquaredDifference()
 void vtkImageSquaredDifference::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-
-  os << indent << "SquaredDifference: " << this->SquaredDifference << "\n";
 }
 
 // begin anonymous namespace
@@ -228,7 +225,8 @@ void vtkImageSquaredDifference::ReduceRequestData(
     }
 
   // output values
-  this->SquaredDifference = sqsum/count;
+  double squaredDifference = sqsum/count;
 
-  this->SetCost(this->SquaredDifference);
+  this->SetValue(squaredDifference);
+  this->SetCost(squaredDifference);
 }

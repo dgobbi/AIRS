@@ -32,11 +32,6 @@ public:
 
   void PrintSelf(ostream& os, vtkIndent indent);
 
-  // Description:
-  // Get the cross correlation of the two images, with no normalization.
-  // The result is only valid after the filter has executed.
-  vtkGetMacro(SquaredDifference, double);
-
 protected:
   vtkImageSquaredDifference();
   ~vtkImageSquaredDifference();
@@ -53,8 +48,6 @@ protected:
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
                          vtkInformationVector *outInfo);
-
-  double SquaredDifference;
 
   vtkImageSquaredDifferenceTLS *ThreadData;
 

@@ -51,6 +51,14 @@ public:
   //@}
 
   //@{
+  //! Get the metric value.
+  /*!
+   *  This is the primary output of the metric, but it is not always the
+   *  value that is used for image registration.  For registration, use
+   *  GetCost() which returns a value that can be minimized.
+   */
+  double GetValue() { return this->Value; }
+
   //! Get the metric value in a form suitable for minimization.
   /*!
    *  This is the primary output of the metric.  In order to be able to
@@ -104,6 +112,9 @@ protected:
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *outInfo) = 0;
 
+  //! Subclasses call this to set the metric value.
+  void SetValue(double x) { this->Value = x; }
+
   //! Subclasses call this to set the value to be minimized.
   void SetCost(double x) { this->Cost = x; }
   //@}
@@ -112,6 +123,7 @@ private:
   vtkImageSimilarityMetric(const vtkImageSimilarityMetric&);
   void operator=(const vtkImageSimilarityMetric&);
 
+  double Value;
   double Cost;
 
   friend class vtkImageSimilarityMetricFunctor;

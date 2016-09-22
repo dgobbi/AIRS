@@ -56,8 +56,6 @@ vtkImageNeighborhoodCorrelation::vtkImageNeighborhoodCorrelation()
   this->NeighborhoodRadius[0] = 7;
   this->NeighborhoodRadius[1] = 7;
   this->NeighborhoodRadius[2] = 7;
-
-  this->Correlation = 0.0;
 }
 
 //----------------------------------------------------------------------------
@@ -72,7 +70,6 @@ void vtkImageNeighborhoodCorrelation::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "NeighborhoodRadius: " << this->NeighborhoodRadius[0] << " "
      << this->NeighborhoodRadius[1] << " " << this->NeighborhoodRadius[2] << "\n";
-  os << indent << "Correlation: " << this->Correlation << "\n";
 }
 
 // begin anonymous namespace
@@ -1016,6 +1013,6 @@ void vtkImageNeighborhoodCorrelation::ReduceRequestData(
     result += iter->Result;
     }
 
-  this->Correlation = result;
+  this->SetValue(result);
   this->SetCost(-result);
 }

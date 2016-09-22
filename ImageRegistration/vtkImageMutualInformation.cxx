@@ -587,10 +587,12 @@ void vtkImageMutualInformation::ReduceRequestData(
 
   if (this->Metric == NMI)
     {
+    this->SetValue(normalizedMutualInformation);
     this->SetCost(-normalizedMutualInformation);
     }
   else
     {
+    this->SetValue(mutualInformation);
     this->SetCost(-mutualInformation);
     }
 }

@@ -50,11 +50,6 @@ public:
   // must be provided.
   vtkSetVector2Macro(DataRange, double);
 
-  // Description:
-  // Get the correlation ratio between the two images.
-  // The result is only valid after the filter has executed.
-  vtkGetMacro(CorrelationRatio, double);
-
 protected:
   vtkImageCorrelationRatio();
   ~vtkImageCorrelationRatio();
@@ -77,10 +72,6 @@ protected:
   int NumberOfBins;
   double BinOrigin;
   double BinSpacing;
-
-  int OutputScalarType;
-
-  double CorrelationRatio;
 
   vtkImageCorrelationRatioTLS *ThreadData;
 

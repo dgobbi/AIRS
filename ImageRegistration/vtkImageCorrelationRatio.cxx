@@ -57,8 +57,6 @@ vtkImageCorrelationRatio::vtkImageCorrelationRatio()
   this->BinOrigin = 0.0;
   this->BinSpacing = 1.0;
 
-  this->CorrelationRatio = 0.0;
-
   this->ThreadData = 0;
 }
 
@@ -74,8 +72,6 @@ void vtkImageCorrelationRatio::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "DataRange: " << this->DataRange[0] << " "
      << this->DataRange[1] << "\n";
-
-  os << indent << "CorrelationRatio: " << this->CorrelationRatio << "\n";
 }
 
 // begin anonymous namespace
@@ -455,7 +451,6 @@ void vtkImageCorrelationRatio::ReduceRequestData(
     }
 
   // output values
-  this->CorrelationRatio = correlationRatio;
-
+  this->SetValue(correlationRatio);
   this->SetCost(-correlationRatio);
 }

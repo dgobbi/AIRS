@@ -41,10 +41,6 @@ public:
   vtkSetVector3Macro(NeighborhoodRadius, int);
   vtkGetVector3Macro(NeighborhoodRadius, int);
 
-  // Description:
-  // Get the correlation (after the metric has updated).
-  vtkGetMacro(Correlation, double);
-
 protected:
   vtkImageNeighborhoodCorrelation();
   ~vtkImageNeighborhoodCorrelation();
@@ -63,7 +59,6 @@ protected:
                          vtkInformationVector *outInfo);
 
   int NeighborhoodRadius[3];
-  double Correlation;
 
   vtkImageNeighborhoodCorrelationTLS *ThreadData;
 
