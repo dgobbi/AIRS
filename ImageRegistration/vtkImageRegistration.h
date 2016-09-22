@@ -27,6 +27,7 @@ class vtkImageStencilData;
 class vtkLinearTransform;
 class vtkTransform;
 class vtkMatrix4x4;
+class vtkDoubleArray;
 class vtkImageReslice;
 class vtkImageShiftScale;
 class vtkImageBSplineCoefficients;
@@ -260,8 +261,41 @@ public:
   vtkLinearTransform *GetTransform();
 
   // Description:
-  // Get the value that is being minimized.
+  // Get the current value of the metric.
   vtkGetMacro(MetricValue, double);
+
+  // Description:
+  // Get the current cost value for the registration.
+  vtkGetMacro(CostValue, double);
+
+  // Description:
+  // Turn this on to collect diagnositic values during registration.
+  // This will cause the MetricValues, CostValues, and ParameterValues
+  // to be collected during the registration.
+  vtkGetMacro(CollectValues, bool);
+  vtkSetMacro(CollectValues, bool);
+  vtkBooleanMacro(CollectValues, bool);
+
+  // Description:
+  // Get an array of all metric values since registration started.
+  // There will be one metric value stored for each function evaluation
+  // that was performed.
+  vtkGetObjectMacro(MetricValues, vtkDoubleArray)
+
+  // Description:
+  // Get an array of all cost values since registration started.
+  // There will be one value stored for each function evaluation
+  // that was performed.
+  vtkGetObjectMacro(CostValues, vtkDoubleArray)
+
+  // Description:
+  // Get an array of all parameter values since registration started.
+  // There will be one set of parameters stored for each function evaluation
+  // that was performed.  The function parameters are, in order, the
+  // translation parameters, the rotation parameters, the scale followed
+  // by the scale anisotropy, and finally the rotation parameters for the
+  // axes of the scale parameters.
+  vtkGetObjectMacro(ParameterValues, vtkDoubleArray)
 
   // Description:
   // Iterate the registration.  Returns zero if the termination condition has
@@ -311,6 +345,7 @@ protected:
   double                           MetricTolerance;
   double                           TransformTolerance;
   double                           MetricValue;
+  double                           CostValue;
 
   int                              JointHistogramSize[2];
   double                           SourceImageRange[2];
@@ -330,6 +365,11 @@ protected:
   vtkImageShiftScale              *TargetImageTypecast;
 
   vtkImageRegistrationInfo        *RegistrationInfo;
+
+  bool                             CollectValues;
+  vtkDoubleArray                  *MetricValues;
+  vtkDoubleArray                  *CostValues;
+  vtkDoubleArray                  *ParameterValues;
 
 private:
   // Copy constructor and assigment operator are purposely not implemented

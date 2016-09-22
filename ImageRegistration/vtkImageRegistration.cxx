@@ -21,6 +21,7 @@
 #include <vtkImageData.h>
 #include <vtkImageStencilData.h>
 #include <vtkMath.h>
+#include <vtkDoubleArray.h>
 #include <vtkTransform.h>
 #include <vtkMatrixToLinearTransform.h>
 #include <vtkMatrix4x4.h>
@@ -72,6 +73,10 @@ struct vtkImageRegistrationInfo
   vtkImageSimilarityMetric *Metric;
   vtkMatrix4x4 *InitialMatrix;
 
+  vtkDoubleArray *MetricValues;
+  vtkDoubleArray *CostValues;
+  vtkDoubleArray *ParameterValues;
+
   int TransformDimensionality;
   int TransformType;
   int OptimizerType;
@@ -118,6 +123,9 @@ vtkImageRegistration::vtkImageRegistration()
   this->RegistrationInfo->Optimizer = NULL;
   this->RegistrationInfo->Metric = NULL;
   this->RegistrationInfo->InitialMatrix = NULL;
+  this->RegistrationInfo->MetricValues = NULL;
+  this->RegistrationInfo->CostValues = NULL;
+  this->RegistrationInfo->ParameterValues = NULL;
   this->RegistrationInfo->TransformDimensionality = 0;
   this->RegistrationInfo->TransformType = 0;
   this->RegistrationInfo->OptimizerType = 0;
@@ -138,6 +146,12 @@ vtkImageRegistration::vtkImageRegistration()
   this->SourceImageTypecast = vtkImageShiftScale::New();
 
   this->MetricValue = 0.0;
+  this->CostValue = 0.0;
+
+  this->CollectValues = false;
+  this->MetricValues = vtkDoubleArray::New();
+  this->CostValues = vtkDoubleArray::New();
+  this->ParameterValues = vtkDoubleArray::New();
 
   this->MetricTolerance = 1e-4;
   this->TransformTolerance = 1e-1;
@@ -167,6 +181,18 @@ vtkImageRegistration::~vtkImageRegistration()
   if (this->Transform)
     {
     this->Transform->Delete();
+    }
+  if (this->MetricValues)
+    {
+    this->MetricValues->Delete();
+    }
+  if (this->CostValues)
+    {
+    this->CostValues->Delete();
+    }
+  if (this->ParameterValues)
+    {
+    this->ParameterValues->Delete();
     }
 
   if (this->RegistrationInfo)
@@ -219,6 +245,12 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TargetImageRange: " << this->TargetImageRange[0] << " "
      << this->TargetImageRange[1] << "\n";
   os << indent << "MetricValue: " << this->MetricValue << "\n";
+  os << indent << "CostValue: " << this->CostValue << "\n";
+  os << indent << "CollectValues: "
+     << (this->CollectValues ? "On\n" : "Off\n");
+  os << indent << "MetricValues: " << this->MetricValues << "\n";
+  os << indent << "CostValues: " << this->CostValues << "\n";
+  os << indent << "ParameterValues: " << this->ParameterValues << "\n";
   os << indent << "NumberOfEvaluations: "
      << this->RegistrationInfo->NumberOfEvaluations << "\n";
 }
@@ -469,6 +501,25 @@ void vtkEvaluateFunction(void * arg)
   registrationInfo->Metric->Update();
 
   optimizer->SetFunctionValue(metric->GetCost());
+
+  if (registrationInfo->MetricValues)
+    {
+    registrationInfo->MetricValues->InsertNextValue(metric->GetValue());
+    }
+  if (registrationInfo->CostValues)
+    {
+    registrationInfo->CostValues->InsertNextValue(metric->GetCost());
+    }
+  if (registrationInfo->ParameterValues)
+    {
+    double parameters[12];
+    int n = optimizer->GetNumberOfParameters();
+    for (int i = 0; i < n; i++)
+      {
+      parameters[i] = optimizer->GetParameterValue(i);
+      }
+    registrationInfo->ParameterValues->InsertNextTuple(parameters);
+    }
 
   registrationInfo->NumberOfEvaluations++;
 }
@@ -912,6 +963,19 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->Metric = this->Metric;
   this->RegistrationInfo->InitialMatrix = this->InitialTransformMatrix;
 
+  if (this->CollectValues)
+    {
+    this->RegistrationInfo->MetricValues = this->MetricValues;
+    this->RegistrationInfo->CostValues = this->CostValues;
+    this->RegistrationInfo->ParameterValues = this->ParameterValues;
+    }
+  else
+    {
+    this->RegistrationInfo->MetricValues = NULL;
+    this->RegistrationInfo->CostValues = NULL;
+    this->RegistrationInfo->ParameterValues = NULL;
+    }
+
   this->RegistrationInfo->TransformDimensionality =
     this->TransformDimensionality;
   this->RegistrationInfo->TransformType = this->TransformType;
@@ -1024,6 +1088,12 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   // build the initial transform from the parameters
   vtkSetTransformParameters(this->RegistrationInfo);
+
+  this->MetricValues->Initialize();
+  this->CostValues->Initialize();
+  this->ParameterValues->Initialize();
+  this->ParameterValues->SetNumberOfComponents(
+    optimizer->GetNumberOfParameters());
 
   this->Modified();
 }
