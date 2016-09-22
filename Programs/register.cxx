@@ -1311,7 +1311,7 @@ struct register_options
   int optimizer;       // -O --optimizer
   int parallel;        // -P --parallel
   int coords;          // -C --coords
-  int maxiter[4];      // -N --maxiter
+  int maxeval[4];      // -N --maxeval
   int display;         // -d --display
   int translucent;     // -t --translucent
   int silent;          // -s --silent
@@ -1336,10 +1336,10 @@ void register_initialize_options(register_options *options)
   options->optimizer = vtkImageRegistration::Powell;
   options->parallel = MultiThread;
   options->coords = NativeCoords;
-  options->maxiter[0] = 500;
-  options->maxiter[1] = 500;
-  options->maxiter[2] = 500;
-  options->maxiter[3] = 500;
+  options->maxeval[0] = 5000;
+  options->maxeval[1] = 5000;
+  options->maxeval[2] = 5000;
+  options->maxeval[3] = 5000;
   options->display = 0;
   options->translucent = 0;
   options->silent = 0;
@@ -1534,10 +1534,10 @@ void register_show_help(FILE *fp, const char *command)
     "    matrix that is written by the \"-o\" option will be in the chosen\n"
     "    coordinate system.\n"
     "\n"
-    " -N --maxiter   (default: 500x500x500x500)\n"
+    " -N --maxeval   (default: 5000x5000x5000x5000)\n"
     "\n"
-    "    Set the maximum number of iterations per stage.  Set this to zero\n"
-    "    if you want to use the initial transform as-is.\n"
+    "    Set the maximum number of metric evaluations per stage.  Set this\n"
+    "    to zero if you want to use the initial transform as-is.\n"
 #ifdef VTK_HAS_SLAB_SPACING
     "\n"
     " --mip             (default: off)\n"
@@ -1837,12 +1837,12 @@ int register_read_options(
           }
         }
       else if (strcmp(arg, "-N") == 0 ||
-               strcmp(arg, "--maxiter") == 0)
+               strcmp(arg, "--maxeval") == 0)
         {
         arg = check_next_arg(argc, argv, &argi, 0);
         for (int i = 0; i < 4; i++)
           {
-          options->maxiter[i] = static_cast<int>(
+          options->maxeval[i] = static_cast<int>(
             strtoul(arg, const_cast<char **>(&arg), 0));
           if (*arg == 'x') { arg++; }
           }
@@ -2317,9 +2317,10 @@ int main(int argc, char *argv[])
   // will be set to "true" when registration is initialized
   bool initialized = false;
 
-  while (level < 4 && options.maxiter[level] > 0)
+  while (level < 4 && options.maxeval[level] > 0)
     {
-    registration->SetMaximumNumberOfIterations(options.maxiter[level]);
+    registration->SetMaximumNumberOfEvaluations(options.maxeval[level]);
+    registration->SetMaximumNumberOfIterations(options.maxeval[level]);
     registration->SetInterpolatorType(interpolatorType);
     registration->SetTransformTolerance(transformTolerance*blurFactor);
 

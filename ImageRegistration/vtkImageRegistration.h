@@ -247,10 +247,19 @@ public:
   vtkGetMacro(TransformTolerance, double);
 
   // Description:
-  // Set the maximum number of iterations to perform.  The number of metric
-  // evaluations per iteration will depend on the optimizer.
+  // Set the maximum number of iterations to perform. Default: 500.
+  // The number of metric evaluations per iteration will depend on the
+  // optimizer that is used.
   vtkSetMacro(MaximumNumberOfIterations, int);
   vtkGetMacro(MaximumNumberOfIterations, int);
+
+  // Description:
+  // Set the maximum number of metric evaluations. Default: 5000.
+  // This is usually a more useful limit than the number of iterations.
+  // Note the registration will continue until the end of the current
+  // iteration.
+  vtkSetMacro(MaximumNumberOfEvaluations, int);
+  vtkGetMacro(MaximumNumberOfEvaluations, int);
 
   // Description:
   // Get the number of times that the metric has been evaluated.
@@ -342,6 +351,7 @@ protected:
   int                              TransformDimensionality;
 
   int                              MaximumNumberOfIterations;
+  int                              MaximumNumberOfEvaluations;
   double                           MetricTolerance;
   double                           TransformTolerance;
   double                           MetricValue;

@@ -156,6 +156,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->MetricTolerance = 1e-4;
   this->TransformTolerance = 1e-1;
   this->MaximumNumberOfIterations = 500;
+  this->MaximumNumberOfEvaluations = 5000;
 
   // we have the image inputs and the optional stencil input
   this->SetNumberOfInputPorts(3);
@@ -238,6 +239,8 @@ void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TransformTolerance: " << this->TransformTolerance << "\n";
   os << indent << "MaximumNumberOfIterations: "
      << this->MaximumNumberOfIterations << "\n";
+  os << indent << "MaximumNumberOfEvaluations: "
+     << this->MaximumNumberOfEvaluations << "\n";
   os << indent << "JointHistogramSize: " << this->JointHistogramSize[0] << " "
      << this->JointHistogramSize[1] << "\n";
   os << indent << "SourceImageRange: " << this->SourceImageRange[0] << " "
@@ -1128,6 +1131,13 @@ int vtkImageRegistration::ExecuteRegistration()
       converged = !optimizer->Iterate();
       vtkSetTransformParameters(this->RegistrationInfo);
       this->MetricValue = optimizer->GetFunctionValue();
+
+      if (this->RegistrationInfo->NumberOfEvaluations >=
+          this->MaximumNumberOfEvaluations)
+        {
+        converged = 0;
+        break;
+        }
       }
 
     if (converged && !this->AbortExecute)
@@ -1150,7 +1160,9 @@ int vtkImageRegistration::Iterate()
   if (optimizer)
     {
     int result = optimizer->Iterate();
-    if (optimizer->GetIterations() >= this->MaximumNumberOfIterations)
+    if (optimizer->GetIterations() >= this->MaximumNumberOfIterations ||
+        this->RegistrationInfo->NumberOfEvaluations >=
+          this->MaximumNumberOfEvaluations)
       {
       result = 0;
       }
