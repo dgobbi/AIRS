@@ -29,6 +29,7 @@ Module:    register.cxx
 #include <vtkPointData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkTransform.h>
+#include <vtkDoubleArray.h>
 #include <vtkIntArray.h>
 #include <vtkIdTypeArray.h>
 #include <vtkStringArray.h>
@@ -949,6 +950,86 @@ void WriteImage(
 }
 
 
+// Write a csv file that can be used to plot the convergence of the
+// registration.  The first column is the function evaluation count,
+// the second column is the cost, the fourth is the metric value,
+// and the remainder of the columns are the parameters.
+void WriteReport(vtkImageRegistration *reg, const char *fname)
+{
+  vtkDoubleArray *costArray = reg->GetCostValues();
+  vtkDoubleArray *metricArray = reg->GetMetricValues();
+  vtkDoubleArray *paramArray = reg->GetParameterValues();
+
+  FILE *f = fopen(fname, "w");
+  if (!f)
+    {
+    fprintf(stderr, "Unable to open output file %s\n", fname);
+    return;
+    }
+
+  // get the number of free parameters
+  int dof = paramArray->GetNumberOfComponents();
+
+  // get the parameter names
+  const char **pnames = 0;
+  if (reg->GetTransformDimensionality() == 2)
+    {
+    static const char *p[] = {
+      "tx", "ty", "r", "s", "a", "q"
+    }; 
+    pnames = p;
+    }
+  else
+    {
+    static const char *p[] = {
+      "tx", "ty", "tz", "rx", "ry", "rz", "s", "a", "b", "qx", "qy", "qz"
+    }; 
+    pnames = p;
+    }
+
+  // print the header
+  fprintf(f, "\"%s\",\"%s\",\"%s\"", "feval", "cost", "metric");
+  for (int k = 0; k < dof; k++)
+    {
+    fprintf(f, ",\"%s\"", pnames[k]);
+    }
+  fprintf(f, "\n");
+
+  int n = static_cast<int>(costArray->GetNumberOfTuples());
+  int j = 0;
+  for (int i = 0; i < n; i++)
+    {
+    // Only report decreasing values, because we want to show the path
+    // taken towards convergence
+    if (costArray->GetValue(i) <= costArray->GetValue(j))
+      {
+      j = i;
+      }
+    else
+      {
+      continue;
+      }
+
+    double params[12] = {
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    };
+    paramArray->GetTuple(j, params);
+
+    fprintf(f, "%i,%g,%g",
+            i, costArray->GetValue(j), metricArray->GetValue(j));
+
+    for (int k = 0; k < dof; k++)
+      {
+      fprintf(f, ",%g", params[k]);
+      }
+    fprintf(f, "\n");
+    }
+
+  fclose(f);
+}
+
+
 void SetViewFromMatrix(
   vtkRenderer *renderer,
   vtkInteractorStyleImage *istyle,
@@ -1322,6 +1403,7 @@ struct register_options
   const char *outxfm;  // -o (output transform)
   const char *output;  // -o (output image)
   const char *screenshot; // -j (output screenshot)
+  const char *report;  // -r (report csv file)
   const char *source;
   const char *target;
   std::vector<TransformArg> transforms;
@@ -1348,6 +1430,7 @@ void register_initialize_options(register_options *options)
 #endif
   options->source_to_target = 0;
   options->screenshot = NULL;
+  options->report = NULL;
   options->output = NULL;
   options->outxfm = NULL;
   options->source = NULL;
@@ -1566,6 +1649,11 @@ void register_show_help(FILE *fp, const char *command)
     "    Write a screenshot as a png, jpeg, or tiff file.  This is useful\n"
     "    when performing registration in a batch file in order to provide\n"
     "    a simple means of visually assessing the results retrospectively.\n"
+    "\n"
+    " -r --report <file>\n"
+    "\n"
+    "    Write a report in csv format that shows the convergence.  This is\n"
+    "    for testing the metrics.\n"
     "\n"
     " -o <file>\n"
     "\n"
@@ -1894,6 +1982,12 @@ int register_read_options(
         {
         arg = check_next_arg(argc, argv, &argi, 0);
         options->screenshot = arg;
+        }
+      else if (strcmp(arg, "-r") == 0 ||
+               strcmp(arg, "--report") == 0)
+        {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->report = arg;
         }
       else if (strcmp(arg, "-o") == 0)
         {
@@ -2302,6 +2396,13 @@ int main(int argc, char *argv[])
   registration->Initialize(matrix);
 
   // -------------------------------------------------------
+  // collect the values as it converges
+  if (options.report)
+    {
+    registration->CollectValuesOn();
+    }
+
+  // -------------------------------------------------------
   // make a timer
   vtkSmartPointer<vtkTimerLog> timer =
     vtkSmartPointer<vtkTimerLog>::New();
@@ -2479,6 +2580,13 @@ int main(int argc, char *argv[])
   if (options.screenshot)
     {
     WriteScreenshot(renderWindow, options.screenshot);
+    }
+
+  // -------------------------------------------------------
+  // write a report
+  if (options.report)
+    {
+    WriteReport(registration, options.report);
     }
 
   // -------------------------------------------------------
