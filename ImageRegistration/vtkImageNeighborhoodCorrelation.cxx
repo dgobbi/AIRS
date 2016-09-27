@@ -1022,5 +1022,5 @@ void vtkImageNeighborhoodCorrelation::ReduceRequestData(
   result /= count;
 
   this->SetValue(result);
-  this->SetCost(-result);
+  this->SetCost(1.0 - result);
 }

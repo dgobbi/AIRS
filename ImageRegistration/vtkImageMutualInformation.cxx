@@ -603,11 +603,21 @@ void vtkImageMutualInformation::ReduceRequestData(
   if (this->Metric == NMI)
     {
     this->SetValue(normalizedMutualInformation);
-    this->SetCost(-normalizedMutualInformation);
+    // compute the diff between max and min possible NMI
+    int minbin = (nx > ny ? nx : ny);
+    int maxbin = (nx < ny ? nx : ny);
+    double d = (log(static_cast<double>(maxbin))/
+                log(static_cast<double>(minbin)));
+    // make the cost vary between 0 and 1
+    this->SetCost(1.0 - (normalizedMutualInformation - 1.0)/d);
     }
   else
     {
     this->SetValue(mutualInformation);
-    this->SetCost(-mutualInformation);
+    // compute the maximum possible mutual information
+    int maxbin = (nx > ny ? nx : ny);
+    double maxMI = log(static_cast<double>(maxbin));
+    // make the cost vary between 0 and 1
+    this->SetCost(1.0 - mutualInformation/maxMI);
     }
 }

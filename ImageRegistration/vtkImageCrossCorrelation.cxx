@@ -233,7 +233,7 @@ void vtkImageCrossCorrelation::PieceRequestData(
 void vtkImageCrossCorrelation::ReduceRequestData(
   vtkInformation *, vtkInformationVector **, vtkInformationVector *)
 {
-  // various variables for computing the mutual information
+  // various variables for computing the cross correlation
   double xSum = 0.0;
   double ySum = 0.0;
   double xxSum = 0.0;
@@ -284,11 +284,38 @@ void vtkImageCrossCorrelation::ReduceRequestData(
   if (this->Metric == NCC)
     {
     this->SetValue(normalizedCrossCorrelation);
-    this->SetCost(-normalizedCrossCorrelation);
+    // take complement to make it into a cost
+    this->SetCost(1.0 - normalizedCrossCorrelation);
     }
   else
     {
     this->SetValue(crossCorrelation);
-    this->SetCost(-crossCorrelation);
+    // scale cost to a value between 0.0 and 1.0
+    bool rescale = true;
+    double maxCC = 1.0;
+    double range[2];
+    for (int i = 0; i < 2; i++)
+      {
+      // get the range for the image
+      double range[2];
+      this->GetInputRange(i, range);
+      // check if the range was set
+      if (range[0] < range[1])
+        {
+        maxCC *= range[1] - range[0];
+        }
+      else
+        {
+        rescale = false;
+        }
+      }
+    if (rescale)
+      {
+      this->SetCost(1.0 - crossCorrelation/maxCC);
+      }
+    else
+      {
+      this->SetCost(-crossCorrelation);
+      }
     }
 }
