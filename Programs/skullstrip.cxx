@@ -875,25 +875,30 @@ const char *check_next_arg(
     return arg;
     }
 
+  bool match = false;
   for (const char **t = possib; *t != 0; t++)
     {
     if (strcmp(*t, arg) == 0)
       {
-      return arg;
+      match = true;
+      break;
       }
     }
 
-  fprintf(stderr, "Incorrect value for option \"%s\": %s\n",
-          op, arg);
-  fprintf(stderr, "Allowed values:");
-  for (const char **u = possib; *u != 0; u++)
+  if (!match)
     {
-    fprintf(stderr, "%s", *u);
+    fprintf(stderr, "Incorrect value for option \"%s\": %s\n",
+            op, arg);
+    fprintf(stderr, "Allowed values:");
+    for (const char **u = possib; *u != 0; u++)
+      {
+      fprintf(stderr, "%s", *u);
+      }
+    fprintf(stderr, "\n");
+    exit(1);
     }
-  fprintf(stderr, "\n");
-  exit(1);
 
-  return 0;
+  return arg;
 }
 
 void skullstrip_show_usage(FILE *fp, const char *command)
