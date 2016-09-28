@@ -51,6 +51,20 @@ public:
   //@}
 
   //@{
+  //! Set the estimated range of the specified input.
+  /*!
+   *  This range is used in a different manner for different metrics.
+   *  For Mutual Information and other histogram-based metrics, it is
+   *  the range of intensities that are to be mapped to histogram.
+   *  For Cross Correlation, it is used to scale the reported cost value
+   *  to a useful range between 0.0 and 1.0.  See the documentation for
+   *  each metric to see how this range is used.
+   */
+  void SetInputRange(int idx, const double range[2]);
+  void GetInputRange(int idx, double range[2]);
+  //@}
+
+  //@{
   //! Get the metric value.
   /*!
    *  This is the primary output of the metric, but it is not always the
@@ -122,6 +136,8 @@ protected:
 private:
   vtkImageSimilarityMetric(const vtkImageSimilarityMetric&);
   void operator=(const vtkImageSimilarityMetric&);
+
+  double InputRange[2][2];
 
   double Value;
   double Cost;

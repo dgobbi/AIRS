@@ -24,6 +24,12 @@
 // filter has executed, the mutual information, normalized mutual information,
 // and the value to minimize to register the images can be retrieved.
 //
+// When using this metric, you must call SetInputRange() to set the range
+// for each of the input images.  The values will be clamped to the ranges
+// that you specify when the metric is computed.  If the images are likely
+// to have some voxel values that are outliers, then a winsorized range
+// should be used (that is, a range that excludes the outliers).
+//
 // References:
 //
 //  [1] D. Mattes, D.R. Haynor, H. Vesselle, T. Lewellen and W. Eubank,
@@ -78,17 +84,23 @@ public:
     this->SetOutputScalarType(VTK_UNSIGNED_CHAR); }
 
   // Description:
-  // Set the number of bins in the X and Y directions.
+  // Set the number of bins in the X and Y directions.  Default: 64x64.
   vtkSetVector2Macro(NumberOfBins, int);
   vtkGetVector2Macro(NumberOfBins, int);
 
   // Description:
   // Set the center position of the first bin.  The default is zero.
+  // This is a legacy method, instead of calling the SetBinOrigin() you
+  // should call SetNumberOfBins() and SetInputRange().  The BinOrigin
+  // will be computed automatically when the metric executes.
   vtkSetVector2Macro(BinOrigin, double);
   vtkGetVector2Macro(BinOrigin, double);
 
   // Description:
   // Set the joint histogram bin spacing.  The default is one.
+  // This is a legacy method, instead of calling the SetBinSpacing() you
+  // should call SetNumberOfBins() and SetInputRange().  The BinSpacing
+  // will be computed automatically when the metric executes.
   vtkSetVector2Macro(BinSpacing, double);
   vtkGetVector2Macro(BinSpacing, double);
 

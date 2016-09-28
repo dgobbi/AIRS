@@ -885,17 +885,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
     case vtkImageRegistration::NeighborhoodCorrelation:
       {
-      vtkImageNeighborhoodCorrelation *metric =
-        vtkImageNeighborhoodCorrelation::New();
-      this->Metric = metric;
+      this->Metric = vtkImageNeighborhoodCorrelation::New();
       }
       break;
 
     case vtkImageRegistration::CorrelationRatio:
       {
-      vtkImageCorrelationRatio *metric = vtkImageCorrelationRatio::New();
-      this->Metric = metric;
-      metric->SetDataRange(sourceImageRange);
+      this->Metric = vtkImageCorrelationRatio::New();
       }
       break;
 
@@ -914,16 +910,6 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
         {
         metric->SetMetricToMutualInformation();
         }
-
-      metric->SetNumberOfBins(this->JointHistogramSize);
-
-      metric->SetBinOrigin(
-        sourceImageRange[0], targetImageRange[0]);
-      metric->SetBinSpacing(
-        (sourceImageRange[1] - sourceImageRange[0])/
-          (this->JointHistogramSize[0]-1),
-        (targetImageRange[1] - targetImageRange[0])/
-          (this->JointHistogramSize[1]-1));
       }
       break;
     }
@@ -956,6 +942,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->Metric->SET_INPUT_DATA(sourceImage);
   this->Metric->SetInputConnection(1, reslice->GetOutputPort());
   this->Metric->SetInputConnection(2, reslice->GetStencilOutputPort());
+  this->Metric->SetInputRange(0, sourceImageRange);
+  this->Metric->SetInputRange(1, targetImageRange);
 
   this->Optimizer->SetTolerance(this->CostTolerance);
   this->Optimizer->SetParameterTolerance(this->TransformTolerance);

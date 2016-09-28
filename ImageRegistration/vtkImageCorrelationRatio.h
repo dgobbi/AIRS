@@ -21,6 +21,11 @@
 // multi-modal image registration.  For more information, please read
 // the reference.
 //
+// It is necessary to call SetInputRange(0, range) with the range of the
+// first image.  This is used to set the size of the array of partial sums
+// that is used to compute the metric.  If not set, a default range of
+// (0, 255) is used which is only suitable for 8-bit images.
+//
 // References:
 //
 //  [1] A. Roche, G. Malandain, X. Pennec and N. Ayache,
@@ -44,11 +49,9 @@ public:
 
   // Description:
   // Set the range of the data for the first input.
-  // This is used to set the size of the array of partial sums that is used
-  // to compute the metric.  The default range is (0, 255), which is only
-  // suitable for 8-bit images.  For all other image types, a data range
-  // must be provided.
-  vtkSetVector2Macro(DataRange, double);
+  // This is a legacy method, use SetInputRange() instead.
+  void SetDataRange(const double range[2]) {
+    this->SetInputRange(0, range); }
 
 protected:
   vtkImageCorrelationRatio();
@@ -66,8 +69,6 @@ protected:
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
                          vtkInformationVector *outInfo);
-
-  double DataRange[2];
 
   int NumberOfBins;
   double BinOrigin;

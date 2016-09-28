@@ -29,6 +29,11 @@
 // Constructor sets default values
 vtkImageSimilarityMetric::vtkImageSimilarityMetric()
 {
+  this->InputRange[0][0] = 0.0;
+  this->InputRange[0][1] = 0.0;
+  this->InputRange[1][0] = 0.0;
+  this->InputRange[1][1] = 0.0;
+
   this->Value = 0.0;
   this->Cost = 0.0;
 
@@ -47,6 +52,9 @@ void vtkImageSimilarityMetric::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os,indent);
 
   os << indent << "Stencil: " << this->GetStencil() << "\n";
+  os << indent << "InputRange: ("
+     << this->InputRange[0][0] << ", " << this->InputRange[0][1] << "), ("
+     << this->InputRange[1][0] << ", " << this->InputRange[1][1] << ")\n";
   os << indent << "Value: " << this->Value << "\n";
   os << indent << "Cost: " << this->Cost << "\n";
 }
@@ -70,6 +78,36 @@ vtkImageStencilData *vtkImageSimilarityMetric::GetStencil()
     }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(2, 0));
+}
+
+//----------------------------------------------------------------------------
+void vtkImageSimilarityMetric::SetInputRange(int i, const double r[2])
+{
+  if (i >= 0 && i < 2)
+    {
+    if (r[0] != this->InputRange[i][0] ||
+        r[1] != this->InputRange[i][1])
+      {
+      this->InputRange[i][0] = r[0];
+      this->InputRange[i][1] = r[1];
+      this->Modified();
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkImageSimilarityMetric::GetInputRange(int i, double r[2])
+{
+  if (i >= 0 && i < 2)
+    {
+    r[0] = this->InputRange[i][0];
+    r[1] = this->InputRange[i][1];
+    }
+  else
+    {
+    r[0] = 0.0;
+    r[1] = 0.0;
+    }
 }
 
 //----------------------------------------------------------------------------
