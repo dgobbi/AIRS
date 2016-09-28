@@ -48,7 +48,8 @@ public:
   // to compute the metric.  The default range is (0, 255), which is only
   // suitable for 8-bit images.  For all other image types, a data range
   // must be provided.
-  vtkSetVector2Macro(DataRange, double);
+  void SetDataRange(const double range[2]) {
+    this->SetInputRange(0, range); }
 
 protected:
   vtkImageCorrelationRatio();
@@ -66,8 +67,6 @@ protected:
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
                          vtkInformationVector *outInfo);
-
-  double DataRange[2];
 
   int NumberOfBins;
   double BinOrigin;

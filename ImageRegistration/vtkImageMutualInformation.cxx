@@ -289,6 +289,21 @@ int vtkImageMutualInformation::RequestData(
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
+  // for each input
+  for (int i = 0; i < 2; i++)
+    {
+    // get the range (possibly winsorized) for the image
+    double range[2];
+    this->GetInputRange(i, range);
+    // check if the range was set
+    if (range[0] < range[1])
+      {
+      // set the bin origin and spacing
+      this->BinOrigin[i] = range[0];
+      this->BinSpacing[i] = (range[1] - range[0])/(this->NumberOfBins[i] - 1);
+      }
+    }
+
   // create the thread-local object
   vtkImageMutualInformationTLS tlocal;
   tlocal.Initialize(this);

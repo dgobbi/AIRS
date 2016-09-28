@@ -50,9 +50,6 @@ class vtkImageCorrelationRatioTLS
 // Constructor sets default values
 vtkImageCorrelationRatio::vtkImageCorrelationRatio()
 {
-  this->DataRange[0] = 0;
-  this->DataRange[1] = 255;
-
   this->NumberOfBins = 256;
   this->BinOrigin = 0.0;
   this->BinSpacing = 1.0;
@@ -69,9 +66,6 @@ vtkImageCorrelationRatio::~vtkImageCorrelationRatio()
 void vtkImageCorrelationRatio::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-
-  os << indent << "DataRange: " << this->DataRange[0] << " "
-     << this->DataRange[1] << "\n";
 }
 
 // begin anonymous namespace
@@ -207,19 +201,28 @@ int vtkImageCorrelationRatio::RequestData(
     vtkDataSetAttributes::SCALARS);
   int scalarType = inScalarInfo->Get(vtkDataObject::FIELD_ARRAY_TYPE());
 
+  double range[2];
+  this->GetInputRange(0, range);
+  // check if the range was set
+  if (range[0] == range[1])
+    {
+    range[0] = 0.0;
+    range[1] = 255.0;
+    }
+
   // compute the array size for the partial sums
   if (scalarType == VTK_DOUBLE || scalarType == VTK_FLOAT)
     {
     this->NumberOfBins = 4096;
-    this->BinOrigin = this->DataRange[0];
-    double l = this->DataRange[1] - this->DataRange[0];
+    this->BinOrigin = range[0];
+    double l = range[1] - range[0];
     this->BinSpacing = l / (this->NumberOfBins - 1);
     }
   else
     {
     this->NumberOfBins = 4096;
-    this->BinOrigin = static_cast<int>(this->DataRange[0]);
-    int l = static_cast<int>(this->DataRange[1]) - this->BinOrigin;
+    this->BinOrigin = static_cast<int>(range[0]);
+    int l = static_cast<int>(range[1]) - this->BinOrigin;
     if (l < this->NumberOfBins)
       {
       this->NumberOfBins = l + 1;
