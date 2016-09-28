@@ -39,9 +39,10 @@ vtkStandardNewMacro(vtkImageNeighborhoodCorrelation);
 class vtkImageNeighborhoodCorrelationThreadData
 {
 public:
-  vtkImageNeighborhoodCorrelationThreadData() : Result(0.0) {}
+  vtkImageNeighborhoodCorrelationThreadData() : Result(0.0), Count(0) {}
 
   double Result;
+  vtkIdType Count;
 };
 
 class vtkImageNeighborhoodCorrelationTLS
@@ -587,6 +588,7 @@ void vtkImageNeighborhoodCorrelation3D(
   */
 
   double result = 0.0;
+  vtkIdType voxels = 0;
 
   int radiusX = radius[0];
   int radiusY = radius[1];
@@ -741,7 +743,7 @@ void vtkImageNeighborhoodCorrelation3D(
       int outIdY = idY - radiusY + i;
       if (outIdY >= pieceExtent[2] && outIdY <= pieceExtent[3])
         {
-        double total = 0;
+        double total = 0.0;
         workPtr = bufferPtr[1];
         workPtr += elementSize*rowSize*(pieceExtent[4] - extent[4]);
         for (int idZ = pieceExtent[4]; idZ <= pieceExtent[5]; idZ++)
@@ -774,6 +776,7 @@ void vtkImageNeighborhoodCorrelation3D(
             if (r1 != r2 + 1)
               {
               int kk = r2 - r1 + 1;
+              voxels += kk;
               do
                 {
                 U xSum = workPtr[0];
@@ -867,6 +870,7 @@ void vtkImageNeighborhoodCorrelation3D(
   delete [] bufferPtr;
 
   threadLocal->Result += result;
+  threadLocal->Count += voxels;
 }
 
 } // end anonymous namespace
@@ -1005,13 +1009,17 @@ void vtkImageNeighborhoodCorrelation::ReduceRequestData(
   vtkInformation *, vtkInformationVector **, vtkInformationVector *)
 {
   double result = 0.0;
+  vtkIdType count = 0;
 
   for (vtkImageNeighborhoodCorrelationTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
     {
     result += iter->Result;
+    count += iter->Count;
     }
+
+  result /= count;
 
   this->SetValue(result);
   this->SetCost(-result);
