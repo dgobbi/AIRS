@@ -23,6 +23,7 @@ vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
 vtkImageSimilarityMetric.cxx
 vtkImageRegistration.cxx
+vtkImageSpread.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx
 vtkPowellMinimizer.cxx

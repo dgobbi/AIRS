@@ -27,3 +27,11 @@ target_link_libraries(TestImageConnectivityFilter
 add_test(TestImageConnectivityFilter
   ${CXX_TEST_PATH}/TestImageConnectivityFilter
   -D "${VTK_TESTING_DIRECTORY}")
+
+add_executable(TestImageSpread
+  TestImageSpread.cxx)
+target_link_libraries(TestImageSpread
+  vtkImageRegistration ${VTK_LIBS})
+add_test(TestImageSpread
+  ${CXX_TEST_PATH}/TestImageSpread
+  -D "${VTK_TESTING_DIRECTORY}")
