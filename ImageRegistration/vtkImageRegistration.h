@@ -28,6 +28,8 @@ class vtkLinearTransform;
 class vtkTransform;
 class vtkMatrix4x4;
 class vtkDoubleArray;
+class vtkImageStencilToImage;
+class vtkImageToImageStencil;
 class vtkImageReslice;
 class vtkImageShiftScale;
 class vtkImageBSplineCoefficients;
@@ -70,10 +72,17 @@ public:
   vtkImageData *GetTargetImage();
 
   // Description:
-  // Set a stencil to apply to the fixed image, to register by using
-  // only a portion of the image.  This can only be done for the fixed image.
+  // Set a stencil to apply to the fixed image.
+  // The images will only be compared within this region.
   void SetSourceImageStencil(vtkImageStencilData *stencil);
   vtkImageStencilData *GetSourceImageStencil();
+
+  // Description:
+  // Set a stencil to apply to the moving image.
+  // This mask moves with the image.  It is resampled and then combined
+  // with the fixed mask in order to generate the final mask.
+  void SetTargetImageStencil(vtkImageStencilData *stencil);
+  vtkImageStencilData *GetTargetImageStencil();
 
   // Optimizer types
   enum
@@ -374,6 +383,10 @@ protected:
   vtkImageBSplineCoefficients     *ImageBSpline;
   vtkImageShiftScale              *SourceImageTypecast;
   vtkImageShiftScale              *TargetImageTypecast;
+
+  vtkImageReslice                 *MaskReslice;
+  vtkImageToImageStencil          *MaskToStencil;
+  vtkImageStencilToImage          *StencilToMask;
 
   vtkImageRegistrationInfo        *RegistrationInfo;
 

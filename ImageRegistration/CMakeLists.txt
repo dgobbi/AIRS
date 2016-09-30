@@ -5,7 +5,7 @@ SET(UKIT ImageRegistration)
 IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(KIT_LIBS vtkHybrid vtkImaging)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
-  SET(KIT_LIBS vtkImagingCore vtkImagingStatistics)
+  SET(KIT_LIBS vtkImagingCore vtkImagingStatistics vtkImagingStencil)
 ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 
 SET(VTK_WRAP_HINTS ${CMAKE_CURRENT_SOURCE_DIR}/hints)

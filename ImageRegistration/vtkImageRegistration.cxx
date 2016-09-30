@@ -27,6 +27,8 @@
 #include <vtkMatrix4x4.h>
 #include <vtkImageReslice.h>
 #include <vtkImageShiftScale.h>
+#include <vtkImageToImageStencil.h>
+#include <vtkImageStencilToImage.h>
 #include <vtkCommand.h>
 #include <vtkPointData.h>
 #include <vtkCellData.h>
@@ -145,6 +147,10 @@ vtkImageRegistration::vtkImageRegistration()
   this->TargetImageTypecast = vtkImageShiftScale::New();
   this->SourceImageTypecast = vtkImageShiftScale::New();
 
+  this->MaskReslice = vtkImageReslice::New();
+  this->MaskToStencil = vtkImageToImageStencil::New();
+  this->StencilToMask = vtkImageStencilToImage::New();
+
   this->MetricValue = 0.0;
   this->CostValue = 0.0;
 
@@ -159,7 +165,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->MaximumNumberOfEvaluations = 5000;
 
   // we have the image inputs and the optional stencil input
-  this->SetNumberOfInputPorts(3);
+  this->SetNumberOfInputPorts(4);
   this->SetNumberOfOutputPorts(0);
 }
 
@@ -220,6 +226,19 @@ vtkImageRegistration::~vtkImageRegistration()
   if (this->ImageBSpline)
     {
     this->ImageBSpline->Delete();
+    }
+
+  if (this->MaskReslice)
+    {
+    this->MaskReslice->Delete();
+    }
+  if (this->MaskToStencil)
+    {
+    this->MaskToStencil->Delete();
+    }
+  if (this->StencilToMask)
+    {
+    this->StencilToMask->Delete();
     }
 }
 
@@ -333,6 +352,29 @@ vtkImageStencilData* vtkImageRegistration::GetSourceImageStencil()
     }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(2, 0));
+}
+
+//----------------------------------------------------------------------------
+void vtkImageRegistration::SetTargetImageStencil(vtkImageStencilData *stencil)
+{
+  // if stencil is null, then set the input port to null
+#if VTK_MAJOR_VERSION >= 6
+  this->SetInputDataInternal(3, stencil);
+#else
+  this->SetNthInputConnection(3, 0,
+    (stencil ? stencil->GetProducerPort() : 0));
+#endif
+}
+
+//----------------------------------------------------------------------------
+vtkImageStencilData* vtkImageRegistration::GetTargetImageStencil()
+{
+  if (this->GetNumberOfInputConnections(3) < 1)
+    {
+    return NULL;
+    }
+  return vtkImageStencilData::SafeDownCast(
+    this->GetExecutive()->GetInputData(3, 0));
 }
 
 //--------------------------------------------------------------------------
@@ -799,10 +841,37 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       }
     }
 
+  // create a mask from the target image stencil
+  vtkImageStencilData *targetStencil = this->GetTargetImageStencil();
+  if (targetStencil)
+    {
+    // create a binary image mask that we can resample
+    this->StencilToMask->SET_INPUT_DATA(targetStencil);
+    this->StencilToMask->Update();
+    // set up the resampling of the mask, use source image stencil
+    this->MaskReslice->SetInformationInput(sourceImage);
+    this->MaskReslice->SET_INPUT_DATA(this->StencilToMask->GetOutput());
+    this->MaskReslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
+    this->MaskReslice->SetResliceTransform(this->Transform);
+    this->MaskReslice->SetInterpolationModeToNearestNeighbor();
+    // convert the mask back into a stencil (pipelined conection)
+    this->MaskToStencil->SetInputConnection(
+      this->MaskReslice->GetOutputPort());
+    // see below where output of MaskToStencil goes into ImageReslice
+    }
+
+  // set up the resampling of the image
   vtkImageReslice *reslice = this->ImageReslice;
   reslice->SetInformationInput(sourceImage);
   reslice->SET_INPUT_DATA(targetImage);
-  reslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
+  if (targetStencil)
+    { // use the combined source and resampled targed stencil
+    reslice->SetInputConnection(1, this->MaskToStencil->GetOutputPort());
+    }
+  else
+    { // use only the source image stencil, which is fixed
+    reslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
+    }
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
   reslice->SetInterpolator(0);
@@ -1175,7 +1244,7 @@ int vtkImageRegistration::UpdateRegistration()
 int vtkImageRegistration::FillInputPortInformation(int port,
                                                    vtkInformation* info)
 {
-  if (port == 2)
+  if (port == 2 || port == 3)
     {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     // the stencil input is optional
@@ -1184,7 +1253,6 @@ int vtkImageRegistration::FillInputPortInformation(int port,
   else
     {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
     }
 
   return 1;
@@ -1219,16 +1287,23 @@ int vtkImageRegistration::RequestUpdateExtent(
   inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
 
+  // stencil for source image
+  if (this->GetNumberOfInputConnections(2) > 0)
+    {
+    vtkInformation *inInfo2 = inputVector[2]->GetInformationObject(0);
+    inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
+    }
+
   // target image
   inInfo = inputVector[1]->GetInformationObject(0);
   inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
 
   // stencil for target image
-  if (this->GetNumberOfInputConnections(2) > 0)
+  if (this->GetNumberOfInputConnections(3) > 0)
     {
-    vtkInformation *inInfo2 = inputVector[2]->GetInformationObject(0);
-    inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
+    vtkInformation *inInfo3 = inputVector[3]->GetInformationObject(0);
+    inInfo3->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
     }
 
   return 1;
