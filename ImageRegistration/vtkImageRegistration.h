@@ -32,6 +32,7 @@ class vtkImageStencilToImage;
 class vtkImageToImageStencil;
 class vtkImageReslice;
 class vtkImageShiftScale;
+class vtkImageSpread;
 class vtkImageBSplineCoefficients;
 class vtkAbstractImageInterpolator;
 class vtkFunctionMinimizer;
@@ -384,6 +385,7 @@ protected:
   vtkImageShiftScale              *SourceImageTypecast;
   vtkImageShiftScale              *TargetImageTypecast;
 
+  vtkImageSpread                  *Spread;
   vtkImageReslice                 *MaskReslice;
   vtkImageToImageStencil          *MaskToStencil;
   vtkImageStencilToImage          *StencilToMask;

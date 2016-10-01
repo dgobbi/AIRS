@@ -55,6 +55,9 @@
 #include "vtkImageCrossCorrelation.h"
 #include "vtkImageNeighborhoodCorrelation.h"
 
+// Other header files
+#include "vtkImageSpread.h"
+
 // C header files
 #include <math.h>
 
@@ -150,6 +153,7 @@ vtkImageRegistration::vtkImageRegistration()
   this->MaskReslice = vtkImageReslice::New();
   this->MaskToStencil = vtkImageToImageStencil::New();
   this->StencilToMask = vtkImageStencilToImage::New();
+  this->Spread = vtkImageSpread::New();
 
   this->MetricValue = 0.0;
   this->CostValue = 0.0;
@@ -239,6 +243,10 @@ vtkImageRegistration::~vtkImageRegistration()
   if (this->StencilToMask)
     {
     this->StencilToMask->Delete();
+    }
+  if (this->Spread)
+    {
+    this->Spread->Delete();
     }
 }
 
@@ -857,6 +865,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     // convert the mask back into a stencil (pipelined conection)
     this->MaskToStencil->SetInputConnection(
       this->MaskReslice->GetOutputPort());
+    // make sure masked-out voxels aren't used by replacing them
+    // with the average of the neighboring valid voxels
+    this->Spread->SET_INPUT_DATA(targetImage);
+    this->Spread->SetStencilData(targetStencil);
+    this->Spread->SetNumberOfIterations(4);
+    this->Spread->Update();
+    targetImage = this->Spread->GetOutput();
     // see below where output of MaskToStencil goes into ImageReslice
     }
 
