@@ -111,18 +111,6 @@ vtkImageRegistration* vtkImageRegistration::New()
 //----------------------------------------------------------------------------
 vtkImageRegistration::vtkImageRegistration()
 {
-  this->OptimizerType = vtkImageRegistration::Powell;
-  this->MetricType = vtkImageRegistration::MutualInformation;
-  this->InterpolatorType = vtkImageRegistration::Linear;
-  this->TransformType = vtkImageRegistration::Rigid;
-  this->InitializerType = vtkImageRegistration::None;
-  this->TransformDimensionality = 3;
-
-  this->Transform = vtkTransform::New();
-  this->Metric = NULL;
-  this->Optimizer = NULL;
-  this->Interpolator = NULL;
-
   this->RegistrationInfo = new vtkImageRegistrationInfo;
   this->RegistrationInfo->Transform = NULL;
   this->RegistrationInfo->Optimizer = NULL;
@@ -137,13 +125,6 @@ vtkImageRegistration::vtkImageRegistration()
   this->RegistrationInfo->MetricType = 0;
   this->RegistrationInfo->NumberOfEvaluations = 0;
 
-  this->JointHistogramSize[0] = 64;
-  this->JointHistogramSize[1] = 64;
-  this->SourceImageRange[0] = 0.0;
-  this->SourceImageRange[1] = -1.0;
-  this->TargetImageRange[0] = 0.0;
-  this->TargetImageRange[1] = -1.0;
-
   this->InitialTransformMatrix = vtkMatrix4x4::New();
   this->ImageReslice = vtkImageReslice::New();
   this->ImageBSpline = vtkImageBSplineCoefficients::New();
@@ -154,58 +135,11 @@ vtkImageRegistration::vtkImageRegistration()
   this->MaskToStencil = vtkImageToImageStencil::New();
   this->StencilToMask = vtkImageStencilToImage::New();
   this->Spread = vtkImageSpread::New();
-
-  this->MetricValue = 0.0;
-  this->CostValue = 0.0;
-
-  this->CollectValues = false;
-  this->MetricValues = vtkDoubleArray::New();
-  this->CostValues = vtkDoubleArray::New();
-  this->ParameterValues = vtkDoubleArray::New();
-
-  this->CostTolerance = 1e-4;
-  this->TransformTolerance = 1e-1;
-  this->MaximumNumberOfIterations = 500;
-  this->MaximumNumberOfEvaluations = 5000;
-
-  // we have the image inputs and the optional stencil input
-  this->SetNumberOfInputPorts(4);
-  this->SetNumberOfOutputPorts(0);
 }
 
 //----------------------------------------------------------------------------
 vtkImageRegistration::~vtkImageRegistration()
 {
-  // delete vtk objects
-  if (this->Optimizer)
-    {
-    this->Optimizer->Delete();
-    }
-  if (this->Metric)
-    {
-    this->Metric->Delete();
-    }
-  if (this->Interpolator)
-    {
-    this->Interpolator->Delete();
-    }
-  if (this->Transform)
-    {
-    this->Transform->Delete();
-    }
-  if (this->MetricValues)
-    {
-    this->MetricValues->Delete();
-    }
-  if (this->CostValues)
-    {
-    this->CostValues->Delete();
-    }
-  if (this->ParameterValues)
-    {
-    this->ParameterValues->Delete();
-    }
-
   if (this->RegistrationInfo)
     {
     delete this->RegistrationInfo;
@@ -254,135 +188,6 @@ vtkImageRegistration::~vtkImageRegistration()
 void vtkImageRegistration::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-
-  os << indent << "OptimizerType: " << this->OptimizerType << "\n";
-  os << indent << "MetricType: " << this->MetricType << "\n";
-  os << indent << "InterpolatorType: " << this->InterpolatorType << "\n";
-  os << indent << "TransformType: " << this->TransformType << "\n";
-  os << indent << "TransformDimensionality: "
-     << this->TransformDimensionality << "\n";
-  os << indent << "InitializerType: " << this->InitializerType << "\n";
-  os << indent << "CostTolerance: " << this->CostTolerance << "\n";
-  os << indent << "TransformTolerance: " << this->TransformTolerance << "\n";
-  os << indent << "MaximumNumberOfIterations: "
-     << this->MaximumNumberOfIterations << "\n";
-  os << indent << "MaximumNumberOfEvaluations: "
-     << this->MaximumNumberOfEvaluations << "\n";
-  os << indent << "JointHistogramSize: " << this->JointHistogramSize[0] << " "
-     << this->JointHistogramSize[1] << "\n";
-  os << indent << "SourceImageRange: " << this->SourceImageRange[0] << " "
-     << this->SourceImageRange[1] << "\n";
-  os << indent << "TargetImageRange: " << this->TargetImageRange[0] << " "
-     << this->TargetImageRange[1] << "\n";
-  os << indent << "MetricValue: " << this->MetricValue << "\n";
-  os << indent << "CostValue: " << this->CostValue << "\n";
-  os << indent << "CollectValues: "
-     << (this->CollectValues ? "On\n" : "Off\n");
-  os << indent << "MetricValues: " << this->MetricValues << "\n";
-  os << indent << "CostValues: " << this->CostValues << "\n";
-  os << indent << "ParameterValues: " << this->ParameterValues << "\n";
-  os << indent << "NumberOfEvaluations: "
-     << this->RegistrationInfo->NumberOfEvaluations << "\n";
-}
-
-//----------------------------------------------------------------------------
-vtkLinearTransform *vtkImageRegistration::GetTransform()
-{
-  return this->Transform;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::GetNumberOfEvaluations()
-{
-  return this->RegistrationInfo->NumberOfEvaluations;
-}
-
-//----------------------------------------------------------------------------
-void vtkImageRegistration::SetTargetImage(vtkImageData *input)
-{
-  // Ask the superclass to connect the input.
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputDataInternal(1, input);
-#else
-  this->SetNthInputConnection(1, 0, (input ? input->GetProducerPort() : 0));
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageData* vtkImageRegistration::GetTargetImage()
-{
-  if (this->GetNumberOfInputConnections(0) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
-}
-
-//----------------------------------------------------------------------------
-void vtkImageRegistration::SetSourceImage(vtkImageData *input)
-{
-  // Ask the superclass to connect the input.
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputDataInternal(0, input);
-#else
-  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageData* vtkImageRegistration::GetSourceImage()
-{
-  if (this->GetNumberOfInputConnections(1) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
-}
-
-//----------------------------------------------------------------------------
-void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
-{
-  // if stencil is null, then set the input port to null
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputDataInternal(2, stencil);
-#else
-  this->SetNthInputConnection(2, 0,
-    (stencil ? stencil->GetProducerPort() : 0));
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageStencilData* vtkImageRegistration::GetSourceImageStencil()
-{
-  if (this->GetNumberOfInputConnections(2) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageStencilData::SafeDownCast(
-    this->GetExecutive()->GetInputData(2, 0));
-}
-
-//----------------------------------------------------------------------------
-void vtkImageRegistration::SetTargetImageStencil(vtkImageStencilData *stencil)
-{
-  // if stencil is null, then set the input port to null
-#if VTK_MAJOR_VERSION >= 6
-  this->SetInputDataInternal(3, stencil);
-#else
-  this->SetNthInputConnection(3, 0,
-    (stencil ? stencil->GetProducerPort() : 0));
-#endif
-}
-
-//----------------------------------------------------------------------------
-vtkImageStencilData* vtkImageRegistration::GetTargetImageStencil()
-{
-  if (this->GetNumberOfInputConnections(3) < 1)
-    {
-    return NULL;
-    }
-  return vtkImageStencilData::SafeDownCast(
-    this->GetExecutive()->GetInputData(3, 0));
 }
 
 //--------------------------------------------------------------------------
@@ -578,29 +383,6 @@ void vtkEvaluateFunction(void * arg)
 }
 
 } // end anonymous namespace
-
-//--------------------------------------------------------------------------
-void vtkImageRegistration::ComputeImageRange(
-  vtkImageData *data, vtkImageStencilData *stencil, double range[2])
-{
-  vtkImageHistogramStatistics *hist =
-    vtkImageHistogramStatistics::New();
-  hist->SET_STENCIL_DATA(stencil);
-  hist->SET_INPUT_DATA(data);
-  hist->SetActiveComponent(0);
-  hist->Update();
-
-  range[0] = hist->GetMinimum();
-  range[1] = hist->GetMaximum();
-
-  if (range[0] >= range[1])
-    {
-    range[1] = range[0] + 1.0;
-    }
-
-  hist->SET_INPUT_DATA(NULL);
-  hist->Delete();
-}
 
 //--------------------------------------------------------------------------
 void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
@@ -1204,10 +986,10 @@ int vtkImageRegistration::ExecuteRegistration()
         }
       converged = !optimizer->Iterate();
       vtkSetTransformParameters(this->RegistrationInfo);
-      this->MetricValue = optimizer->GetFunctionValue();
+      this->CostValue = optimizer->GetFunctionValue();
+      this->NumberOfEvaluations = this->RegistrationInfo->NumberOfEvaluations;
 
-      if (this->RegistrationInfo->NumberOfEvaluations >=
-          this->MaximumNumberOfEvaluations)
+      if (this->NumberOfEvaluations >= this->MaximumNumberOfEvaluations)
         {
         converged = 0;
         break;
@@ -1234,131 +1016,16 @@ int vtkImageRegistration::Iterate()
   if (optimizer)
     {
     int result = optimizer->Iterate();
+    this->NumberOfEvaluations = this->RegistrationInfo->NumberOfEvaluations;
     if (optimizer->GetIterations() >= this->MaximumNumberOfIterations ||
-        this->RegistrationInfo->NumberOfEvaluations >=
-          this->MaximumNumberOfEvaluations)
+        this->NumberOfEvaluations >= this->MaximumNumberOfEvaluations)
       {
       result = 0;
       }
     vtkSetTransformParameters(this->RegistrationInfo);
-    this->MetricValue = optimizer->GetFunctionValue();
+    this->CostValue = optimizer->GetFunctionValue();
     return result;
     }
 
   return 0;
-}
-
-//--------------------------------------------------------------------------
-int vtkImageRegistration::UpdateRegistration()
-{
-  this->Update();
-  return this->ExecuteRegistration();
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::FillInputPortInformation(int port,
-                                                   vtkInformation* info)
-{
-  if (port == 2 || port == 3)
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
-    // the stencil input is optional
-    info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
-  else
-    {
-    info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::FillOutputPortInformation(
-  int vtkNotUsed(port), vtkInformation* vtkNotUsed(info))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::RequestInformation(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::RequestUpdateExtent(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **inputVector,
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  int inExt[6];
-
-  // source image
-  vtkInformation *inInfo = inputVector[0]->GetInformationObject(0);
-  inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
-  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
-
-  // stencil for source image
-  if (this->GetNumberOfInputConnections(2) > 0)
-    {
-    vtkInformation *inInfo2 = inputVector[2]->GetInformationObject(0);
-    inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
-    }
-
-  // target image
-  inInfo = inputVector[1]->GetInformationObject(0);
-  inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
-  inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
-
-  // stencil for target image
-  if (this->GetNumberOfInputConnections(3) > 0)
-    {
-    vtkInformation *inInfo3 = inputVector[3]->GetInformationObject(0);
-    inInfo3->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
-    }
-
-  return 1;
-}
-//----------------------------------------------------------------------------
-int vtkImageRegistration::RequestData(
-  vtkInformation *vtkNotUsed(request),
-  vtkInformationVector **vtkNotUsed(inputVector),
-  vtkInformationVector *vtkNotUsed(outputVector))
-{
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkImageRegistration::ProcessRequest(vtkInformation* request,
-                                         vtkInformationVector** inputVector,
-                                         vtkInformationVector* outputVector)
-{
-  // generate the data oject
-  if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-    {
-    return 1;
-    }
-  // generate the data
-  if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
-    {
-    return this->RequestData(request, inputVector, outputVector);
-    }
-
-  // execute information
-  if (request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
-    {
-    return this->RequestInformation(request, inputVector, outputVector);
-    }
-
-  // propagate update extent
-  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
-    {
-    return this->RequestUpdateExtent(request, inputVector, outputVector);
-    }
-
-  return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }

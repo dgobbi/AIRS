@@ -22,6 +22,7 @@ vtkImageCorrelationRatio.cxx
 vtkImageCrossCorrelation.cxx
 vtkImageNeighborhoodCorrelation.cxx
 vtkImageSimilarityMetric.cxx
+vtkImageRegistrationBase.cxx
 vtkImageRegistration.cxx
 vtkImageSpread.cxx
 vtkITKXFMReader.cxx
@@ -32,6 +33,7 @@ vtkNelderMeadMinimizer.cxx
 
 SET_SOURCE_FILES_PROPERTIES(
 vtkFunctionMinimizer
+vtkImageRegistrationBase
 vtkImageSimilarityMetric
 ABSTRACT
 )
