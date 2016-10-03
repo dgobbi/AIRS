@@ -257,7 +257,7 @@ void vtkImageCrossCorrelation::ReduceRequestData(
 
   // minimum possible values
   double crossCorrelation = 0.0;
-  double normalizedCrossCorrelation = 1.0;
+  double normalizedCrossCorrelation = 0.0;
 
   if (count > 0)
     {

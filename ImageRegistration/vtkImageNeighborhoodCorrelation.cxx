@@ -776,7 +776,6 @@ void vtkImageNeighborhoodCorrelation3D(
             if (r1 != r2 + 1)
               {
               int kk = r2 - r1 + 1;
-              voxels += kk;
               do
                 {
                 U xSum = workPtr[0];
@@ -786,16 +785,16 @@ void vtkImageNeighborhoodCorrelation3D(
                 U xySum = workPtr[4];
                 U count = workPtr[5];
                 workPtr += 6;
-                double denom = static_cast<double>(xxSum*count - xSum*xSum)*
-                  static_cast<double>(yySum*count - ySum*ySum);
                 double numer = static_cast<double>(xySum*count - xSum*ySum);
                 numer *= numer;
-                double nccSquared = 1.0;
+                double denom = static_cast<double>(xxSum*count - xSum*xSum)*
+                  static_cast<double>(yySum*count - ySum*ySum);
                 if (denom > 0)
                   {
-                  nccSquared = numer/denom;
+                  double nccSquared = numer/denom;
+                  total += nccSquared;
+                  voxels++;
                   }
-                total += nccSquared;
                 }
               while (--kk);
               }
