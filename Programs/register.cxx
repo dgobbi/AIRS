@@ -975,15 +975,13 @@ void WriteReport(vtkImageRegistration *reg, const char *fname)
   if (reg->GetTransformDimensionality() == 2)
     {
     static const char *p[] = {
-      "tx", "ty", "r", "s", "a", "q"
-    }; 
+      "tx", "ty", "r", "s", "a", "q" };
     pnames = p;
     }
   else
     {
     static const char *p[] = {
-      "tx", "ty", "tz", "rx", "ry", "rz", "s", "a", "b", "qx", "qy", "qz"
-    }; 
+      "tx", "ty", "tz", "rx", "ry", "rz", "s", "a", "b", "qx", "qy", "qz" };
     pnames = p;
     }
 
@@ -2544,9 +2542,34 @@ int main(int argc, char *argv[])
 
     if (!options.silent)
       {
+      // how much did the transformation change?
+      double mdelta[16];
+      vtkMatrix4x4::DeepCopy(mdelta, matrix);
+      vtkMatrix4x4::Invert(mdelta, mdelta);
+      double mtrans[16];
+      vtkMatrix4x4::DeepCopy(mtrans,
+                             registration->GetTransform()->GetMatrix());
+      vtkMatrix4x4::Multiply4x4(mdelta, mtrans, mdelta);
+      // get the angle of rotation from the trace after undoing scale
+      double mtrace = (mdelta[0]/vtkMath::Norm(&mdelta[0]) +
+                       mdelta[5]/vtkMath::Norm(&mdelta[4]) +
+                       mdelta[10]/vtkMath::Norm(&mdelta[8]));
+      double angle = vtkMath::DegreesFromRadians(acos(0.5*(mtrace - 1.0)));
+      // get the translation
+      double center1[4], center2[4];
+      sourceImage->GetBounds(bounds);
+      center1[0] = 0.5*(bounds[0] + bounds[1]);
+      center1[1] = 0.5*(bounds[2] + bounds[3]);
+      center1[2] = 0.5*(bounds[4] + bounds[5]);
+      center1[3] = 1.0;
+      vtkMatrix4x4::MultiplyPoint(mtrans, center1, center1);
+      vtkMatrix4x4::MultiplyPoint(mdelta, center1, center2);
+      double dist = sqrt(vtkMath::Distance2BetweenPoints(center1, center2));
+
       cout << minBlurSpacing << " mm took "
            << (newTime - lastTime) << "s and "
-           << registration->GetNumberOfEvaluations() << " evaluations" << endl;
+           << registration->GetNumberOfEvaluations() << " evaluations, "
+           << dist << " mm, " << angle << " degrees." << endl;
       lastTime = newTime;
       }
 
