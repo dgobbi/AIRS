@@ -1019,7 +1019,10 @@ void vtkImageNeighborhoodCorrelation::ReduceRequestData(
     count += iter->Count;
     }
 
-  result /= count;
+  if (count > 0)
+    {
+    result /= count;
+    }
 
   this->SetValue(result);
   this->SetCost(-result);
