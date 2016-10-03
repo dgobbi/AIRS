@@ -901,6 +901,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
+      metric->SetNumberOfBins(this->JointHistogramSize);
+
       if (this->MetricType ==
           vtkImageRegistration::NormalizedMutualInformation)
         {
