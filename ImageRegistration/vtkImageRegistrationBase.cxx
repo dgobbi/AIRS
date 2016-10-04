@@ -21,7 +21,6 @@
 #include <vtkMath.h>
 #include <vtkDoubleArray.h>
 #include <vtkTransform.h>
-#include <vtkMatrixToLinearTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkCommand.h>
 #include <vtkInformation.h>
