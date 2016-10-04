@@ -66,6 +66,12 @@
 #define SET_STENCIL_DATA SetStencil
 #endif
 
+// Check for vtkImageReslice::SetOutputScalarType method
+#if VTK_MAJOR_VERSION >= 7 || \
+   (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 1)
+#define RESLICE_CAN_CAST
+#endif
+
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
 {
@@ -548,6 +554,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       }
     }
 
+  // save the source and target data type
+  int sourceType = sourceImage->GetScalarType();
+  int targetType = targetImage->GetScalarType();
+
   // apply b-spline prefilter if b-spline interpolator is used
   if (this->InterpolatorType == vtkImageRegistration::BSpline)
     {
@@ -558,52 +568,51 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       scalarType = VTK_DOUBLE;
       }
 
-    if (sourceImage->GetScalarType() != scalarType)
-      {
-      vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
-      sourceCast->SET_INPUT_DATA(sourceImage);
-      sourceCast->SetOutputScalarType(scalarType);
-      sourceCast->ClampOverflowOff();
-      sourceCast->SetShift(0.0);
-      sourceCast->SetScale(1.0);
-      sourceCast->Update();
-      sourceImage = sourceCast->GetOutput();
-      }
-
     vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
     bspline->SET_INPUT_DATA(targetImage);
     bspline->SetOutputScalarType(scalarType);
     bspline->Update();
     targetImage = bspline->GetOutput();
+#ifndef RESLICE_CAN_CAST
+    // if vtkImageReslice can't cast back to the original type, then
+    // the metric will have to deal with floating-point input
+    targetType = scalarType;
+#endif
     }
 
-  // coerce types if NeighborhoodCorrelation
-  if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
+  // coerce types if NeighborhoodCorrelation or SquaredDifference, since
+  // these metrics need both inputs to be the same type
+  if (sourceType != targetType &&
       (this->MetricType == vtkImageRegistration::SquaredDifference ||
        this->MetricType == vtkImageRegistration::NeighborhoodCorrelation))
     {
     // coerce the types to make them compatible
-    int sourceType = sourceImage->GetScalarType();
-    int targetType = targetImage->GetScalarType();
-    int sourceSize = sourceImage->GetScalarSize();
-    int targetSize = targetImage->GetScalarSize();
-    int coercedType = VTK_DOUBLE;
-
-    if (sourceSize < targetSize)
+    int coercedType = VTK_SHORT;
+    if (sourceType == VTK_DOUBLE || targetType == VTK_DOUBLE)
       {
-      coercedType = targetType;
+      coercedType = VTK_DOUBLE;
       }
-    else if (sourceSize > targetSize)
-      {
-      coercedType = sourceType;
-      }
-    else if (sourceSize < 8 && targetSize < 8)
+    else if (sourceType == VTK_FLOAT || targetType == VTK_FLOAT)
       {
       coercedType = VTK_FLOAT;
+      }
+    else if (sourceType == VTK_INT || targetType == VTK_INT ||
+             (sourceType == VTK_UNSIGNED_SHORT &&
+              targetType != VTK_UNSIGNED_CHAR) ||
+             (sourceType == VTK_UNSIGNED_SHORT &&
+              targetType != VTK_UNSIGNED_CHAR))
+      {
+      coercedType = VTK_INT;
+      }
+    else if (sourceType == VTK_UNSIGNED_SHORT ||
+             targetType == VTK_UNSIGNED_SHORT)
+      {
+      coercedType = VTK_UNSIGNED_SHORT;
       }
 
     if (sourceType != coercedType)
       {
+      sourceType = coercedType;
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
       sourceCast->SET_INPUT_DATA(sourceImage);
       sourceCast->SetOutputScalarType(coercedType);
@@ -614,8 +623,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       sourceImage = sourceCast->GetOutput();
       }
 
+#ifdef RESLICE_CAN_CAST
+    // let vtkImageReslice handle the typecast
+    targetType = coercedType;
+#else
     if (targetType != coercedType)
       {
+      targetType = coercedType;
       vtkImageShiftScale *targetCast = this->TargetImageTypecast;
       targetCast->SET_INPUT_DATA(targetImage);
       targetCast->SetOutputScalarType(coercedType);
@@ -625,6 +639,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       targetCast->Update();
       targetImage = targetCast->GetOutput();
       }
+#endif
     }
 
   // create a mask from the target image stencil
@@ -657,6 +672,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   vtkImageReslice *reslice = this->ImageReslice;
   reslice->SetInformationInput(sourceImage);
   reslice->SET_INPUT_DATA(targetImage);
+#ifdef RESLICE_CAN_CAST
+  reslice->SetOutputScalarType(targetType);
+#endif
   if (targetStencil)
     { // use the combined source and resampled targed stencil
     reslice->SetInputConnection(1, this->MaskToStencil->GetOutputPort());
