@@ -24,6 +24,7 @@ vtkImageNeighborhoodCorrelation.cxx
 vtkImageSimilarityMetric.cxx
 vtkImageRegistrationBase.cxx
 vtkImageRegistration.cxx
+vtkMultiLevelImageRegistration.cxx
 vtkImageSpread.cxx
 vtkITKXFMReader.cxx
 vtkITKXFMWriter.cxx

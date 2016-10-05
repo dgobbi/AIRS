@@ -17,7 +17,6 @@ Module:    register.cxx
 #include <vtkSmartPointer.h>
 
 #include <vtkImageReslice.h>
-#include <vtkImageResize.h>
 #include <vtkImageBSplineCoefficients.h>
 #include <vtkImageBSplineInterpolator.h>
 #include <vtkImageSincInterpolator.h>
@@ -66,6 +65,7 @@ Module:    register.cxx
 #include "vtkITKXFMReader.h"
 #include "vtkITKXFMWriter.h"
 #include "vtkImageRegistration.h"
+#include "vtkMultiLevelImageRegistration.h"
 #include "vtkLabelInterpolator.h"
 
 // optional readers
@@ -954,7 +954,7 @@ void WriteImage(
 // registration.  The first column is the function evaluation count,
 // the second column is the cost, the fourth is the metric value,
 // and the remainder of the columns are the parameters.
-void WriteReport(vtkImageRegistration *reg, const char *fname)
+void WriteReport(vtkImageRegistrationBase *reg, const char *fname)
 {
   vtkDoubleArray *costArray = reg->GetCostValues();
   vtkDoubleArray *metricArray = reg->GetMetricValues();
@@ -2055,7 +2055,6 @@ int main(int argc, char *argv[])
   int interpolatorType = options.interpolator;
   double transformTolerance = 0.1; // tolerance on transformation result
   int numberOfBins = 64; // for Mattes' mutual information
-  double initialBlurFactor = 8.0;
 
   // -------------------------------------------------------
   // parameters for parallel processing
@@ -2314,70 +2313,11 @@ int main(int argc, char *argv[])
     renderWindow->Render();
     }
 
-  // -------------------------------------------------------
-  // prepare for registration
-
-  // get information about the images
-  double targetSpacing[3], sourceSpacing[3];
-  targetImage->GetSpacing(targetSpacing);
-  sourceImage->GetSpacing(sourceSpacing);
-
-  for (int jj = 0; jj < 3; jj++)
-    {
-    targetSpacing[jj] = fabs(targetSpacing[jj]);
-    sourceSpacing[jj] = fabs(sourceSpacing[jj]);
-    }
-
-  double minSpacing = sourceSpacing[0];
-  if (minSpacing > sourceSpacing[1])
-    {
-    minSpacing = sourceSpacing[1];
-    }
-  if (minSpacing > sourceSpacing[2])
-    {
-    minSpacing = sourceSpacing[2];
-    }
-
-  // blur source image with Blackman-windowed sinc
-  vtkSmartPointer<vtkImageSincInterpolator> sourceBlurKernel =
-    vtkSmartPointer<vtkImageSincInterpolator>::New();
-  sourceBlurKernel->SetWindowFunctionToBlackman();
-  sourceBlurKernel->AntialiasingOn();
-
-  // reduce the source resolution
-  vtkSmartPointer<vtkImageResize> sourceBlur =
-    vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SET_INPUT_DATA(sourceImage);
-  sourceBlur->SetResizeMethodToOutputSpacing();
-  sourceBlur->SetInterpolator(sourceBlurKernel);
-  sourceBlur->SetInterpolate(
-    interpolatorType != vtkImageRegistration::Nearest);
-
-  // blur target with Blackman-windowed sinc
-  vtkSmartPointer<vtkImageSincInterpolator> targetBlurKernel =
-    vtkSmartPointer<vtkImageSincInterpolator>::New();
-  targetBlurKernel->SetWindowFunctionToBlackman();
-  targetBlurKernel->AntialiasingOn();
-
-  // keep target at full resolution
-  vtkSmartPointer<vtkImageResize> targetBlur =
-    vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SET_INPUT_DATA(targetImage);
-  targetBlur->SetResizeMethodToOutputSpacing();
-  targetBlur->SetInterpolator(targetBlurKernel);
-  targetBlur->SetInterpolate(
-    interpolatorType != vtkImageRegistration::Nearest);
-
-  // get the initial transformation
-  matrix->DeepCopy(targetMatrix);
-  matrix->Invert();
-  vtkMatrix4x4::Multiply4x4(matrix, sourceMatrix, matrix);
-
   // set up the registration
-  vtkSmartPointer<vtkImageRegistration> registration =
-    vtkSmartPointer<vtkImageRegistration>::New();
-  registration->SetTargetImageInputConnection(targetBlur->GetOutputPort());
-  registration->SetSourceImageInputConnection(sourceBlur->GetOutputPort());
+  vtkSmartPointer<vtkMultiLevelImageRegistration> registration =
+    vtkSmartPointer<vtkMultiLevelImageRegistration>::New();
+  registration->SetTargetImage(targetImage);
+  registration->SetSourceImage(sourceImage);
   registration->SetSourceImageRange(sourceRange);
   registration->SetTargetImageRange(targetRange);
   registration->SetTransformDimensionality(options.dimensionality);
@@ -2396,7 +2336,6 @@ int main(int argc, char *argv[])
     {
     registration->SetInitializerTypeToCentered();
     }
-  registration->Initialize(matrix);
 
   // -------------------------------------------------------
   // collect the values as it converges
@@ -2414,133 +2353,37 @@ int main(int argc, char *argv[])
 
   // -------------------------------------------------------
   // do the registration
+  registration->Initialize(matrix);
 
-  // the registration starts at low-resolution
-  double blurFactor = initialBlurFactor;
-  int level = 0;
-  // will be set to "true" when registration is initialized
-  bool initialized = false;
-
-  while (level < 4 && options.maxeval[level] > 0)
+  bool done = false;
+  while (!done)
     {
-    registration->SetMaximumNumberOfEvaluations(options.maxeval[level]);
-    registration->SetMaximumNumberOfIterations(options.maxeval[level]);
-    registration->SetInterpolatorType(interpolatorType);
-    registration->SetTransformTolerance(transformTolerance*blurFactor);
+    done = (registration->Iterate() == 0);
 
-    if (blurFactor < 1.1)
+    if (showTargetMoving)
       {
-      // full resolution: no blurring or resampling
-      sourceBlur->SetInterpolator(0);
-      sourceBlur->InterpolateOff();
-      sourceBlur->SetOutputSpacing(sourceSpacing);
-#if VTK_MAJOR_VERSION >= 6
-      sourceBlur->UpdateWholeExtent();
-#else
-      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      sourceBlur->Update();
-#endif
-
-      targetBlur->SetInterpolator(0);
-      sourceBlur->InterpolateOff();
-      targetBlur->SetOutputSpacing(targetSpacing);
-#if VTK_MAJOR_VERSION >= 6
-      targetBlur->UpdateWholeExtent();
-#else
-      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      targetBlur->Update();
-#endif
+      targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
+      targetMatrix->Invert();
+      vtkMatrix4x4::Multiply4x4(
+        originalSourceMatrix, targetMatrix, targetMatrix);
+      targetMatrix->Modified();
       }
     else
       {
-      // reduced resolution: set the blurring
-      double spacing[3];
-      for (int j = 0; j < 3; j++)
-        {
-        spacing[j] = blurFactor*minSpacing;
-        if (spacing[j] < sourceSpacing[j])
-          {
-          spacing[j] = sourceSpacing[j];
-          }
-        }
-
-      sourceBlurKernel->SetBlurFactors(
-        spacing[0]/sourceSpacing[0],
-        spacing[1]/sourceSpacing[1],
-        spacing[2]/sourceSpacing[2]);
-
-      sourceBlur->SetOutputSpacing(spacing);
-#if VTK_MAJOR_VERSION >= 6
-      sourceBlur->UpdateWholeExtent();
-#else
-      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      sourceBlur->Update();
-#endif
-
-      targetBlurKernel->SetBlurFactors(
-        blurFactor*minSpacing/targetSpacing[0],
-        blurFactor*minSpacing/targetSpacing[1],
-        blurFactor*minSpacing/targetSpacing[2]);
-
-#if VTK_MAJOR_VERSION >= 6
-      targetBlur->UpdateWholeExtent();
-#else
-      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      targetBlur->Update();
-#endif
+      sourceMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
+      vtkMatrix4x4::Multiply4x4(
+        originalTargetMatrix, sourceMatrix, sourceMatrix);
+      sourceMatrix->Modified();
       }
 
-    if (initialized)
+    if (display)
       {
-      // re-initialize with the matrix from the previous step
-      registration->SetInitializerTypeToNone();
-      matrix->DeepCopy(registration->GetTransform()->GetMatrix());
-      }
-
-    registration->Initialize(matrix);
-
-    initialized = true;
-
-    while (registration->Iterate())
-      {
-      // registration->UpdateRegistration();
-      // will iterate until convergence or failure
-
-      if (showTargetMoving)
-        {
-        targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
-        targetMatrix->Invert();
-        vtkMatrix4x4::Multiply4x4(
-          originalSourceMatrix, targetMatrix, targetMatrix);
-        targetMatrix->Modified();
-        }
-      else
-        {
-        sourceMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
-        vtkMatrix4x4::Multiply4x4(
-          originalTargetMatrix, sourceMatrix, sourceMatrix);
-        sourceMatrix->Modified();
-        }
-
-      if (display)
-        {
-        interactor->Render();
-        }
+      interactor->Render();
       }
 
     double newTime = timer->GetUniversalTime();
-    double blurSpacing[3];
-    sourceBlur->GetOutputSpacing(blurSpacing);
-    double minBlurSpacing = VTK_DOUBLE_MAX;
-    for (int kk = 0; kk < 3; kk++)
-      {
-      if (blurSpacing[kk] < minBlurSpacing)
-        {
-        minBlurSpacing = blurSpacing[kk];
-        }
-      }
 
-    if (!options.silent)
+    if (registration->IsLevelDone() && !options.silent)
       {
       // how much did the transformation change?
       double mdelta[16];
@@ -2566,16 +2409,13 @@ int main(int argc, char *argv[])
       vtkMatrix4x4::MultiplyPoint(mdelta, center1, center2);
       double dist = sqrt(vtkMath::Distance2BetweenPoints(center1, center2));
 
-      cout << minBlurSpacing << " mm took "
+      cout << "level " << registration->GetLevel() << " took "
            << (newTime - lastTime) << "s and "
            << registration->GetNumberOfEvaluations() << " evaluations, "
            << dist << " mm, " << angle << " degrees." << endl;
       lastTime = newTime;
+      matrix->DeepCopy(registration->GetTransform()->GetMatrix());
       }
-
-    // prepare for next iteration
-    level++;
-    blurFactor /= 2.0;
     }
 
   if (!options.silent)
