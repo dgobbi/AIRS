@@ -2489,7 +2489,9 @@ int main(int argc, char *argv[])
 
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
-    reslice->SetInformationInput(templateImage);
+    reslice->SetOutputSpacing(templateImage->GetSpacing());
+    reslice->SetOutputOrigin(templateImage->GetOrigin());
+    reslice->SetOutputExtent(templateImage->GetExtent());
     reslice->SET_INPUT_DATA(resliceImage);
     SetInterpolator(reslice, options.interpolator);
 

@@ -650,7 +650,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     this->StencilToMask->SET_INPUT_DATA(targetStencil);
     this->StencilToMask->Update();
     // set up the resampling of the mask, use source image stencil
-    this->MaskReslice->SetInformationInput(sourceImage);
+    this->MaskReslice->SetOutputSpacing(sourceImage->GetSpacing());
+    this->MaskReslice->SetOutputOrigin(sourceImage->GetOrigin());
+    this->MaskReslice->SetOutputExtent(sourceImage->GetExtent());
     this->MaskReslice->SET_INPUT_DATA(this->StencilToMask->GetOutput());
     this->MaskReslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
     this->MaskReslice->SetResliceTransform(this->Transform);
@@ -670,7 +672,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   // set up the resampling of the image
   vtkImageReslice *reslice = this->ImageReslice;
-  reslice->SetInformationInput(sourceImage);
+  reslice->SetOutputSpacing(sourceImage->GetSpacing());
+  reslice->SetOutputOrigin(sourceImage->GetOrigin());
+  reslice->SetOutputExtent(sourceImage->GetExtent());
   reslice->SET_INPUT_DATA(targetImage);
 #ifdef RESLICE_CAN_CAST
   reslice->SetOutputScalarType(targetType);
@@ -868,6 +872,9 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   // compute minimum spacing of target image
   double spacing[3];
   targetImage->GetSpacing(spacing);
+  spacing[0] = fabs(spacing[0]);
+  spacing[1] = fabs(spacing[1]);
+  spacing[2] = fabs(spacing[2]);
   double minspacing = spacing[0];
   minspacing = ((minspacing < spacing[1]) ? minspacing : spacing[1]);
   minspacing = ((minspacing < spacing[2]) ? minspacing : spacing[2]);
