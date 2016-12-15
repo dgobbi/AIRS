@@ -79,6 +79,7 @@ Module:    register.cxx
 #include <vtkDICOMCTGenerator.h>
 #include <vtkDICOMWriter.h>
 #include <vtkDICOMMetaData.h>
+#include <vtkDICOMToRAS.h>
 #include <vtkGlobFileNames.h>
 #endif
 
@@ -673,9 +674,21 @@ vtkNIFTIReader *ReadNIFTIImage(
 void WriteNIFTIImage(
   vtkImageReader2 *vtkNotUsed(sourceReader), vtkImageReader2 *targetReader,
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
-  int vtkNotUsed(coordSystem))
+  int coordSystem)
 {
   vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(targetReader);
+
+  vtkSmartPointer<vtkDICOMToRAS> dicomToRAS =
+    vtkSmartPointer<vtkDICOMToRAS>::New();
+  if (coordSystem == DICOMCoords)
+    {
+    dicomToRAS->SET_INPUT_DATA(data);
+    dicomToRAS->SetPatientMatrix(matrix);
+    dicomToRAS->RASMatrixHasPositionOn();
+    dicomToRAS->Update();
+    data = dicomToRAS->GetOutput();
+    matrix = dicomToRAS->GetRASMatrix();
+    }
 
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
