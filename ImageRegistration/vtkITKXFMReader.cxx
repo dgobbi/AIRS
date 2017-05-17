@@ -592,7 +592,7 @@ int vtkITKXFMReader::ReadMatArray(
   if (m < 0 || m > 1)
     {
     const char *tt = "Unknown";
-    if (m >= 2 || m <= 4)
+    if (m >= 2 && m <= 4)
       {
       static const char *formats[3] = { "VAX D", "VAX G", "Cray" };
       tt = formats[m-2];
@@ -603,7 +603,7 @@ int vtkITKXFMReader::ReadMatArray(
   else if (p < 0 || p > 1)
     {
     const char *tt = "Unknown";
-    if (m >= 2 || m <= 5)
+    if (m >= 2 && m <= 5)
       {
       static const char *types[4] = { "int", "short", "ushort", "uchar" };
       tt = types[m-2];
