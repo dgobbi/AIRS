@@ -7,7 +7,8 @@ IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
 ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
   SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
       vtkRenderingOpenGL vtkRenderingFreeType vtkIOImage vtkIOMINC
-      vtkIOLegacy vtkImagingStencil vtkImagingStatistics vtksys)
+      vtkIOLegacy vtkIOGeometry vtkImagingStencil vtkImagingStatistics
+      vtksys)
   # If vtkRenderingFreeTypeOpenGL is present, it must be linked
   list(FIND VTK_LIBRARIES vtkRenderingFreeTypeOpenGL TMP_INDEX)
   if(TMP_INDEX GREATER -1)
