@@ -671,23 +671,27 @@ vtkNIFTIReader *ReadNIFTIImage(
 }
 
 void WriteNIFTIImage(
-  vtkImageReader2 *vtkNotUsed(sourceReader), vtkImageReader2 *targetReader,
+  vtkImageReader2 *sourceReader, vtkImageReader2 *targetReader,
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName,
   int vtkNotUsed(coordSystem))
 {
-  vtkNIFTIReader *reader = vtkNIFTIReader::SafeDownCast(targetReader);
+  vtkNIFTIReader *sreader = vtkNIFTIReader::SafeDownCast(sourceReader);
+  vtkNIFTIReader *treader = vtkNIFTIReader::SafeDownCast(targetReader);
 
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
-  if (reader)
+  if (treader)
     {
-    writer->SetNIFTIHeader(reader->GetNIFTIHeader());
-    if (reader->GetTimeDimension() > 1)
+    writer->SetNIFTIHeader(treader->GetNIFTIHeader());
+    if (treader->GetTimeDimension() > 1)
       {
-      writer->SetTimeDimension(reader->GetTimeDimension());
-      writer->SetTimeSpacing(reader->GetTimeSpacing());
+      writer->SetTimeDimension(treader->GetTimeDimension());
+      writer->SetTimeSpacing(treader->GetTimeSpacing());
       }
-    if (reader->GetQFac() < 0)
+    }
+  if (sreader)
+    {
+    if (sreader->GetQFac() < 0)
       {
       writer->SetQFac(-1.0);
       }
