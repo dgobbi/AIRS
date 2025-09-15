@@ -101,14 +101,14 @@ int vtkImageExtractPoints::FillInputPortInformation(
   int port, vtkInformation *info)
 {
   if (port == 0)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
+  }
   else if (port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
 
   return 1;
 }
@@ -118,9 +118,9 @@ int vtkImageExtractPoints::FillOutputPortInformation(
   int port, vtkInformation* info)
 {
   if (port == 0)
-    {
+  {
     info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
-    }
+  }
 
   return 1;
 }
@@ -148,11 +148,11 @@ int vtkImageExtractPoints::RequestUpdateExtent(
 
   // need to set the stencil update extent to the input extent
   if (this->GetNumberOfInputConnections(1) > 0)
-    {
+  {
     vtkInformation *stencilInfo = inputVector[1]->GetInformationObject(0);
     stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                      inExt, 6);
-    }
+  }
 
   return 1;
 }
@@ -169,12 +169,12 @@ vtkIdType vtkImageExtractPointsCount(
   // iterate over all spans for the stencil
   vtkImageRegionIteratorBase inIter(inData, extent, stencil);
   for (; !inIter.IsAtEnd(); inIter.NextSpan())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       count += inIter.SpanEndId() - inIter.GetId();
-      }
     }
+  }
 
   return count;
 }
@@ -192,13 +192,13 @@ void vtkImageExtractPointsExecute(
   vtkIdType outId = 0;
   int pixelBytes = inScalars->GetNumberOfComponents() *
     inScalars->GetDataTypeSize();
-  
+
 
   // iterate over all spans for the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       // if span is inside stencil, generate points
       vtkIdType n = inIter.SpanEndId() - inIter.GetId();
       void *inPtr = inIter.GetVoidPointer(inScalars, inIter.GetId());
@@ -206,18 +206,18 @@ void vtkImageExtractPointsExecute(
       memcpy(outPtr, inPtr, n*pixelBytes);
       outId += n;
       for (vtkIdType i = 0; i < n; i++)
-        {
+      {
         inIter.GetPosition(outPoints);
         outPoints += 3;
         inIter.Next();
-        }
-      }
-    else
-      {
-      // if span is outside stencil, skip to next span
-      inIter.NextSpan();
       }
     }
+    else
+    {
+      // if span is outside stencil, skip to next span
+      inIter.NextSpan();
+    }
+  }
 }
 
 }
@@ -237,17 +237,17 @@ int vtkImageExtractPoints::RequestData(
   // use a stencil, if a stencil is connected
   vtkImageStencilData* stencil = 0;
   if (stencilInfo)
-    {
+  {
     stencil = static_cast<vtkImageStencilData *>(
       stencilInfo->Get(vtkDataObject::DATA_OBJECT()));
-    }
+  }
 
   // get the requested precision
   int pointsType = VTK_DOUBLE;
   if (this->OutputPointsPrecision == 0)
-    {
+  {
     pointsType = VTK_FLOAT;
-    }
+  }
 
   // get the output data object
   vtkInformation *outInfo = outputVector->GetInformationObject(0);
@@ -277,15 +277,15 @@ int vtkImageExtractPoints::RequestData(
   // iterate over the input and create the point data
   void *ptr = points->GetVoidPointer(0);
   if (pointsType == VTK_FLOAT)
-    {
+  {
     vtkImageExtractPointsExecute(
       this, inData, extent, stencil, static_cast<float *>(ptr), outPD);
-    }
+  }
   else
-    {
+  {
     vtkImageExtractPointsExecute(
       this, inData, extent, stencil, static_cast<double *>(ptr), outPD);
-    }
+  }
 
   return 1;
 }

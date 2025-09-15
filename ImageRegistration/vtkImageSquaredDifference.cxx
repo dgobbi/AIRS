@@ -90,9 +90,9 @@ void vtkImageSquaredDifferenceExecute(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       T1 *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
@@ -101,19 +101,19 @@ void vtkImageSquaredDifferenceExecute(
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         double x = *inPtr++;
         double y = *inPtr1++;
         double d = y - x;
         s += d*d;
-        }
+      }
 
       count += static_cast<vtkIdType>(inPtrEnd - inPtr);
       sqsum += s;
-      }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 
   output->SumSquares += sqsum;
   output->Count += count;
@@ -128,14 +128,14 @@ void vtkImageSquaredDifferenceExecute1(
   vtkImageSquaredDifferenceThreadData *output)
 {
   switch (inData1->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageSquaredDifferenceExecute(
         self, inData0, inData1, stencil,
         inPtr, static_cast<VTK_TT *>(inPtr1), extent, pieceId, output));
     default:
       vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
-    }
+  }
 }
 
 } // end anonymous namespace
@@ -178,13 +178,13 @@ void vtkImageSquaredDifference::PieceRequestData(
     inInfo1->Get(vtkDataObject::DATA_OBJECT()));
 
   if (inData0->GetScalarType() != inData1->GetScalarType())
-    {
+  {
     if (pieceId == 0)
-      {
+    {
       vtkErrorMacro("input image types must be the same.");
-      }
-    return;
     }
+    return;
+  }
 
   int *ext = const_cast<int *>(extent);
   void *inPtr0 = inData0->GetScalarPointerForExtent(ext);
@@ -193,7 +193,7 @@ void vtkImageSquaredDifference::PieceRequestData(
   vtkImageStencilData *stencil = this->GetStencil();
 
   switch (inData0->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageSquaredDifferenceExecute1(
         this, inData0, inData1, stencil,
@@ -201,7 +201,7 @@ void vtkImageSquaredDifference::PieceRequestData(
         &this->ThreadData->Local(pieceId)));
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -214,15 +214,15 @@ void vtkImageSquaredDifference::ReduceRequestData(
   for (vtkImageSquaredDifferenceTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
-    {
+  {
     sqsum += iter->SumSquares;
     count += iter->Count;
-    }
+  }
 
   if (count == 0)
-    {
+  {
     count = 1;
-    }
+  }
 
   // output values
   double squaredDifference = sqsum/count;

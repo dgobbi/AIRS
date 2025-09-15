@@ -90,13 +90,13 @@ vtkFrameFinder::vtkFrameFinder()
 vtkFrameFinder::~vtkFrameFinder()
 {
   if (this->DICOMPatientMatrix)
-    {
+  {
     this->DICOMPatientMatrix->Delete();
-    }
+  }
   if (this->ImageToFrameMatrix)
-    {
+  {
     this->ImageToFrameMatrix->Delete();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -140,14 +140,14 @@ void vtkFrameFinder::SetInputData(vtkDataObject* input)
 {
 #if VTK_MAJOR_VERSION <= 5
   if (input)
-    {
+  {
     this->SetInputConnection(0, input->GetProducerPort());
-    }
+  }
   else
-    {
+  {
     // Setting a NULL input removes the connection.
     this->SetInputConnection(0, 0);
-    }
+  }
 #else
   this->SetInputDataInternal(0, input);
 #endif
@@ -209,10 +209,10 @@ int vtkFrameFinder::RequestData(
     outInfo2->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!this->DICOMPatientMatrix)
-    {
+  {
     vtkErrorMacro("A DICOMPatientMatrix must be given");
     return 0;
-    }
+  }
 
   double xdir[4] = { 1.0, 0.0, 0.0, 0.0 };
   double ydir[4] = { 0.0, 1.0, 0.0, 0.0 };
@@ -222,11 +222,11 @@ int vtkFrameFinder::RequestData(
   this->DICOMPatientMatrix->MultiplyPoint(zdir, zdir);
 
   if (fabs(xdir[0]) < 0.9 || fabs(ydir[1]) < 0.9)
-    {
+  {
     vtkErrorMacro("Frame images must be axial");
     this->Success = 0;
     return 0;
-    }
+  }
 
   // indicate if x or y is flipped
   double direction[3];
@@ -256,17 +256,17 @@ int vtkFrameFinder::RequestData(
       { 160.0, -17.5, 160.0 }, { 160.0, -17.5, 40.0 } } };
 
   for (int i = 0; i < 4; i++)
-    {
+  {
     double (*p)[3] = leksellPoints[i];
 
     cells->InsertNextCell(4);
     for (int j = 0; j < 4; j++)
-      {
+    {
       int ptIdx = i*4 + j;
       points->SetPoint(ptIdx, p[j]);
       cells->InsertCellPoint(ptIdx);
-      }
     }
+  }
 
   output2->SetPoints(points);
   output2->SetLines(cells);
@@ -282,26 +282,26 @@ int vtkFrameFinder::ProcessRequest(
 {
   // generate the data oject
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-    {
+  {
     return 1;
-    }
+  }
   // generate the data
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
-    {
+  {
     return this->RequestData(request, inputVector, outputVector);
-    }
+  }
 
   // execute information
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
-    {
+  {
     return this->RequestInformation(request, inputVector, outputVector);
-    }
+  }
 
   // propagate update extent
   if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
-    {
+  {
     return this->RequestUpdateExtent(request, inputVector, outputVector);
-    }
+  }
 
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
@@ -368,10 +368,10 @@ void AddPixelIfAboveThreshold(
 
   if (x >= 0 && y >= 0 && z >= 0 &&
       x < dataSizeX && y < dataSizeY && z < dataSizeZ)
-    {
+  {
     GetAndZeroPixel(array, x, y, z, dataSizeX, dataSizeY*dataSizeX, &value);
     if (value > lowerThresh)
-      {
+    {
       if (value > upperThresh) { value = upperThresh; }
       Pixel pD = { x, y, z, static_cast<int>(value) };
       (*basket).push(pD);
@@ -379,8 +379,8 @@ void AddPixelIfAboveThreshold(
       theBlob->x += value*x;
       theBlob->y += value*y;
       theBlob->val += value;
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -405,7 +405,7 @@ Blob MakeBlob(
                            lowerThresh, upperThresh, &theBlob, &basket);
 
   while (basket.size() > 0)
-    {
+  {
     curPt = basket.top();
     basket.pop();
     AddPixelIfAboveThreshold(array, curPt.x + 1, curPt.y, z,
@@ -420,18 +420,18 @@ Blob MakeBlob(
     AddPixelIfAboveThreshold(array, curPt.x, curPt.y - 1, z,
                              dataSizeX, dataSizeY, dataSizeZ,
                              lowerThresh, upperThresh, &theBlob, &basket);
-    }
+  }
 
   if (theBlob.count > 1 && theBlob.count <= blobMaxSize)
-    {
+  {
     theBlob.x /= theBlob.val;
     theBlob.y /= theBlob.val;
     theBlob.val /= theBlob.count;
-    }
+  }
   else
-    {
+  {
     theBlob.count = 0;
-    }
+  }
 
   return theBlob;
 }
@@ -463,24 +463,24 @@ void ScanVolumeForBlobs(
 
   T *pixelPtr = array;
   for (int z = 0; z < dataSize[2]; z++)
-    {
+  {
     for (int y = 0; y < dataSize[1]; y++)
-      {
+    {
       for (int x = 0; x < dataSize[0]; x++)
-        {
+      {
         if (*pixelPtr++ > lowerThresh)
-          {
+        {
           Blob blob = MakeBlob(array, x, y, z, dataSize[0], dataSize[1],
                                dataSize[2], blobMaxSize,
                                lowerThresh, upperThresh);
           if (blob.count != 0)
-            {
+          {
             returnList->push_back(blob);
-            }
           }
         }
       }
     }
+  }
 
   delete [] array;
 }
@@ -505,26 +505,26 @@ void ComputePercentile(
   T maxVal = std::numeric_limits<T>::min();
 
   for (int z = 0; z < boxSize[2]; z++)
-    {
+  {
     for (int y = 0; y < boxSize[1]; y++)
-      {
+    {
       for (int x = 0; x < boxSize[0]; x++)
-        {
+      {
         T v = *boxPixelPtr;
         minVal = (minVal < v ? minVal : v);
         maxVal = (maxVal > v ? maxVal : v);
         boxPixelPtr++;
-        }
-      boxPixelPtr += dataSize[0] - boxSize[0];
       }
-    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+      boxPixelPtr += dataSize[0] - boxSize[0];
     }
+    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+  }
 
   if (minVal == maxVal)
-    {
+  {
     *threshold = static_cast<int>(maxVal);
     return;
-    }
+  }
 
   // compute the histogram in the box
   const int histSize = 1024;
@@ -534,39 +534,39 @@ void ComputePercentile(
   if (scale > 1.0) { scale = 1.0; }
 
   for (int i = 0; i < histSize; i++)
-    {
+  {
     histo[i] = 0;
-    }
+  }
 
   size_t total = 0;
   boxPixelPtr = inPtr + offset;
   for (int z = 0; z < boxSize[2]; z++)
-    {
+  {
     for (int y = 0; y < boxSize[1]; y++)
-      {
+    {
       for (int x = 0; x < boxSize[0]; x++)
-        {
+      {
         T v = *boxPixelPtr;
         int bin = static_cast<int>((v + shift)*scale);
         histo[bin]++;
         total++;
         boxPixelPtr++;
-        }
-      boxPixelPtr += dataSize[0] - boxSize[0];
       }
-    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+      boxPixelPtr += dataSize[0] - boxSize[0];
     }
+    boxPixelPtr += rowSize*(dataSize[1] - boxSize[1]);
+  }
 
   // exclude pixels above the fraction
   size_t fractionTotal = static_cast<size_t>(fraction*total);
   size_t sum = 0;
   T thresh = 0;
   for (int i = 0; i < histSize; i++)
-    {
+  {
     sum += histo[i];
     thresh = (sum > fractionTotal ? thresh : i);
     histo[i] = 0;
-    }
+  }
 
   *threshold = thresh/scale - shift;
   delete [] histo;
@@ -612,20 +612,20 @@ void UpdateBlobs(
 
   // find the 98th percentile threshold
   switch (dataType)
-    {
+  {
     vtkTemplateAliasMacro(
       ComputePercentile(static_cast<VTK_TT *>(address),
                         dataSize, boxSize, fraction, &thresh98));
-    }
+  }
 
   // call the blob-finding function
   switch (dataType)
-    {
+  {
     vtkTemplateAliasMacro(
       ScanVolumeForBlobs(static_cast<VTK_TT *>(address), dataSize,
                          fthresh*thresh98, thresh98,
                          maxBlobSize, blobs));
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -712,29 +712,29 @@ Selector::Selector(std::vector<Blob> *blobs, const double vec[3])
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
-    {
+  {
     // dot product with the direction vector, then round to int
     double x = vec[0]*it->x + vec[1]*it->y + vec[2]*it->slice;
     int j = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
     std::map<int, Bin>::iterator jt = bins->find(j);
     if (jt == bins->end())
-      {
+    {
       Bin bin = { it->slice, it->slice, it->val };
       bins->insert(std::make_pair(j, bin));
       sum += it->val;
       minval = (minval < it->val ? minval : it->val);
       maxval = (maxval > it->val ? maxval : it->val);
-      }
+    }
     else
-      {
+    {
       jt->second.minSlice = std::min(jt->second.minSlice, it->slice);
       jt->second.maxSlice = std::max(jt->second.minSlice, it->slice);
       jt->second.sum += it->val;
       sum += it->val;
       minval = (minval < it->val ? minval : it->val);
       maxval = (maxval > jt->second.sum ? maxval : jt->second.sum);
-      }
     }
+  }
 
   this->Minimum = minval;
   this->Maximum = maxval;
@@ -756,24 +756,24 @@ void Selector::ReturnCluster(double threshold, Cluster *cluster)
   for (std::map<int, Bin>::iterator it = bins->begin();
        it != bins->end();
        ++it)
-    {
+  {
     int i = it->first;
     double v = it->second.sum;
     if (v > maxClusterValue)
-      {
+    {
       minSlice = it->second.minSlice;
       maxSlice = it->second.maxSlice;
       maxCluster = i;
       maxClusterValue= v;
-      }
     }
+  }
   double sum = maxClusterValue;
   bins->erase(maxCluster);
 
   // then count down from the middle
   int lowest = maxCluster;
   for (;;)
-    {
+  {
     std::map<int, Bin>::iterator it = bins->find(lowest - 1);
     if (it == bins->end()) { break; }
     double v = it->second.sum;
@@ -783,12 +783,12 @@ void Selector::ReturnCluster(double threshold, Cluster *cluster)
     maxSlice = std::max(maxSlice, it->second.maxSlice);
     bins->erase(it);
     lowest--;
-    }
+  }
 
   // then count up from the middle
   int highest = maxCluster;
   for (;;)
-    {
+  {
     std::map<int, Bin>::iterator it = bins->find(highest + 1);
     if (it == bins->end()) { break; }
     double v = it->second.sum;
@@ -798,7 +798,7 @@ void Selector::ReturnCluster(double threshold, Cluster *cluster)
     maxSlice = std::max(maxSlice, it->second.maxSlice);
     bins->erase(it);
     highest++;
-    }
+  }
 
   cluster->lowest = lowest;
   cluster->highest = highest;
@@ -817,15 +817,15 @@ void Selector::BuildClusters(double threshold, int maxWidth)
 
   clusters->clear();
   while (!bins->empty())
-    {
+  {
     Cluster cluster;
     this->ReturnCluster(threshold, &cluster);
     if (cluster.highest - cluster.lowest <= maxWidth &&
         cluster.sum > threshold)
-      {
+    {
       clusters->push_back(cluster);
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -846,61 +846,61 @@ bool Selector::SelectTwo(
   size_t bestCandidate = 0;
 
   for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
-    {
+  {
     double binPos = 0.5*(it->lowest + it->highest);
     for (ClusterIterator jt = clusters->begin(); jt != it; ++jt)
-      {
+    {
       double binPos2 = 0.5*(jt->lowest + jt->highest);
       double curDist = fabs(binPos - binPos2);
       double curDiff = fabs(curDist - distance);
       if (curDiff < static_cast<double>(maxWidth))
-        {
+      {
         if (curDiff < smallestDiff)
-          {
+        {
           smallestDiff = curDiff;
           bestCandidate = candidates.size();
-          }
+        }
         if (it->lowest < jt->lowest)
-          {
+        {
           candidates.push_back(std::make_pair(it, jt));
-          }
+        }
         else
-          {
+        {
           candidates.push_back(std::make_pair(jt, it));
-          }
         }
       }
     }
+  }
 
   if (candidates.size() == 0)
-    {
+  {
     return false;
-    }
+  }
 
   // merge clusters that are within maxwidth of best clusters
   for (size_t i = 0; i < candidates.size(); i++)
-    {
+  {
     if (i != bestCandidate)
-      {
+    {
       ClusterIterator a = candidates[bestCandidate].first;
       ClusterIterator b = candidates[i].first;
       for (int j = 0; j < 2; j++)
-        {
+      {
         int dist = a->highest - b->lowest;
         if (dist < 0) { dist = b->highest - a->lowest; }
         if (a != b && dist <= maxWidth)
-          {
+        {
           a->lowest = std::min(a->lowest, b->lowest);
           a->highest = std::max(a->highest, b->highest);
           a->minSlice = std::min(a->minSlice, b->minSlice);
           a->maxSlice = std::max(a->maxSlice, b->maxSlice);
           a->sum += b->sum;
-          }
+        }
         a = candidates[bestCandidate].second;
         b = candidates[i].second;
-        }
       }
     }
+  }
 
   Cluster cluster1 = *(candidates[bestCandidate].first);
   Cluster cluster2 = *(candidates[bestCandidate].second);
@@ -928,45 +928,45 @@ bool Selector::SelectOne(
   size_t bestCandidate = 0;
 
   for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
-    {
+  {
     double binPos = 0.5*(it->lowest + it->highest);
     double curDiff = fabs(binPos - position);
 
     if (curDiff < static_cast<double>(maxWidth))
-      {
+    {
       if (curDiff < smallestDiff)
-        {
+      {
         smallestDiff = curDiff;
         bestCandidate = candidates.size();
-        }
-      candidates.push_back(it);
       }
+      candidates.push_back(it);
     }
+  }
 
   if (candidates.size() == 0)
-    {
+  {
     return false;
-    }
+  }
 
   // merge clusters that are within maxwidth of best cluster
   for (size_t i = 0; i < candidates.size(); i++)
-    {
+  {
     if (i != bestCandidate)
-      {
+    {
       ClusterIterator a = candidates[bestCandidate];
       ClusterIterator b = candidates[i];
       int dist = a->highest - b->lowest;
       if (dist < 0) { dist = b->highest - a->lowest; }
       if (a != b && dist <= maxWidth)
-        {
+      {
         a->lowest = std::min(a->lowest, b->lowest);
         a->highest = std::max(a->highest, b->highest);
         a->minSlice = std::min(a->minSlice, b->minSlice);
         a->maxSlice = std::max(a->maxSlice, b->maxSlice);
         a->sum += b->sum;
-        }
       }
     }
+  }
 
   Cluster cluster = *(candidates[bestCandidate]);
 
@@ -988,18 +988,18 @@ bool Selector::SelectOne(double threshold, int maxWidth)
   ClusterIterator bestCluster = clusters->end();
 
   for (ClusterIterator it = clusters->begin(); it != clusters->end(); ++it)
-    {
+  {
     if (it->sum > maxSum)
-      {
+    {
       maxSum = it->sum;
       bestCluster = it;
-      }
     }
+  }
 
   if (bestCluster == clusters->end())
-    {
+  {
     return false;
-    }
+  }
 
   Cluster cluster = *bestCluster;
 
@@ -1077,11 +1077,11 @@ double FiducialBar::GetLine(double p[3], double v[3])
   v[2] = this->Eigenvector[2];
 
   if (v[2] < 0)
-    {
+  {
     v[0] = -v[0];
     v[1] = -v[1];
     v[2] = -v[2];
-    }
+  }
 
   return fabs(this->Eigenvalue);
 }
@@ -1091,13 +1091,13 @@ void FiducialBar::ClipFiducialEnds(double minZ, double maxZ)
 {
   size_t j = 0;
   for (size_t i = 0; i < this->Points->size(); i++)
-    {
+  {
     Point &pi = (*this->Points)[i];
     if (pi.z > minZ && pi.z < maxZ)
-      {
+    {
       (*this->Points)[j++] = pi;
-      }
     }
+  }
   this->Points->resize(j);
 }
 
@@ -1112,19 +1112,19 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
   for (std::vector<Point>::iterator it = this->Points->begin();
        it < this->Points->end();
        ++it)
-    {
+  {
     com[0] += it->x;
     com[1] += it->y;
     com[2] += it->z;
     count++;
-    }
+  }
 
   if (count != 0)
-    {
+  {
     com[0] /= count;
     com[1] /= count;
     com[2] /= count;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -1132,7 +1132,7 @@ void FiducialBar::ComputeCentreOfMass(double com[3])
 bool FiducialBar::ExtractLinesFromPoints()
 {
   if (this->Points->size() == 0)
-    {
+  {
     this->CentreOfMass[0] = 0.0;
     this->CentreOfMass[1] = 0.0;
     this->CentreOfMass[2] = 0.0;
@@ -1141,7 +1141,7 @@ bool FiducialBar::ExtractLinesFromPoints()
     this->Eigenvector[1] = 0.0;
     this->Eigenvector[2] = 0.0;
     return false;
-    }
+  }
 
   double C[3][3] = { {0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0} };
   this->ComputeCentreOfMass(this->CentreOfMass);
@@ -1149,7 +1149,7 @@ bool FiducialBar::ExtractLinesFromPoints()
   for (std::vector<Point>::iterator it = this->Points->begin();
        it < this->Points->end();
        ++it)
-    {
+  {
     C[0][0] += (it->x - Q[0])*(it->x - Q[0]);
     C[0][1] += (it->x - Q[0])*(it->y - Q[1]);
     C[0][2] += (it->x - Q[0])*(it->z - Q[2]);
@@ -1159,7 +1159,7 @@ bool FiducialBar::ExtractLinesFromPoints()
     C[2][0] += (it->z - Q[2])*(it->x - Q[0]);
     C[2][1] += (it->z - Q[2])*(it->y - Q[1]);
     C[2][2] += (it->z - Q[2])*(it->z - Q[2]);
-    }
+  }
 
   double eigenvalues[3];
   double eigenvectors[3][3];
@@ -1197,7 +1197,7 @@ void FiducialBar::CullOutliers(double maxDist)
 
   size_t j = 0;
   for (size_t i = 0; i < this->Points->size(); i++)
-    {
+  {
     Point &pi = (*this->Points)[i];
 
     // compute distance from point to line with pythagoras
@@ -1213,27 +1213,27 @@ void FiducialBar::CullOutliers(double maxDist)
     sum += distSquared;
 
     if (distSquared < maxDistSquared)
-      {
+    {
       (*this->Points)[j++] = pi;
-      }
     }
+  }
 
   // compute what the RMS was originally
   if (this->Points->size())
-    {
+  {
     sum = sqrt(sum/static_cast<double>(this->Points->size()));
-    }
+  }
 
   if (sum > maxDist)
-    {
+  {
     // RMS was too high, throw away all the points
     this->Points->clear();
-    }
+  }
   else
-    {
+  {
     // points too far from line have been discarded
     this->Points->resize(j);
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -1286,10 +1286,10 @@ void FiducialPlate::LineIntersection(
   double t1 = 0.0;
   double t2 = 0.0;
   if (D > 1e-6)
-    {
+  {
     t1 = (b*e - c*d)/D;
     t2 = (a*e - b*d)/D;
-    }
+  }
 
   p[0] = 0.5*((p1[0] + v1[0]*t1) + (p2[0] + v2[0]*t2));
   p[1] = 0.5*((p1[1] + v1[1]*t1) + (p2[1] + v2[1]*t2));
@@ -1323,10 +1323,10 @@ void FiducialPlate::GetLocation(double centre[3], double vertical[3])
   // compute points where diagonal bar intersects vertical bars
   double corners[2][3];
   for (int j = 0; j < 2; j++)
-    {
+  {
     this->LineIntersection(
       centroids[0], vectors[0], centroids[j+1], vertical, corners[j]);
-    }
+  }
 
   // compute centre between the intersection points
   centre[0] = 0.5*(corners[0][0] + corners[1][0]);
@@ -1344,9 +1344,9 @@ bool FiducialPlate::LocateBars(
   // which direction are we going in?
   double hspacing = spacing[1];
   if (fabs(hvec[0]) > fabs(hvec[1]))
-    {
+  {
     hspacing = spacing[0];
-    }
+  }
 
   // diagonal bar is longer, so use larger cluster width
   int clusterWidthD = static_cast<int>(clusterWidth/hspacing*1.4 + 0.5);
@@ -1361,15 +1361,15 @@ bool FiducialPlate::LocateBars(
 
   // locate the diagonal bar
   if (!selector1.SelectOne(clusterThreshold, clusterWidthD))
-    {
+  {
     return false;
-    }
+  }
 
   // locate the two vertical bars
   if (!selector2.SelectTwo(barSeparation, clusterThreshold, clusterWidthH))
-    {
+  {
     return false;
-    }
+  }
 
   // get the clusters for the three bars
   std::vector<Selector::Cluster>::iterator clusters[3];
@@ -1387,7 +1387,7 @@ bool FiducialPlate::LocateBars(
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
-    {
+  {
     // convert blob position to 3D data coordinates
     Point p;
     p.x = origin[0] + spacing[0]*it->x;
@@ -1396,7 +1396,7 @@ bool FiducialPlate::LocateBars(
 
     // loop through the three bars (diagonal first!)
     for (int i = 0; i < 3; i++)
-      {
+    {
       // compute the bin index for the point
       const double *vec = vecs[i];
       double x = it->x*vec[0] + it->y*vec[1] + it->slice*vec[2];
@@ -1404,27 +1404,27 @@ bool FiducialPlate::LocateBars(
 
       if (idx >= clusters[i]->lowest &&
           idx <= clusters[i]->highest)
-        {
+      {
         this->BarPoints[i].push_back(p);
         break;
-        }
       }
     }
+  }
 
   // do the computations for each bar
   bool result = true;
   for (int i = 0; i < 3; i++)
-    {
+  {
     FiducialBar *bar = &this->Bars[i];
     bar->SetPoints(&this->BarPoints[i]);
     bar->ClipFiducialEnds(zLow, zHigh);
     bar->ExtractLinesFromPoints();
     bar->CullOutliers(2.0);
     if (!bar->ExtractLinesFromPoints())
-      {
+    {
       result = false;
-      }
     }
+  }
 
   return result;
 }
@@ -1438,11 +1438,11 @@ void BuildMatrix(
 {
   double M[3][3];
   for (int j = 0; j < 3; j++)
-    {
+  {
     M[0][j] = xvec[j];
     M[1][j] = yvec[j];
     M[2][j] = zvec[j];
-    }
+  }
 
   vtkMath::Normalize(M[0]);
   vtkMath::Normalize(M[1]);
@@ -1456,12 +1456,12 @@ void BuildMatrix(
   dsign[2] = (direction[2] < 0 ? -1.0 : +1.0);
 
   for (int k = 0; k < 3; k++)
-    {
+  {
     matrix[0 + k] = M[0][k]*dsign[0];
     matrix[4 + k] = M[1][k]*dsign[1];
     matrix[8 + k] = M[2][k]*dsign[2];
     matrix[12 + k] = 0.0;
-    }
+  }
 
   double tc[3];
   tc[0] = matrix[0]*centre[0] + matrix[1]*centre[1] + matrix[2]*centre[2];
@@ -1512,9 +1512,9 @@ bool PositionFrame(
   if (!xSelector.SelectTwo(plateSeparationX/spacing[0],
                            plateClusterThreshold*xSelector.GetAverage(),
                            clusterWidthX))
-    {
+  {
     return false;
-    }
+  }
   std::vector<Selector::Cluster> *xClusters = xSelector.GetClusters();
 
   // for computing min and max slice for side plates
@@ -1529,21 +1529,21 @@ bool PositionFrame(
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
-    {
+  {
     for (int j = 0; j < 2; j++)
-      {
+    {
       double x = it->x;
       int xIdx = static_cast<int>(x > 0 ? x + 0.5 : x - 0.5);
       if (xIdx >= (*xClusters)[j].lowest &&
           xIdx <= (*xClusters)[j].highest)
-        {
+      {
         zMin = (zMin < it->slice ? zMin : it->slice);
         zMax = (zMax > it->slice ? zMax : it->slice);
         plateBlobs[j].push_back(*it);
         break;
-        }
       }
     }
+  }
 
   // we will be chopping 10% from the top and bottom of the plates
   // in order to better capture each fiducial bar in isolation from
@@ -1561,16 +1561,16 @@ bool PositionFrame(
   FiducialPlate plates[4];
   bool foundPlate[4];
   for (int j = 0; j < 2; j++)
-    {
+  {
     foundPlate[j] = plates[j].LocateBars(
       &plateBlobs[j], yvec, dvec, origin, spacing, barSeparation/spacing[1],
       barClusterThreshold, clusterWidth, zLow, zHigh);
-    }
+  }
 
   if (!foundPlate[0] || !foundPlate[1])
-    {
+  {
     return false;
-    }
+  }
 
   // will be computing the intersection points at the corners of the
   // plates and the average direction of the vertical bars
@@ -1578,17 +1578,17 @@ bool PositionFrame(
   double verticals[4][3];
 
   for (int j = 0; j < 2; j++)
-    {
+  {
     plates[j].GetLocation(centres[j], verticals[j]);
 
     // get all of the points that make up the plate fiducials
     for (int k = 0; k < 3; k++)
-      {
+    {
       FiducialBar *bar = &plates[j].GetBars()[k];
       std::vector<Point> *barPoints = bar->GetPoints();
       points->insert(points->end(), barPoints->begin(), barPoints->end());
-      }
     }
+  }
 
   // find the blobs within which to search for front/back plates
   double ycentre = 0.5*(centres[0][1] + centres[1][1]);
@@ -1605,16 +1605,16 @@ bool PositionFrame(
   for (std::vector<Blob>::iterator it = blobs->begin();
        it != blobs->end();
        ++it)
-    {
+  {
     for (int j = 0; j < 2; j++)
-      {
+    {
       if (it->y > yPlateRange[j][0] && it->y < yPlateRange[j][1])
-        {
+      {
         yBlobs[j].push_back(*it);
         break;
-        }
       }
     }
+  }
 
   dvec[0] = sqrt(0.5);
   dvec[1] = 0.0;
@@ -1627,29 +1627,29 @@ bool PositionFrame(
   ySelector[1] = &ySelectorHigh;
 
   for (int j = 0; j < 2; j++)
-    {
+  {
     if ((useAP && useAP[j] == 0) ||
         !ySelector[j]->SelectOne(
           (yPlatePos[j] - origin[1])/spacing[1],
           plateClusterThreshold*xSelector.GetAverage(), clusterWidthY))
-      {
+    {
       foundPlate[2+j] = false;
       continue;
-      }
+    }
     std::vector<Selector::Cluster> *yClusters = ySelector[j]->GetClusters();
 
     for (std::vector<Blob>::iterator it = yBlobs[j].begin();
          it != yBlobs[j].end();
          ++it)
-      {
+    {
       double y = it->y;
       int yIdx = static_cast<int>(y > 0 ? y + 0.5 : y - 0.5);
       if (yIdx >= (*yClusters)[0].lowest &&
           yIdx <= (*yClusters)[0].highest)
-        {
+      {
         plateBlobs[2+j].push_back(*it);
-        }
       }
+    }
 
     foundPlate[2+j] = plates[2+j].LocateBars(
       &plateBlobs[2+j], xvec, dvec, origin, spacing,
@@ -1657,19 +1657,19 @@ bool PositionFrame(
       barClusterThreshold, clusterWidth, zLow, zHigh);
 
     if (foundPlate[2+j])
-      {
+    {
       // compute the location of this plate
       plates[2+j].GetLocation(centres[2+j], verticals[2+j]);
 
       // get the points that belong to the plate fiducials
       for (int k = 0; k < 3; k++)
-        {
+      {
         FiducialBar *bar = &plates[2+j].GetBars()[k];
         std::vector<Point> *barPoints = bar->GetPoints();
         points->insert(points->end(), barPoints->begin(), barPoints->end());
-        }
       }
     }
+  }
 
   // compute the initial z vector from the side plates
   zvec[0] = verticals[0][0] + verticals[1][0];
@@ -1688,7 +1688,7 @@ bool PositionFrame(
 
   // improve result with front/back plates if present
   if (foundPlate[2] && foundPlate[3])
-    {
+  {
     // weigh results according to proximity to centre
     double a = plateSeparationY/(plateSeparationX + plateSeparationY);
     double b = plateSeparationX/(plateSeparationX + plateSeparationY);
@@ -1700,9 +1700,9 @@ bool PositionFrame(
     yvec[0] = centres[3][0] - centres[2][0];
     yvec[1] = centres[3][1] - centres[2][1];
     yvec[2] = centres[3][2] - centres[2][2];
-    }
+  }
   else if (foundPlate[2] || foundPlate[3])
-    {
+  {
     int k = (foundPlate[2] ? 2 : 3);
 
     double offset[3];
@@ -1723,12 +1723,12 @@ bool PositionFrame(
     // given just one anterior or posterior plate, we should not attempt to
     // compute yvec from the plate centres.  Compute it from zvec instead
     vtkMath::Cross(zvec, xvec, yvec);
-    }
+  }
   else
-    {
+  {
     // if front/back plates are missing, use zvec to compute yvec
     vtkMath::Cross(zvec, xvec, yvec);
-    }
+  }
 
   // create the frame registration matrix
   BuildMatrix(xvec, yvec, zvec, centre, frameCentre, direction, matrix);
@@ -1752,15 +1752,15 @@ int vtkFrameFinder::FindFrame(
 
   bool useAP[2];
   if (direction[1] < 0)
-    {
+  {
     useAP[0] = (this->UseAnteriorFiducial != 0);
     useAP[1] = (this->UsePosteriorFiducial != 0);
-    }
+  }
   else
-    {
+  {
     useAP[0] = (this->UseAnteriorFiducial != 0);
     useAP[1] = (this->UsePosteriorFiducial != 0);
-    }
+  }
 
   std::vector<Blob> blobs;
   std::vector<Point> framePoints;
@@ -1774,7 +1774,7 @@ int vtkFrameFinder::FindFrame(
   m4x4->DeepCopy(matrix);
 
   if (poly)
-    {
+  {
     // generate the frame data
     vtkSmartPointer<vtkPoints> points;
     vtkSmartPointer<vtkFloatArray> scalars =
@@ -1783,13 +1783,13 @@ int vtkFrameFinder::FindFrame(
       vtkSmartPointer<vtkFloatArray>::New();
     vectors->SetNumberOfComponents(3);
     if (poly->GetPoints())
-      {
+    {
       points = poly->GetPoints();
-      }
+    }
     else
-      {
+    {
       points = vtkSmartPointer<vtkPoints>::New();
-      }
+    }
 
     vtkSmartPointer<vtkCellArray> cells =
       vtkSmartPointer<vtkCellArray>::New();
@@ -1803,7 +1803,7 @@ int vtkFrameFinder::FindFrame(
     for (std::vector<Blob>::iterator it = blobs.begin();
          it != blobs.end();
          ++it)
-      {
+    {
       double point[3];
       point[0] = origin[0] + it->x*spacing[0];
       point[1] = origin[1] + it->y*spacing[1];
@@ -1817,34 +1817,34 @@ int vtkFrameFinder::FindFrame(
       vectors->InsertNextTuple(v);
       //cout << "blob " << numVerts << " " << point[0] << " " << point[1] << " " << point[2] << "\n";
       numVerts++;
-      }
+    }
 
     cells->UpdateCellCount(numVerts);
     poly->SetPoints(points);
     poly->SetVerts(cells);
     poly->GetPointData()->SetScalars(scalars);
     poly->GetPointData()->SetVectors(vectors);
-    }
+  }
 #else
     for (std::vector<Point>::iterator it = framePoints.begin();
          it != framePoints.end();
          ++it)
-      {
+    {
       vtkIdType ptId = points->InsertNextPoint(it->x, it->y, it->z);
       cells->InsertCellPoint(ptId);
       numVerts++;
-      }
+    }
 
     cells->UpdateCellCount(numVerts);
     poly->SetPoints(points);
     poly->SetVerts(cells);
-    }
+  }
 #endif
 
   if (!this->Success)
-    {
+  {
     vtkErrorMacro("Failed to find the Leksell frame in the image.");
-    }
+  }
 
   return this->Success;
 }

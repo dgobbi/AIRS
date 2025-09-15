@@ -6,7 +6,7 @@
   Date:      $Date: 2007/08/24 20:02:25 $
   Version:   $Revision: 1.6 $
 
-Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
+Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
 #endif
@@ -57,9 +57,9 @@ vtkImageGridStatistics* vtkImageGridStatistics::New()
   // First try to create the object from the vtkObjectFactory
   vtkObject* ret = vtkObjectFactory::CreateInstance("vtkImageGridStatistics");
   if(ret)
-    {
+  {
     return (vtkImageGridStatistics*)ret;
-    }
+  }
   // If the factory was unable to create the object, then create it here.
   return new vtkImageGridStatistics;
 }
@@ -91,23 +91,23 @@ void vtkImageGridStatistics::SetInput(vtkImageData *input)
 vtkImageData *vtkImageGridStatistics::GetInput()
 {
 #if (VTK_MAJOR_VERSION < 5)
-  if (this->GetNumberOfInputs() < 1)    
-    {
+  if (this->GetNumberOfInputs() < 1)
+  {
     return NULL;
-    }
+  }
   return (vtkImageData *)(this->Inputs[0]);
 #else
   if (this->GetNumberOfInputConnections(0) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
 #endif
 }
 
 //----------------------------------------------------------------------------
 template <class T>
-static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self, 
+static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
 					  T *inPtr,
 					  vtkImageData *inData,
 					  double *AverageMagnitude,
@@ -122,33 +122,33 @@ static void vtkImageGridStatisticsExecute(vtkImageGridStatistics *self,
   double temp=0.0;
 
   double count = inData->GetNumberOfPoints();
-  
+
   T *curPtr;
 
-  // Get increments to march through data 
+  // Get increments to march through data
   inData->GetWholeExtent(wholeInExt);
   inData->GetContinuousIncrements(wholeInExt, inIncX, inIncY, inIncZ);
 
   // Loop through input dataset once to gather stats
   curPtr = inPtr;
   for (inIdxZ = wholeInExt[4]; inIdxZ <= wholeInExt[5]; inIdxZ++)
-    {
+  {
       for (inIdxY = wholeInExt[2]; !self->AbortExecute && inIdxY <= wholeInExt[3]; inIdxY++)
-	{
+      {
 	  for (inIdxX = wholeInExt[0]; inIdxX <= wholeInExt[1]; inIdxX++)
-	    {
-	      temp = sqrt( (double)(curPtr[0] * curPtr[0] + 
-				    curPtr[1] * curPtr[1] + 
+   {
+	      temp = sqrt( (double)(curPtr[0] * curPtr[0] +
+				    curPtr[1] * curPtr[1] +
 				    curPtr[2] * curPtr[2]) );
-	      sum += temp; 
+	      sum += temp;
 	      sum_squared += temp*temp;
               curPtr += 3;
-	    }
+   }
 	  curPtr += inIncY;
-	}
+      }
       curPtr += inIncZ;
-    }
-  
+  }
+
   *AverageMagnitude = sum / count;
   *StandardDeviation = sqrt((sum_squared * count - sum*sum) / (count * (count-1.0)));
 }
@@ -165,10 +165,10 @@ void vtkImageGridStatistics::Update()
 
   // make sure input is available
   if (!input)
-    {
+  {
       vtkErrorMacro(<< "No input...can't execute!");
       return;
-    }
+  }
 
   input->Update();
   input->GetWholeExtent(wholeInExt);
@@ -176,21 +176,21 @@ void vtkImageGridStatistics::Update()
 
   // this filter requires the input to have 3 components
   if (input->GetNumberOfScalarComponents() != 3)
-    {
+  {
       vtkErrorMacro(<< "Update: input does not have 3 scalar components");
       return;
-    }
+  }
 
   if (input->GetMTime() > this->ExecuteTime ||
       this->GetMTime() > this->ExecuteTime )
-    {
+  {
       this->InvokeEvent(vtkCommand::StartEvent, NULL);
 
       // reset Abort flag
       this->AbortExecute = 0;
       this->Progress = 0.0;
       switch (input->GetScalarType())
-	{
+      {
 #if (VTK_MAJOR_VERSION < 5)
 	  vtkTemplateMacro5(vtkImageGridStatisticsExecute,
 			    this, (VTK_TT *) (inPtr), input,
@@ -205,18 +205,18 @@ void vtkImageGridStatistics::Update()
 	default:
 	  vtkErrorMacro(<< "Update: Unknown ScalarType");
 	  return;
-	}
+      }
       this->ExecuteTime.Modified();
       if (!this->AbortExecute)
-	{
+      {
 	  this->UpdateProgress(1.0);
-	}
+      }
       this->InvokeEvent(vtkCommand::EndEvent, NULL);
-    }
+  }
   if (input->ShouldIReleaseData())
-    {
+  {
       input->ReleaseData();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -225,9 +225,9 @@ void vtkImageGridStatistics::PrintSelf(ostream& os, vtkIndent indent)
   vtkProcessObject::PrintSelf(os,indent);
 
   if (!this->GetInput())
-    {
+  {
       return;
-    }
+  }
   os << indent << "AverageMagnitude: " << this->AverageMagnitude << "\n";
   os << indent << "StandardDeviation: " << this->StandardDeviation << "\n";
 }

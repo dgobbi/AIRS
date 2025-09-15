@@ -95,9 +95,9 @@ vtkImageRegistration* vtkImageRegistration::New()
     vtkObjectFactory::CreateInstance("vtkImageRegistration");
 
   if (ret)
-    {
+  {
     return (vtkImageRegistration*)ret;
-    }
+  }
 
   // If the factory was unable to create the object, then create it here.
   return new vtkImageRegistration;
@@ -168,59 +168,59 @@ vtkImageRegistration::~vtkImageRegistration()
 {
   // delete vtk objects
   if (this->Optimizer)
-    {
+  {
     this->Optimizer->Delete();
-    }
+  }
   if (this->Metric)
-    {
+  {
     this->Metric->Delete();
-    }
+  }
   if (this->Interpolator)
-    {
+  {
     this->Interpolator->Delete();
-    }
+  }
   if (this->Transform)
-    {
+  {
     this->Transform->Delete();
-    }
+  }
   if (this->MetricValues)
-    {
+  {
     this->MetricValues->Delete();
-    }
+  }
   if (this->CostValues)
-    {
+  {
     this->CostValues->Delete();
-    }
+  }
   if (this->ParameterValues)
-    {
+  {
     this->ParameterValues->Delete();
-    }
+  }
 
   if (this->RegistrationInfo)
-    {
+  {
     delete this->RegistrationInfo;
-    }
+  }
 
   if (this->InitialTransformMatrix)
-    {
+  {
     this->InitialTransformMatrix->Delete();
-    }
+  }
   if (this->ImageReslice)
-    {
+  {
     this->ImageReslice->Delete();
-    }
+  }
   if (this->SourceImageTypecast)
-    {
+  {
     this->SourceImageTypecast->Delete();
-    }
+  }
   if (this->TargetImageTypecast)
-    {
+  {
     this->TargetImageTypecast->Delete();
-    }
+  }
   if (this->ImageBSpline)
-    {
+  {
     this->ImageBSpline->Delete();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -285,9 +285,9 @@ void vtkImageRegistration::SetTargetImage(vtkImageData *input)
 vtkImageData* vtkImageRegistration::GetTargetImage()
 {
   if (this->GetNumberOfInputConnections(0) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(1, 0));
 }
 
@@ -306,9 +306,9 @@ void vtkImageRegistration::SetSourceImage(vtkImageData *input)
 vtkImageData* vtkImageRegistration::GetSourceImage()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
 }
 
@@ -328,9 +328,9 @@ void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
 vtkImageStencilData* vtkImageRegistration::GetSourceImageStencil()
 {
   if (this->GetNumberOfInputConnections(2) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(2, 0));
 }
@@ -345,7 +345,7 @@ void vtkTransformRotation(
   // axis is the unit vector from the parameters
   double theta2 = rx*rx + ry*ry + rz*rz;
   if (theta2 > 0)
-    {
+  {
     // compute the quaternion wxyz from angle and vector,
     // then use the quaternion to compute the matrix
     double theta = sqrt(theta2);
@@ -390,7 +390,7 @@ void vtkTransformRotation(
     matrix[15] = 1.0;
 
     transform->Concatenate(matrix);
-    }
+  }
 }
 
 void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
@@ -407,46 +407,46 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
   double ty = optimizer->GetParameterValue(pcount++);
   double tz = 0.0;
   if (transformDim > 2)
-    {
+  {
     tz = optimizer->GetParameterValue(pcount++);
-    }
+  }
 
   double rx = 0.0;
   double ry = 0.0;
   double rz = 0.0;
 
   if (transformType > vtkImageRegistration::Translation)
-    {
+  {
     if (transformDim > 2)
-      {
+    {
       rx = optimizer->GetParameterValue(pcount++);
       ry = optimizer->GetParameterValue(pcount++);
-      }
-    rz = optimizer->GetParameterValue(pcount++);
     }
+    rz = optimizer->GetParameterValue(pcount++);
+  }
 
   double sx = 1.0;
   double sy = 1.0;
   double sz = 1.0;
 
   if (transformType > vtkImageRegistration::Rigid)
-    {
+  {
     sx = exp(optimizer->GetParameterValue(pcount++));
     sy = sx;
     if (transformDim > 2)
-      {
+    {
       sz = sx;
-      }
     }
+  }
 
   if (transformType > vtkImageRegistration::Similarity)
-    {
+  {
     if (transformDim > 2)
-      {
+    {
       sx = sz*exp(optimizer->GetParameterValue(pcount++));
-      }
-    sy = sz*exp(optimizer->GetParameterValue(pcount++));
     }
+    sy = sz*exp(optimizer->GetParameterValue(pcount++));
+  }
 
   bool scaledAtSource =
     (transformType == vtkImageRegistration::ScaleSourceAxes);
@@ -456,14 +456,14 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
   double qz = 0.0;
 
   if (transformType >= vtkImageRegistration::Affine)
-    {
+  {
     if (transformDim > 2)
-      {
+    {
       qx = optimizer->GetParameterValue(pcount++);
       qy = optimizer->GetParameterValue(pcount++);
-      }
-    qz = optimizer->GetParameterValue(pcount++);
     }
+    qz = optimizer->GetParameterValue(pcount++);
+  }
 
   double *center = registrationInfo->Center;
 
@@ -471,21 +471,21 @@ void vtkSetTransformParameters(vtkImageRegistrationInfo *registrationInfo)
   transform->PostMultiply();
   transform->Translate(-center[0], -center[1], -center[2]);
   if (scaledAtSource)
-    {
+  {
     vtkTransformRotation(transform, -qx, -qy, -qz);
     transform->Scale(sx, sy, sz);
     vtkTransformRotation(transform, qx, qy, qz);
     transform->Concatenate(initialMatrix);
     vtkTransformRotation(transform, rx, ry, rz);
-    }
+  }
   else
-    {
+  {
     vtkTransformRotation(transform, rx, ry, rz);
     transform->Concatenate(initialMatrix);
     vtkTransformRotation(transform, -qx, -qy, -qz);
     transform->Scale(sx, sy, sz);
     vtkTransformRotation(transform, qx, qy, qz);
-    }
+  }
   transform->Translate(center[0], center[1], center[2]);
   transform->Translate(tx,ty,tz);
 }
@@ -506,23 +506,23 @@ void vtkEvaluateFunction(void * arg)
   optimizer->SetFunctionValue(metric->GetCost());
 
   if (registrationInfo->MetricValues)
-    {
+  {
     registrationInfo->MetricValues->InsertNextValue(metric->GetValue());
-    }
+  }
   if (registrationInfo->CostValues)
-    {
+  {
     registrationInfo->CostValues->InsertNextValue(metric->GetCost());
-    }
+  }
   if (registrationInfo->ParameterValues)
-    {
+  {
     double parameters[12];
     int n = optimizer->GetNumberOfParameters();
     for (int i = 0; i < n; i++)
-      {
+    {
       parameters[i] = optimizer->GetParameterValue(i);
-      }
-    registrationInfo->ParameterValues->InsertNextTuple(parameters);
     }
+    registrationInfo->ParameterValues->InsertNextTuple(parameters);
+  }
 
   registrationInfo->NumberOfEvaluations++;
 }
@@ -544,9 +544,9 @@ void vtkImageRegistration::ComputeImageRange(
   range[1] = hist->GetMaximum();
 
   if (range[0] >= range[1])
-    {
+  {
     range[1] = range[0] + 1.0;
-    }
+  }
 
   hist->SET_INPUT_DATA(NULL);
   hist->Delete();
@@ -566,10 +566,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   vtkImageData *sourceImage = this->GetSourceImage();
 
   if (targetImage == NULL || sourceImage == NULL)
-    {
+  {
     vtkErrorMacro("Initialize: Input images are not set");
     return;
-    }
+  }
 
   // get the source image center
   double bounds[6];
@@ -597,7 +597,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   // initialize from the supplied matrix
   if (matrix)
-    {
+  {
     // move the translation into tx, ty, tz variables
     tx = matrix->Element[0][3];
     ty = matrix->Element[1][3];
@@ -621,10 +621,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     tx -= center[0] - scenter[0];
     ty -= center[1] - scenter[1];
     tz -= center[2] - scenter[2];
-    }
+  }
 
   if (this->InitializerType == vtkImageRegistration::Centered)
-    {
+  {
     // set an initial translation from one image center to the other image center
     double tbounds[6];
     double tcenter[3];
@@ -636,13 +636,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     tx = tcenter[0] - center[0];
     ty = tcenter[1] - center[1];
     tz = tcenter[2] - center[2];
-    }
+  }
 
   if (transformDim <= 2)
-    {
+  {
     center[2] = 0.0;
     tz = 0.0;
-    }
+  }
 
   // do the setup for mutual information
   double sourceImageRange[2];
@@ -654,22 +654,22 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   if (this->MetricType == vtkImageRegistration::MutualInformation ||
       this->MetricType == vtkImageRegistration::NormalizedMutualInformation)
-    {
+  {
     if (sourceImageRange[0] >= sourceImageRange[1])
-      {
+    {
       this->ComputeImageRange(sourceImage, this->GetSourceImageStencil(),
         sourceImageRange);
-      }
+    }
     if (targetImageRange[0] >= targetImageRange[1])
-      {
+    {
       this->ComputeImageRange(targetImage, NULL,
         targetImageRange);
-      }
+    }
 
     if (this->InterpolatorType == vtkImageRegistration::Nearest &&
         this->JointHistogramSize[0] <= 256 &&
         this->JointHistogramSize[1] <= 256)
-      {
+    {
       // If nearest-neighbor interpolation is used, then the image instensity
       // can be quantized during initialization, instead of being done at each
       // iteration of the registration.
@@ -707,31 +707,31 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       targetImageRange[1] = this->JointHistogramSize[0] - 1;
       sourceImageRange[0] = 0;
       sourceImageRange[1] = this->JointHistogramSize[1] - 1;
-      }
     }
+  }
 
   // make sure source range is computed for CorrelationRatio
   if (this->MetricType == vtkImageRegistration::CorrelationRatio)
-    {
+  {
     if (sourceImageRange[0] >= sourceImageRange[1])
-      {
+    {
       this->ComputeImageRange(sourceImage, this->GetSourceImageStencil(),
         sourceImageRange);
-      }
     }
+  }
 
   // apply b-spline prefilter if b-spline interpolator is used
   if (this->InterpolatorType == vtkImageRegistration::BSpline)
-    {
+  {
     int scalarType = VTK_FLOAT;
     if (targetImage->GetScalarType() == VTK_DOUBLE ||
         sourceImage->GetScalarType() == VTK_DOUBLE)
-      {
+    {
       scalarType = VTK_DOUBLE;
-      }
+    }
 
     if (sourceImage->GetScalarType() != scalarType)
-      {
+    {
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
       sourceCast->SET_INPUT_DATA(sourceImage);
       sourceCast->SetOutputScalarType(scalarType);
@@ -740,20 +740,20 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       sourceCast->SetScale(1.0);
       sourceCast->Update();
       sourceImage = sourceCast->GetOutput();
-      }
+    }
 
     vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
     bspline->SET_INPUT_DATA(targetImage);
     bspline->SetOutputScalarType(scalarType);
     bspline->Update();
     targetImage = bspline->GetOutput();
-    }
+  }
 
   // coerce types if NeighborhoodCorrelation
   if (sourceImage->GetScalarType() != targetImage->GetScalarType() &&
       (this->MetricType == vtkImageRegistration::SquaredDifference ||
        this->MetricType == vtkImageRegistration::NeighborhoodCorrelation))
-    {
+  {
     // coerce the types to make them compatible
     int sourceType = sourceImage->GetScalarType();
     int targetType = targetImage->GetScalarType();
@@ -762,20 +762,20 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     int coercedType = VTK_DOUBLE;
 
     if (sourceSize < targetSize)
-      {
+    {
       coercedType = targetType;
-      }
+    }
     else if (sourceSize > targetSize)
-      {
+    {
       coercedType = sourceType;
-      }
+    }
     else if (sourceSize < 8 && targetSize < 8)
-      {
+    {
       coercedType = VTK_FLOAT;
-      }
+    }
 
     if (sourceType != coercedType)
-      {
+    {
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
       sourceCast->SET_INPUT_DATA(sourceImage);
       sourceCast->SetOutputScalarType(coercedType);
@@ -784,10 +784,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       sourceCast->SetScale(1.0);
       sourceCast->Update();
       sourceImage = sourceCast->GetOutput();
-      }
+    }
 
     if (targetType != coercedType)
-      {
+    {
       vtkImageShiftScale *targetCast = this->TargetImageTypecast;
       targetCast->SET_INPUT_DATA(targetImage);
       targetCast->SetOutputScalarType(coercedType);
@@ -796,8 +796,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       targetCast->SetScale(1.0);
       targetCast->Update();
       targetImage = targetCast->GetOutput();
-      }
     }
+  }
 
   vtkImageReslice *reslice = this->ImageReslice;
   reslice->SetInformationInput(sourceImage);
@@ -807,7 +807,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   reslice->GenerateStencilOutputOn();
   reslice->SetInterpolator(0);
   switch (this->InterpolatorType)
-    {
+  {
     case vtkImageRegistration::Nearest:
       reslice->SetInterpolationModeToNearestNeighbor();
       break;
@@ -818,86 +818,86 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       reslice->SetInterpolationModeToCubic();
       break;
     case vtkImageRegistration::BSpline:
-      {
+    {
       vtkImageBSplineInterpolator *interp = vtkImageBSplineInterpolator::New();
       reslice->SetInterpolator(interp);
       interp->Delete();
-      }
+    }
       break;
     case vtkImageRegistration::Sinc:
-      {
+    {
       vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
       interp->SetWindowFunctionToBlackman();
       reslice->SetInterpolator(interp);
       interp->Delete();
-      }
+    }
       break;
     case vtkImageRegistration::ASinc:
-      {
+    {
       vtkImageSincInterpolator *interp = vtkImageSincInterpolator::New();
       interp->SetWindowFunctionToBlackman();
       interp->AntialiasingOn();
       reslice->SetInterpolator(interp);
       interp->Delete();
-      }
+    }
       break;
     case vtkImageRegistration::Label:
-      {
+    {
       vtkLabelInterpolator *interp = vtkLabelInterpolator::New();
       reslice->SetInterpolator(interp);
       interp->Delete();
-      }
-      break;
     }
+      break;
+  }
 
   if (this->Metric)
-    {
+  {
     this->Metric->RemoveAllInputs();
     this->Metric->Delete();
     this->Metric = 0;
-    }
+  }
 
   switch (this->MetricType)
-    {
+  {
     case vtkImageRegistration::SquaredDifference:
-      {
+    {
       this->Metric = vtkImageSquaredDifference::New();
-      }
+    }
       break;
 
     case vtkImageRegistration::CrossCorrelation:
     case vtkImageRegistration::NormalizedCrossCorrelation:
-      {
+    {
       vtkImageCrossCorrelation *metric = vtkImageCrossCorrelation::New();
       this->Metric = metric;
 
       if (this->MetricType ==
           vtkImageRegistration::NormalizedCrossCorrelation)
-        {
+      {
         metric->SetMetricToNormalizedCrossCorrelation();
-        }
-      else
-        {
-        metric->SetMetricToCrossCorrelation();
-        }
       }
+      else
+      {
+        metric->SetMetricToCrossCorrelation();
+      }
+    }
       break;
 
     case vtkImageRegistration::NeighborhoodCorrelation:
-      {
+    {
       this->Metric = vtkImageNeighborhoodCorrelation::New();
-      }
+    }
       break;
 
     case vtkImageRegistration::CorrelationRatio:
-      {
+    {
       this->Metric = vtkImageCorrelationRatio::New();
-      }
+    }
       break;
 
     case vtkImageRegistration::MutualInformation:
     case vtkImageRegistration::NormalizedMutualInformation:
-      {
+    {
       vtkImageMutualInformation *metric = vtkImageMutualInformation::New();
       this->Metric = metric;
 
@@ -905,41 +905,41 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
       if (this->MetricType ==
           vtkImageRegistration::NormalizedMutualInformation)
-        {
+      {
         metric->SetMetricToNormalizedMutualInformation();
-        }
-      else
-        {
-        metric->SetMetricToMutualInformation();
-        }
       }
-      break;
+      else
+      {
+        metric->SetMetricToMutualInformation();
+      }
     }
+      break;
+  }
 
   if (this->Optimizer)
-    {
+  {
     this->Optimizer->Delete();
     this->Optimizer = 0;
-    }
+  }
 
   switch (this->OptimizerType)
-    {
+  {
     case vtkImageRegistration::Powell:
-      {
+    {
       this->Optimizer = vtkPowellMinimizer::New();
-      }
+    }
       break;
 
     case vtkImageRegistration::Amoeba:
-      {
+    {
       vtkNelderMeadMinimizer *amoeba = vtkNelderMeadMinimizer::New();
       // use golden ratio
       amoeba->SetExpansionRatio(1.618);
       amoeba->SetContractionRatio(0.618);
       this->Optimizer = amoeba;
-      }
-      break;
     }
+      break;
+  }
 
   this->Metric->SET_INPUT_DATA(sourceImage);
   this->Metric->SetInputConnection(1, reslice->GetOutputPort());
@@ -957,17 +957,17 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   this->RegistrationInfo->InitialMatrix = this->InitialTransformMatrix;
 
   if (this->CollectValues)
-    {
+  {
     this->RegistrationInfo->MetricValues = this->MetricValues;
     this->RegistrationInfo->CostValues = this->CostValues;
     this->RegistrationInfo->ParameterValues = this->ParameterValues;
-    }
+  }
   else
-    {
+  {
     this->RegistrationInfo->MetricValues = NULL;
     this->RegistrationInfo->CostValues = NULL;
     this->RegistrationInfo->ParameterValues = NULL;
-    }
+  }
 
   this->RegistrationInfo->TransformDimensionality =
     this->TransformDimensionality;
@@ -996,10 +996,10 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   double r2 = 0.0;
   double mindim = VTK_DOUBLE_MAX;
   for (int ii = 0; ii < transformDim; ii++)
-    {
+  {
     mindim = (size[ii] > mindim ? mindim : size[ii]);
     r2 += size[ii]*size[ii];
-    }
+  }
   r2 -= mindim*mindim;
   double r = sqrt(r2/12);
 
@@ -1009,13 +1009,13 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   double rscale = tscale/r;
   double sscale = tscale/r;
   if (rscale > 0.5)
-    {
+  {
     rscale = 0.5;
-    }
+  }
   if (sscale > 0.1)
-    {
+  {
     sscale = 0.1;
-    }
+  }
 
   optimizer->Initialize();
 
@@ -1027,57 +1027,57 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
   optimizer->SetParameterValue(pcount, ty);
   optimizer->SetParameterScale(pcount++, tscale);
   if (transformDim > 2)
-    {
+  {
     optimizer->SetParameterValue(pcount, tz);
     optimizer->SetParameterScale(pcount++, tscale);
-    }
+  }
 
   // rotation parameters
   if (this->TransformType > vtkImageRegistration::Translation)
-    {
+  {
     if (transformDim > 2)
-      {
+    {
       optimizer->SetParameterValue(pcount, 0);
       optimizer->SetParameterScale(pcount++, rscale);
       optimizer->SetParameterValue(pcount, 0);
       optimizer->SetParameterScale(pcount++, rscale);
-      }
+    }
     optimizer->SetParameterValue(pcount, 0);
     optimizer->SetParameterScale(pcount++, rscale);
-    }
+  }
 
   if (this->TransformType > vtkImageRegistration::Rigid)
-    {
+  {
     // single scale parameter
     optimizer->SetParameterValue(pcount, 0);
     optimizer->SetParameterScale(pcount++, sscale);
-    }
+  }
 
   if (this->TransformType > vtkImageRegistration::Similarity)
-    {
+  {
     // extra scale parameters, weighed at 25%
     optimizer->SetParameterValue(pcount, 0);
     optimizer->SetParameterScale(pcount++, sscale*0.25);
     if (transformDim > 2)
-      {
+    {
       optimizer->SetParameterValue(pcount, 0);
       optimizer->SetParameterScale(pcount++, sscale*0.25);
-      }
     }
+  }
 
   if (this->TransformType == vtkImageRegistration::Affine)
-    {
+  {
     // extra rotation parameters, scaled at 25%
     if (transformDim > 2)
-      {
+    {
       optimizer->SetParameterValue(pcount, 0);
       optimizer->SetParameterScale(pcount++, rscale*0.25);
       optimizer->SetParameterValue(pcount, 0);
       optimizer->SetParameterScale(pcount++, rscale*0.25);
-      }
+    }
     optimizer->SetParameterValue(pcount, 0);
     optimizer->SetParameterScale(pcount++, rscale*0.25);
-    }
+  }
 
   // build the initial transform from the parameters
   vtkSetTransformParameters(this->RegistrationInfo);
@@ -1105,36 +1105,36 @@ int vtkImageRegistration::ExecuteRegistration()
   vtkFunctionMinimizer *optimizer = this->Optimizer;
 
   if (optimizer)
-    {
+  {
     int n = this->MaximumNumberOfIterations;
     if (n <= 0)
-      {
+    {
       n = VTK_INT_MAX;
-      }
+    }
     for (int i = 0; i < n && !converged; i++)
-      {
+    {
       this->UpdateProgress(i*1.0/n);
       if (this->AbortExecute)
-        {
+      {
         break;
-        }
+      }
       converged = !optimizer->Iterate();
       vtkSetTransformParameters(this->RegistrationInfo);
       this->MetricValue = optimizer->GetFunctionValue();
 
       if (this->RegistrationInfo->NumberOfEvaluations >=
           this->MaximumNumberOfEvaluations)
-        {
+      {
         converged = 0;
         break;
-        }
-      }
-
-    if (converged && !this->AbortExecute)
-      {
-      this->UpdateProgress(1.0);
       }
     }
+
+    if (converged && !this->AbortExecute)
+    {
+      this->UpdateProgress(1.0);
+    }
+  }
 
   this->ExecuteTime.Modified();
   this->InvokeEvent(vtkCommand::EndEvent,NULL);
@@ -1148,18 +1148,18 @@ int vtkImageRegistration::Iterate()
   vtkFunctionMinimizer *optimizer = this->Optimizer;
 
   if (optimizer)
-    {
+  {
     int result = optimizer->Iterate();
     if (optimizer->GetIterations() >= this->MaximumNumberOfIterations ||
         this->RegistrationInfo->NumberOfEvaluations >=
           this->MaximumNumberOfEvaluations)
-      {
+    {
       result = 0;
-      }
+    }
     vtkSetTransformParameters(this->RegistrationInfo);
     this->MetricValue = optimizer->GetFunctionValue();
     return result;
-    }
+  }
 
   return 0;
 }
@@ -1176,16 +1176,16 @@ int vtkImageRegistration::FillInputPortInformation(int port,
                                                    vtkInformation* info)
 {
   if (port == 2)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     // the stencil input is optional
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
   else
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
     info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
-    }
+  }
 
   return 1;
 }
@@ -1226,10 +1226,10 @@ int vtkImageRegistration::RequestUpdateExtent(
 
   // stencil for target image
   if (this->GetNumberOfInputConnections(2) > 0)
-    {
+  {
     vtkInformation *inInfo2 = inputVector[2]->GetInformationObject(0);
     inInfo2->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
-    }
+  }
 
   return 1;
 }
@@ -1249,26 +1249,26 @@ int vtkImageRegistration::ProcessRequest(vtkInformation* request,
 {
   // generate the data oject
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-    {
+  {
     return 1;
-    }
+  }
   // generate the data
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
-    {
+  {
     return this->RequestData(request, inputVector, outputVector);
-    }
+  }
 
   // execute information
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
-    {
+  {
     return this->RequestInformation(request, inputVector, outputVector);
-    }
+  }
 
   // propagate update extent
   if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
-    {
+  {
     return this->RequestUpdateExtent(request, inputVector, outputVector);
-    }
+  }
 
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }

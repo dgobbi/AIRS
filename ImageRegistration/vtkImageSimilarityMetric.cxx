@@ -73,9 +73,9 @@ void vtkImageSimilarityMetric::SetStencilData(vtkImageStencilData *stencil)
 vtkImageStencilData *vtkImageSimilarityMetric::GetStencil()
 {
   if (this->GetNumberOfInputConnections(2) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(2, 0));
 }
@@ -84,30 +84,30 @@ vtkImageStencilData *vtkImageSimilarityMetric::GetStencil()
 void vtkImageSimilarityMetric::SetInputRange(int i, const double r[2])
 {
   if (i >= 0 && i < 2)
-    {
+  {
     if (r[0] != this->InputRange[i][0] ||
         r[1] != this->InputRange[i][1])
-      {
+    {
       this->InputRange[i][0] = r[0];
       this->InputRange[i][1] = r[1];
       this->Modified();
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkImageSimilarityMetric::GetInputRange(int i, double r[2])
 {
   if (i >= 0 && i < 2)
-    {
+  {
     r[0] = this->InputRange[i][0];
     r[1] = this->InputRange[i][1];
-    }
+  }
   else
-    {
+  {
     r[0] = 0.0;
     r[1] = 0.0;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -115,14 +115,14 @@ int vtkImageSimilarityMetric::FillInputPortInformation(
   int port, vtkInformation *info)
 {
   if (port == 0 || port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
+  }
   else if (port == 2)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
 
   return 1;
 }
@@ -145,11 +145,11 @@ int vtkImageSimilarityMetric::RequestUpdateExtent(
 
   // need to set the stencil update extent to the input extent
   if (this->GetNumberOfInputConnections(2) > 0)
-    {
+  {
     vtkInformation *stencilInfo = inputVector[2]->GetInformationObject(0);
     stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                      inExt0, 6);
-    }
+  }
 
   return 1;
 }
@@ -187,11 +187,11 @@ vtkImageSimilarityMetricThreadStruct::ThreadExecute(void *arg)
       splitExt[1] >= splitExt[0] &&
       splitExt[3] >= splitExt[2] &&
       splitExt[5] >= splitExt[4])
-    {
+  {
     ts->Algorithm->PieceRequestData(
       ts->Request, ts->InputsInfo, ts->OutputsInfo,
       splitExt, ti->ThreadID);
-    }
+  }
 
   return VTK_THREAD_RETURN_VALUE;
 }
@@ -223,7 +223,7 @@ void vtkImageSimilarityMetricFunctor::operator()(
   vtkImageSimilarityMetricThreadStruct *ts = this->PipelineInfo;
 
   for (vtkIdType piece = begin; piece < end; piece++)
-    {
+  {
     int splitExt[6] = { 0, -1, 0, -1, 0, -1 };
 
     vtkIdType total = ts->Algorithm->SplitExtent(
@@ -234,11 +234,11 @@ void vtkImageSimilarityMetricFunctor::operator()(
         splitExt[0] <= splitExt[1] &&
         splitExt[2] <= splitExt[3] &&
         splitExt[4] <= splitExt[5])
-      {
+    {
       ts->Algorithm->PieceRequestData(
         ts->Request, ts->InputsInfo, ts->OutputsInfo, splitExt, piece);
-      }
     }
+  }
 }
 
 // Called by vtkSMPTools once the multi-threading has finished.
@@ -277,14 +277,14 @@ int vtkImageSimilarityMetric::RequestData(
   // allocate the output data
   int numberOfOutputs = this->GetNumberOfOutputPorts();
   if (numberOfOutputs > 0)
-    {
+  {
     for (int i = 0; i < numberOfOutputs; ++i)
-      {
+    {
       vtkInformation* info = outputVector->GetInformationObject(i);
       vtkImageData *outData = vtkImageData::SafeDownCast(
         info->Get(vtkDataObject::DATA_OBJECT()));
       if (outData)
-        {
+      {
         int updateExtent[6];
         info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                   updateExtent);
@@ -293,14 +293,14 @@ int vtkImageSimilarityMetric::RequestData(
 #else
         this->AllocateOutputData(outData, updateExtent);
 #endif
-        }
+      }
       // copy arrays from first input to output
       if (i == 0)
-        {
+      {
         this->CopyAttributeData(inData0, outData, inputVector);
-        }
       }
     }
+  }
 
   // Get the intersection of the input extents
   int inExt1[6];
@@ -308,20 +308,20 @@ int vtkImageSimilarityMetric::RequestData(
   inData1->GetExtent(inExt1);
 
   for (int i = 0; i < 6; i += 2)
-    {
+  {
     int j = i + 1;
     ts.Extent[i] = ((ts.Extent[i] > inExt1[i]) ? ts.Extent[i] : inExt1[i]);
     ts.Extent[j] = ((ts.Extent[j] < inExt1[j]) ? ts.Extent[j] : inExt1[j]);
     if (ts.Extent[i] > ts.Extent[j])
-      {
+    {
       // no overlap, nothing to do!
       return 1;
-      }
     }
+  }
 
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
   if (this->EnableSMP)
-    {
+  {
     // code for vtkSMPTools
 
     // do a dummy execution of SplitExtent to compute the number of pieces
@@ -335,10 +335,10 @@ int vtkImageSimilarityMetric::RequestData(
     this->Debug = false;
     vtkSMPTools::For(0, pieces, functor);
     this->Debug = debug;
-    }
+  }
   else
 #endif
-    {
+  {
     // code for vtkMultiThreader
     this->Threader->SetNumberOfThreads(this->NumberOfThreads);
     this->Threader->SetSingleMethod(
@@ -351,7 +351,7 @@ int vtkImageSimilarityMetric::RequestData(
     this->Debug = debug;
 
     this->ReduceRequestData(request, inputVector, outputVector);
-    }
+  }
 
   return 1;
 }

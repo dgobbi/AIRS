@@ -6,7 +6,7 @@
   Date:      $Date: 2007/08/24 20:02:25 $
   Version:   $Revision: 1.8 $
 
-Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen 
+Copyright (c) 1993-2000 Ken Martin, Will Schroeder, Bill Lorensen
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -55,9 +55,9 @@ vtkImageAmoebaGrid* vtkImageAmoebaGrid::New()
   // First try to create the object from the vtkObjectFactory
   vtkObject* ret = vtkObjectFactory::CreateInstance("vtkImageAmoebaGrid");
   if(ret)
-    {
+  {
     return (vtkImageAmoebaGrid*)ret;
-    }
+  }
   // If the factory was unable to create the object, then create it here.
   return new vtkImageAmoebaGrid;
 }
@@ -74,7 +74,7 @@ vtkImageAmoebaGrid::vtkImageAmoebaGrid()
   this->ShrinkFactors[0] = 1.0f;
   this->ShrinkFactors[1] = 1.0f;
   this->ShrinkFactors[2] = 1.0f;
-  
+
   this->KernelRadius[0] = 1;
   this->KernelRadius[1] = 1;
   this->KernelRadius[2] = 1;
@@ -85,7 +85,7 @@ vtkImageAmoebaGrid::vtkImageAmoebaGrid()
   this->VectorLength = NULL;
   this->VectorsMinimized = NULL;
   this->TotalCost = NULL;
-  
+
   this->Tolerance = 0.005;
 
 #if (VTK_MAJOR_VERSION >= 5)
@@ -98,19 +98,19 @@ vtkImageAmoebaGrid::vtkImageAmoebaGrid()
 vtkImageAmoebaGrid::~vtkImageAmoebaGrid()
 {
   if (this->VectorLength)
-    {
+  {
     delete [] this->VectorLength;
-    }
+  }
 
   if (this->VectorsMinimized)
-    {
+  {
     delete [] this->VectorsMinimized;
-    }
+  }
 
   if (this->TotalCost)
-    {
+  {
     delete [] this->TotalCost;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -119,16 +119,16 @@ int vtkImageAmoebaGrid::FillInputPortInformation(int port,
                                                  vtkInformation *info)
 {
   if (port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     // the stencil input is optional
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
   else
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
     info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
-    }
+  }
   return 1;
 }
 #endif
@@ -137,7 +137,7 @@ int vtkImageAmoebaGrid::FillInputPortInformation(int port,
 void vtkImageAmoebaGrid::SetStencil(vtkImageStencilData *stencil)
 {
 #if (VTK_MAJOR_VERSION >= 5)
-  this->SetNthInputConnection(1, 0, 
+  this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
 #else
   this->vtkProcessObject::SetNthInput(3, stencil);
@@ -148,21 +148,21 @@ void vtkImageAmoebaGrid::SetStencil(vtkImageStencilData *stencil)
 vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
 {
 #if (VTK_MAJOR_VERSION >= 5)
-  if (this->GetNumberOfInputConnections(1) < 1) 
-    { 
+  if (this->GetNumberOfInputConnections(1) < 1)
+  {
     return NULL;
-    }
+  }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
 #else
   if (this->NumberOfInputs < 4)
-    {
+  {
     return NULL;
-    }
+  }
   else
-    {
+  {
     return (vtkImageStencilData *)(this->Inputs[3]);
-    }    
+  }
 #endif
 }
 
@@ -185,7 +185,7 @@ vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
 #define VTK_FP_4 (4<<VTK_FP_RADIX)
 
 // a very nifty hack I discovered at http://www.stereopsis.com/FPU.html,
-// it adds (2**(52-radix))*1.5 to a number to get just the right roundoff 
+// it adds (2**(52-radix))*1.5 to a number to get just the right roundoff
 // from double to fixed-point
 static inline int vtkCastFloatToFixed(double x)
 {
@@ -227,7 +227,7 @@ static inline int vtkResliceRound(int x)
 }
 
 //----------------------------------------------------------------------------
-// convert a fixed-point into an integer plus a fraction  
+// convert a fixed-point into an integer plus a fraction
 static inline int vtkResliceFloor(int x, int &f)
 {
   int ix = x>>VTK_FP_RADIX;
@@ -251,7 +251,7 @@ static inline int vtkResliceMultiply(int x, int y)
   int hy = y>>VTK_FP_RADIX;
   int lx = x - (hx<<VTK_FP_RADIX);
   int ly = y - (hy<<VTK_FP_RADIX);
-  
+
   return ((lx*ly + VTK_FP_HALF)>>VTK_FP_RADIX) + hx*ly + x*hy;
 }
 
@@ -386,7 +386,7 @@ static inline int vtkResliceRound(float x)
 }
 
 //----------------------------------------------------------------------------
-// convert a float into an integer plus a fraction  
+// convert a float into an integer plus a fraction
 static inline int vtkResliceFloor(float x, float &f)
 {
   int ix = vtkResliceFloor(x);
@@ -492,40 +492,40 @@ void vtkImageAmoebaGrid::ComputeInputUpdateExtents(vtkDataObject *output)
 
   vtkImageStencilData *stencil = this->GetStencil();
   if (stencil)
-    {
+  {
     stencil->SetUpdateExtent(output->GetUpdateExtent());
-    }
-  
+  }
+
   if (this->LastThreadCount != this->GetNumberOfThreads())
-    {
+  {
     this->LastThreadCount = this->GetNumberOfThreads();
     if (this->VectorLength)
-      {
+    {
       delete [] this->VectorLength;
-      }
+    }
     this->VectorLength = new double[this->LastThreadCount];
 
     if (this->VectorsMinimized)
-      {
+    {
       delete [] this->VectorsMinimized;
-      }
+    }
     this->VectorsMinimized = new int[this->LastThreadCount];
 
     if (this->TotalCost)
-      {
+    {
       delete [] this->TotalCost;
-      }
+    }
     this->TotalCost = new double[this->LastThreadCount];
 
-    // these arrays should be initialized otherwise will cause problem 
+    // these arrays should be initialized otherwise will cause problem
     // during summing. add by kwang 05/20/2004
     for (int i=0; i<this->LastThreadCount; i++)
-      {
+    {
         this->VectorLength[i] = 0.0f;
         this->VectorsMinimized[i] = 0;
         this->TotalCost[i] = 0.0f;
-      }
-    }  
+    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -534,18 +534,18 @@ float vtkImageAmoebaGrid::GetMeanVectorLength()
 {
   double totalLength = 0;
   for (int x=0; x<this->LastThreadCount; x++)
-    {
+  {
     totalLength += this->VectorLength[x];
-    }
+  }
   int totalVectors = this->GetVectorsMinimized();
   if (totalVectors)
-    {
+  {
     return totalLength / totalVectors;
-    }
+  }
   else
-    {
+  {
     return 0.0f;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -554,18 +554,18 @@ float vtkImageAmoebaGrid::GetMeanCost()
 {
   double totalCost = 0.0f;
   for (int x=0; x<this->LastThreadCount; x++)
-    {
+  {
     totalCost += this->TotalCost[x];
-    }
+  }
   int totalVectors = this->GetVectorsMinimized();
   if (totalVectors)
-    {
+  {
     return totalCost / totalVectors;
-    }
+  }
   else
-    {
+  {
     return 0.0f;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -575,9 +575,9 @@ int vtkImageAmoebaGrid::GetVectorsMinimized()
 {
   int minimized = 0;
   for (int x=0; x<this->LastThreadCount; x++)
-    {
+  {
     minimized += this->VectorsMinimized[x];
-    }
+  }
   return minimized;
 }
 
@@ -586,20 +586,20 @@ int vtkImageAmoebaGrid::GetVectorsMinimized()
 // Computes a different region for the images than for the input grid since
 // they could have different extents. We grab all of the input images. This
 // could be made smarter, but for now we always want it all anyway.
-void vtkImageAmoebaGrid::ComputeInputUpdateExtent(int inExt[6], 
+void vtkImageAmoebaGrid::ComputeInputUpdateExtent(int inExt[6],
 						  int outExt[6],
 						  int whichInput)
 {
   int *wholeInExt = this->GetInput(whichInput)->GetWholeExtent();
 
   if (whichInput>2)//The input grid or the Stencil
-    {
+  {
     memcpy(inExt, outExt, sizeof(int)*6);
-    }
+  }
   else // one of the two images
-    {
+  {
     memcpy(inExt,wholeInExt, sizeof(int)*6);
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -608,13 +608,13 @@ void vtkImageAmoebaGrid::ComputeInputUpdateExtent(int inExt[6],
 // inDatas[1] = Model
 // inDatas[2] = Input Grid
 // Force 3 component floats for the output grid
-void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas, 
+void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas,
 					    vtkImageData *outData)
 {
   int wholeDataExt[6];
   int wholeGridExt[6];
   vtkFloatingPointType inDataSpacing[3];
-  
+
   inDatas[0]->UpdateInformation();
   inDatas[1]->UpdateInformation();
   inDatas[2]->UpdateInformation();
@@ -643,10 +643,10 @@ void vtkImageAmoebaGrid::ExecuteInformation(vtkImageData **inDatas,
   // need to set the spacing and origin of the stencil to match the output
   vtkImageStencilData *stencil = this->GetStencil();
   if (stencil)
-    {
+  {
     stencil->SetSpacing(inDataSpacing);
     stencil->SetOrigin(inDatas[0]->GetOrigin());
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -713,9 +713,9 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   if ((gridId0X | (extX - (gridId1X+kernelDiameter-1)) |
        gridId0Y | (extY - (gridId1Y+kernelDiameter-1)) |
        gridId0Z | (extZ - (gridId1Z+kernelDiameter-1))) < 0)
-    {
+  {
     return 0;
-    }
+  }
   // do trilinear interpolation
   vtkIdType factX0 = gridId0X*modelIncs[0];
   vtkIdType factY0 = gridId0Y*modelIncs[1];
@@ -724,7 +724,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   vtkIdType factX1 = gridId1X*modelIncs[0];
   vtkIdType factY1 = gridId1Y*modelIncs[1];
   vtkIdType factZ1 = gridId1Z*modelIncs[2];
-    
+
   T *p000 = modelPtr+factX0+factY0+factZ0;
   T *p001 = modelPtr+factX0+factY0+factZ1;
   T *p010 = modelPtr+factX0+factY1+factZ0;
@@ -737,7 +737,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   float rx = 1.0 - fx;
   float ry = 1.0 - fy;
   float rz = 1.0 - fz;
-  
+
   float ryrz = ry*rz;
   float ryfz = ry*fz;
   float fyrz = fy*rz;
@@ -757,39 +757,39 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
   long int modData;
 
   // the array holding all the interpolated values
-  unsigned char *modelPoints = pb->modelPoints; 
+  unsigned char *modelPoints = pb->modelPoints;
   double value1, value2;
   pb->sqrt_mod_sum_squared = 0.0;
   do
-    {
+  {
     do
-      {
+    {
       do
-	{
-	modData = (irxryrz* *p000++ + irxryfz* *p001++ + 
+      {
+	modData = (irxryrz* *p000++ + irxryfz* *p001++ +
 		   irxfyrz* *p010++ + irxfyfz* *p011++ +
-		   ifxryrz* *p100++ + ifxryfz* *p101++ + 
+		   ifxryrz* *p100++ + ifxryfz* *p101++ +
 		   ifxfyrz* *p110++ + ifxfyfz* *p111++);
 	*modelPoints = modData >>=9; // divide by 512
 	//pb->sqrt_mod_sum_squared += *modelPoints * *modelPoints++;
 	value1 = (double)*modelPoints;
 	value2 = (double)*modelPoints++;
 	pb->sqrt_mod_sum_squared += value1*value2;
-	}
+      }
       while (--idxX);
-      p000 += modContIncY; p001 += modContIncY; 
+      p000 += modContIncY; p001 += modContIncY;
       p010 += modContIncY; p011 += modContIncY;
-      p100 += modContIncY; p101 += modContIncY; 
+      p100 += modContIncY; p101 += modContIncY;
       p110 += modContIncY; p111 += modContIncY;
       idxX = kernelDiameter;
-      }
+    }
     while (--idxY);
-    p000 += modContIncZ; p001 += modContIncZ; 
+    p000 += modContIncZ; p001 += modContIncZ;
     p010 += modContIncZ; p011 += modContIncZ;
-    p100 += modContIncZ; p101 += modContIncZ; 
+    p100 += modContIncZ; p101 += modContIncZ;
     p110 += modContIncZ; p111 += modContIncZ;
     idxY = kernelDiameter;
-    }
+  }
   while (--idxZ);
   pb->sqrt_mod_sum_squared = sqrt(pb->sqrt_mod_sum_squared);
   return 1;
@@ -797,7 +797,7 @@ static inline int GetModelBlock(T *modelPtr, _vtkAmoebaParms *pb)
 
 //----------------------------------------------------------------------------
 template <class T>
-static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs, 
+static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
 			       int *dataWholeExt, float *xyz)
 {
   // change point into integer plus fraction
@@ -822,47 +822,47 @@ static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
   if ((gridId0X | (extX - gridId1X) |
        gridId0Y | (extY - gridId1Y) |
        gridId0Z | (extZ - gridId1Z)) < 0)
-    {
+  {
     if (gridId0X < 0)
-      {
+    {
       gridId0X = 0;
       gridId1X = 0;
       fx = 0;
-      }
+    }
     else if (gridId1X > extX)
-      {
+    {
       gridId0X = extX;
       gridId1X = extX;
       fx = 0;
-      }
-    
+    }
+
     if (gridId0Y < 0)
-      {
+    {
       gridId0Y = 0;
       gridId1Y = 0;
       fy = 0;
-      }
+    }
     else if (gridId1Y > extY)
-      {
+    {
       gridId0Y = extY;
       gridId1Y = extY;
       fy = 0;
-      }
-    
+    }
+
     if (gridId0Z < 0)
-      {
+    {
       gridId0Z = 0;
       gridId1Z = 0;
       fz = 0;
-      }
+    }
     else if (gridId1Z > extZ)
-      {
+    {
       gridId0Z = extZ;
       gridId1Z = extZ;
       fz = 0;
-      }
     }
-  
+  }
+
   // do trilinear interpolation
   vtkIdType factX0 = gridId0X*dataIncs[0];
   vtkIdType factY0 = gridId0Y*dataIncs[1];
@@ -871,7 +871,7 @@ static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
   vtkIdType factX1 = gridId1X*dataIncs[0];
   vtkIdType factY1 = gridId1Y*dataIncs[1];
   vtkIdType factZ1 = gridId1Z*dataIncs[2];
-    
+
   T *p000 = dataPtr+factX0+factY0+factZ0;
   T *p001 = dataPtr+factX0+factY0+factZ1;
   T *p010 = dataPtr+factX0+factY1+factZ0;
@@ -884,7 +884,7 @@ static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
   float rx = 1.0 - fx;
   float ry = 1.0 - fy;
   float rz = 1.0 - fz;
-  
+
   float ryrz = ry*rz;
   float ryfz = ry*fz;
   float fyrz = fy*rz;
@@ -898,15 +898,15 @@ static inline T GetDataAtPoint(T *dataPtr, vtkIdType *dataIncs,
   float fxryfz = fx*ryfz;
   float fxfyrz = fx*fyrz;
   float fxfyfz = fx*fyfz;
-  
+
   return (T)(rxryrz* *p000 + rxryfz* *p001 + rxfyrz* *p010 + rxfyfz* *p011 +
 	     fxryrz* *p100 + fxryfz* *p101 + fxfyrz* *p110 + fxfyfz* *p111);
 }
 
 //----------------------------------------------------------------------------
-inline static void ComputeHint(int x, int y, int z, 
+inline static void ComputeHint(int x, int y, int z,
                                float *gridPtr, vtkIdType *gridIncs,
-                               int *gridWholeExt, 
+                               int *gridWholeExt,
                                float *inInvSpacing, float *hint)
 {
   int extX = gridWholeExt[1]-gridWholeExt[0];
@@ -916,7 +916,7 @@ inline static void ComputeHint(int x, int y, int z,
   int id0X = (x-1) - gridWholeExt[0];
   int id0Y = (y-1) - gridWholeExt[2];
   int id0Z = (z-1) - gridWholeExt[4];
-  
+
   int id1X = id0X + 2;
   int id1Y = id0Y + 2;
   int id1Z = id0Z + 2;
@@ -924,12 +924,12 @@ inline static void ComputeHint(int x, int y, int z,
   if ((id0X | (extX - id1X) |
        id0Y | (extY - id1Y) |
        id0Z | (extZ - id1Z)) < 0)
-    {
+  {
     hint[0] = hint[1] = hint[2] = 0.0;
     return;
-    }
+  }
   // do tricubic interpolation
-  // this may well be overkill for the computation of the 
+  // this may well be overkill for the computation of the
   // 'hint vector' but the results were markedly better,
   // and the cost is minimal.
   vtkIdType factX0 = id0X*gridIncs[0];
@@ -943,7 +943,7 @@ inline static void ComputeHint(int x, int y, int z,
   vtkIdType factX1 = id1X*gridIncs[0];
   vtkIdType factY1 = id1Y*gridIncs[1];
   vtkIdType factZ1 = id1Z*gridIncs[2];
-    
+
   float *p00 = gridPtr+factX0+factY0+factZ0;
   float *p01 = gridPtr+factX0+factY0+factZ;
   float *p02 = gridPtr+factX0+factY0+factZ1;
@@ -975,23 +975,23 @@ inline static void ComputeHint(int x, int y, int z,
 
   float *middle = gridPtr+factX+factY+factZ;
 
-  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ + 
-			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ + 
-			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ + 
-			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ + 
-			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ + 
+  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ +
+			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ +
+			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ +
+			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ +
+			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ +
 			*p25++) - *middle++) * inInvSpacing[0];
-  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ + 
-			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ + 
-			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ + 
-			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ + 
-			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ + 
+  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ +
+			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ +
+			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ +
+			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ +
+			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ +
 			*p25++) - *middle++) * inInvSpacing[1];
-  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ + 
-			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ + 
-			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ + 
-			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ + 
-			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ + 
+  *hint++ = (0.03846 * (*p00++ + *p01++ + *p02++ + *p03++ + *p04++ +
+			*p05++ + *p06++ + *p07++ + *p08++ + *p09++ +
+			*p10++ + *p11++ + *p12++ + *p13++ + *p14++ +
+			*p15++ + *p16++ + *p17++ + *p18++ + *p19++ +
+			*p20++ + *p21++ + *p22++ + *p23++ + *p24++ +
 			*p25++) - *middle++) * inInvSpacing[2];
 }
 
@@ -1012,9 +1012,9 @@ inline static void CorrelationWorkFunction(T *patientPtr,
   int idxX, idxY, idxZ;
 
   idxX = idxY = idxZ = kernelDiameter;
-  
 
-  // we compute the interpolation coefficients and needed datapoints for the 
+
+  // we compute the interpolation coefficients and needed datapoints for the
   // first point, and then just shift them around by integer values for the
   // other points in the local extent.
   // change point into integer plus fraction
@@ -1035,10 +1035,10 @@ inline static void CorrelationWorkFunction(T *patientPtr,
   if ((id0X | (patext[0] - (id1X+kernelDiameter-1)) |
        id0Y | (patext[1] - (id1Y+kernelDiameter-1)) |
        id0Z | (patext[2] - (id1Z+kernelDiameter-1))) < 0)
-    {
+  {
     correlation = 0.0f;
     return;
-    }
+  }
 
   // do trilinear interpolation
   vtkIdType factY0 = id0Y*patIncs[1];
@@ -1046,7 +1046,7 @@ inline static void CorrelationWorkFunction(T *patientPtr,
 
   vtkIdType factY1 = id1Y*patIncs[1];
   vtkIdType factZ1 = id1Z*patIncs[2];
-    
+
   T *p000 = patientPtr+id0X+factY0+factZ0;
   T *p001 = patientPtr+id0X+factY0+factZ1;
   T *p010 = patientPtr+id0X+factY1+factZ0;
@@ -1059,7 +1059,7 @@ inline static void CorrelationWorkFunction(T *patientPtr,
   F rx = vtkResliceOneMinusX(fx);
   F ry = vtkResliceOneMinusX(fy);
   F rz = vtkResliceOneMinusX(fz);
-  
+
   F ryrz = vtkResliceQuikMul(ry*rz);
   F ryfz = vtkResliceQuikMul(ry*fz);
   F fyrz = vtkResliceQuikMul(fy*rz);
@@ -1080,16 +1080,16 @@ inline static void CorrelationWorkFunction(T *patientPtr,
   unsigned short patData;
 
   if (kernelDiameter == 4)  // unroll the loop for a little kernel
-    {
+  {
     patContIncY = patIncs[1];
     T *p200 = p000 + 2; T *p201 = p001 + 2; T *p210 = p010 + 2; T *p211 = p011 + 2;
     T *p300 = p000 + 3; T *p301 = p001 + 3; T *p310 = p010 + 3; T *p311 = p011 + 3;
     T *p400 = p000 + 4; T *p401 = p001 + 4; T *p410 = p010 + 4; T *p411 = p011 + 4;
 
     do
-      {
+    {
       do
-	{
+      {
 	vtkResliceRound(rxryrz* *p000 + rxryfz* *p001 + rxfyrz* *p010 + rxfyfz* *p011 +
   			fxryrz* *p100 + fxryfz* *p101 + fxfyrz* *p110 + fxfyfz* *p111,
   			patData);
@@ -1116,7 +1116,7 @@ inline static void CorrelationWorkFunction(T *patientPtr,
 	p200 += patContIncY; p201 += patContIncY; p210 += patContIncY; p211 += patContIncY;
 	p300 += patContIncY; p301 += patContIncY; p310 += patContIncY; p311 += patContIncY;
 	p400 += patContIncY; p401 += patContIncY; p410 += patContIncY; p411 += patContIncY;
-	}
+      }
       while (--idxY);
       p000 += patContIncZ; p001 += patContIncZ; p010 += patContIncZ; p011 += patContIncZ;
       p100 += patContIncZ; p101 += patContIncZ; p110 += patContIncZ; p111 += patContIncZ;
@@ -1124,56 +1124,56 @@ inline static void CorrelationWorkFunction(T *patientPtr,
       p300 += patContIncZ; p301 += patContIncZ; p310 += patContIncZ; p311 += patContIncZ;
       p400 += patContIncZ; p401 += patContIncZ; p410 += patContIncZ; p411 += patContIncZ;
       idxY = kernelDiameter;
-      }
-    while (--idxZ);
     }
+    while (--idxZ);
+  }
 
   else // no point unrolling for the other kernels
-    {
+  {
     do
-      {
+    {
       do
-	{
+      {
 	do
-	  {
-	  vtkResliceRound(rxryrz* *p000++ + rxryfz* *p001++ + 
+ {
+	  vtkResliceRound(rxryrz* *p000++ + rxryfz* *p001++ +
 			  rxfyrz* *p010++ + rxfyfz* *p011++ +
-			  fxryrz* *p100++ + fxryfz* *p101++ + 
+			  fxryrz* *p100++ + fxryfz* *p101++ +
 			  fxfyrz* *p110++ + fxfyfz* *p111++,
 			  patData);
 	  topSum += (unsigned long int) (patData * *modelPoints++);
 	  aSum += (unsigned long int)(patData * patData);
-	  }
+ }
 	while (--idxX);
-	p000 += patContIncY; p001 += patContIncY; 
+	p000 += patContIncY; p001 += patContIncY;
 	p010 += patContIncY; p011 += patContIncY;
-	p100 += patContIncY; p101 += patContIncY; 
+	p100 += patContIncY; p101 += patContIncY;
 	p110 += patContIncY; p111 += patContIncY;
 	idxX = kernelDiameter;
-	}
+      }
       while (--idxY);
-      p000 += patContIncZ; p001 += patContIncZ; 
+      p000 += patContIncZ; p001 += patContIncZ;
       p010 += patContIncZ; p011 += patContIncZ;
-      p100 += patContIncZ; p101 += patContIncZ; 
+      p100 += patContIncZ; p101 += patContIncZ;
       p110 += patContIncZ; p111 += patContIncZ;
       idxY = kernelDiameter;
-      }
+    }
     while (--idxZ);
-    }
+  }
   if (sqrt_mod_sum_squared < 0.001 && aSum < 0.00001)
-    {
+  {
     correlation = 1.0f;
-    }
+  }
   else
     if (sqrt_mod_sum_squared < 0.001 || aSum < 0.00001)
-      {
+    {
       correlation = 0.0f;
-      }   
+    }
     else
-      {
-      correlation = (float)topSum / (sqrt((float)aSum) * 
+    {
+      correlation = (float)topSum / (sqrt((float)aSum) *
 				     sqrt_mod_sum_squared);
-      }
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -1182,7 +1182,7 @@ inline static void CorrelationWorkFunction(T *patientPtr,
 static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 {
   _vtkAmoebaParms *pb = (_vtkAmoebaParms *) amoebaParmBlock;
-  
+
   float disp[3]; // the displacement vector as from amoeba plus the hint
   disp[0] = pb->disps[0] + pb->hint[0];
   disp[1] = pb->disps[1] + pb->hint[1];
@@ -1201,7 +1201,7 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
   float correlation;
 
   switch (pb->scalarType)
-    {
+  {
 #if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro9(CorrelationWorkFunction,
 		      (VTK_TT *)(pb->patPtr),
@@ -1210,7 +1210,7 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 		      pb->patext,
 		      pb->modelPoints,
 		      pb->kernelDiameter,
-		      modelDisp, 
+		      modelDisp,
 		      pb->sqrt_mod_sum_squared,
 		      correlation);
 #else
@@ -1221,29 +1221,29 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 			      pb->patext,
 			      pb->modelPoints,
 			      pb->kernelDiameter,
-			      modelDisp, 
+			      modelDisp,
 			      pb->sqrt_mod_sum_squared,
 			      correlation));
 #endif
     default:
       cout << "CorrelationForExtentAndDisplacement: Unknown ScalarType\n";
       return;
-    }
+  }
 
   float v2 = ((disp[0]*pb->spacing[0])*(disp[0]*pb->spacing[0])+
-	      (disp[1]*pb->spacing[1])*(disp[1]*pb->spacing[1])+ 
+	      (disp[1]*pb->spacing[1])*(disp[1]*pb->spacing[1])+
 	      (disp[2]*pb->spacing[2])*(disp[2]*pb->spacing[2]));
   float v = sqrt(v2);
   float cost;
   v = v*v2;
-  if (v < pb->maxLength) 
-    {
+  if (v < pb->maxLength)
+  {
     cost = 0.2 * v / (pb->maxLength - v);
-    }
+  }
   else
-    {
+  {
     cost = 1e+38;
-    }
+  }
   pb->Minimizer->SetScalarResult(cost + 1.0-correlation);
 }
 
@@ -1253,13 +1253,13 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 // inData[2] is the input grid     (inGrid)
 // inData[3] is the stencil, if any
 template <class T>
-static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self, 
+static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 				      vtkImageData *patData, T *patPtr,
 				      vtkImageData *modData, T *modPtr,
 				      vtkImageData *inGrid, float *inGridPtr,
-				      vtkImageData *outGrid, float *outPtr, 
+				      vtkImageData *outGrid, float *outPtr,
 				      int outExt[6], int &numMinimized,
-				      double &vectorLength, 
+				      double &vectorLength,
 				      double &totalCost, int id)
 {
   int idX, idY, idZ;
@@ -1277,7 +1277,7 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 
   vtkFloatingPointType inSpacing[3];
   float inInvSpacing[3];
-  
+
   float hint[3]; // the mean deformation of the surrounding grid points
 
   // get the clipping extents
@@ -1305,8 +1305,8 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
   amoebaParms.modelData = modData;
   self->GetKernelRadius(amoebaParms.kernelRadius);
   amoebaParms.kernelDiameter = (int)((amoebaParms.kernelRadius[0]+0.5)*2.0);
-  int numKernelPix = (amoebaParms.kernelDiameter * 
-		      amoebaParms.kernelDiameter * 
+  int numKernelPix = (amoebaParms.kernelDiameter *
+		      amoebaParms.kernelDiameter *
 		      amoebaParms.kernelDiameter);
   amoebaParms.modelPoints = new unsigned char[numKernelPix];
   patData->GetIncrements(amoebaParms.patIncs);
@@ -1327,14 +1327,14 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 
   // every displacement vector starts out with (0,0,0) which is the center
   // of the range passed in SetScalarVariableBracket.
-  amoebaParms.Minimizer->SetScalarVariableBracket("xdisp", 
-						  -VectorBounds[0]/2.0, 
+  amoebaParms.Minimizer->SetScalarVariableBracket("xdisp",
+						  -VectorBounds[0]/2.0,
 						  VectorBounds[0]/2.0);
   amoebaParms.Minimizer->SetScalarVariableBracket("ydisp",
-						  -VectorBounds[1]/2.0, 
+						  -VectorBounds[1]/2.0,
 						  VectorBounds[1]/2.0);
   amoebaParms.Minimizer->SetScalarVariableBracket("zdisp",
-						  -VectorBounds[2]/2.0, 
+						  -VectorBounds[2]/2.0,
 						  VectorBounds[2]/2.0);
   amoebaParms.disps = amoebaParms.Minimizer->GetScalarVarPtr();
   long int iterations = 0;
@@ -1342,59 +1342,59 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
   vectorLength = 0.0f;
   totalCost = 0.0f;
   T temp;
-  
+
   // Loop through output dataset
   for (idZ = outExt[4]; idZ <= outExt[5]; idZ++)
-    {
+  {
     amoebaParms.modelVector[2] = idZ*ShrinkFactors[2];
     fprintf(stderr,"%d,",id); // lets us know what thread does what
     for (idY = outExt[2]; !self->AbortExecute && idY <= outExt[3]; idY++)
-      {
+    {
       amoebaParms.modelVector[1] = idY*ShrinkFactors[1];
       iter = 0;
       cr1 = outExt[0];
       for (;;)
-	{
+      {
 	rval = 0;
 	r1 = outExt[1] + 1;
 	r2 = outExt[1];
 	if (stencil)
-	  {
+ {
 	  rval = stencil->GetNextExtent(r1, r2, outExt[0], outExt[1],
 					idY, idZ, iter);
-	  }
+ }
 	
 	cr2 = r1 - 1;
 	if (!self->GetReverseStencil())
-	  {
+ {
 	  // do unchanged portion
 	  for (idX = cr1; idX <= cr2; idX++)
-	    {
+   {
 	    *outPtr++ = 0.0;
 	    *outPtr++ = 0.0;
 	    *outPtr++ = 0.0;
-	    }
-	  }
+   }
+ }
 	else
-	  {
+ {
           // do stencil portion
           for (idX = cr1; idX <= cr2; idX++)
-	    {
+          {
 	    amoebaParms.modelVector[0] = idX*ShrinkFactors[0];
 	    // only compute a vector if we are at > 10% max intensity
-	    temp = GetDataAtPoint(modPtr, amoebaParms.modIncs, 
+	    temp = GetDataAtPoint(modPtr, amoebaParms.modIncs,
 				  modWholeInExt,  amoebaParms.modelVector);
 	    // since input data scaled (0-255) check for >10% of range
 	    // ModelBlock returns 0 if too near edge of volume
 	    if ((temp >=1) && (GetModelBlock(modPtr, &amoebaParms)))
-	      {  
+     {
 	      ComputeHint(idX,idY,idZ,inGridPtr,inGridIncs,
 			  gridWholeInExt, inInvSpacing, hint);
               amoebaParms.Minimizer->Minimize();
-	      
-	      // Since the minimization is done in data coordinates, 
+	
+	      // Since the minimization is done in data coordinates,
 	      // switch back to world coords which is what the grid is.
-	      
+	
 	      outPtr[0] = inSpacing[0]*(hint[0] + amoebaParms.disps[0]);
 	      outPtr[1] = inSpacing[1]*(hint[1] + amoebaParms.disps[1]);
 	      outPtr[2] = inSpacing[2]*(hint[2] + amoebaParms.disps[2]);
@@ -1407,59 +1407,59 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 
               iterations += amoebaParms.Minimizer->GetIterations();
               numMinimized++;
-	      
+	
 	      outPtr+=3;
-	      }
+     }
 	    else // target data < 10% of max, no additional displacement
-	      {
+     {
 	      *outPtr++ = 0.0;
 	      *outPtr++ = 0.0;
 	      *outPtr++ = 0.0;
-	      }
-	    }
-	  }
+     }
+          }
+ }
 	cr1 = r2 + 1; // for the next kick at the cat
 	
 	// break if no foreground extents left
 	if (rval == 0)
-	  {
+ {
 	  break;
-	  }
+ }
 	
 	if (self->GetReverseStencil())
-	  {
+ {
           // do unchanged portion
           for (idX = r1; idX <= r2; idX++)
-	    {
+          {
 	    *outPtr++ = 0.0;
 	    *outPtr++ = 0.0;
 	    *outPtr++ = 0.0;
-	    }
-	  }
+          }
+ }
 	else
-	  {
+ {
 	  // do stencil portion
 	  for (idX = r1; idX <= r2; idX++)
-	    {
+   {
 	    amoebaParms.modelVector[0] = idX*ShrinkFactors[0];
 	    // only compute a vector if we are at > 10% max intensity
-	    temp = GetDataAtPoint(modPtr, amoebaParms.modIncs, 
+	    temp = GetDataAtPoint(modPtr, amoebaParms.modIncs,
 				  modWholeInExt,  amoebaParms.modelVector);
 	    // since input data scaled (0-255) check for >10% of range
 	    // ModelBlock returns 0 if too near edge of volume
 	    if ((temp >=1) && (GetModelBlock(modPtr, &amoebaParms)))
-	      {
+     {
 	      ComputeHint(idX,idY,idZ,inGridPtr,inGridIncs,
 			  gridWholeInExt, inInvSpacing, hint);
 	      amoebaParms.Minimizer->Minimize();
-	      
-	      // Since the minimization is done in data coordinates, 
+	
+	      // Since the minimization is done in data coordinates,
 	      // switch back to world coords which is what the grid is.
-		  
+		
 	      outPtr[0] = inSpacing[0]*(hint[0] + amoebaParms.disps[0]);
 	      outPtr[1] = inSpacing[1]*(hint[1] + amoebaParms.disps[1]);
 	      outPtr[2] = inSpacing[2]*(hint[2] + amoebaParms.disps[2]);
-               
+
 	      vectorLength += sqrt((outPtr[0] * outPtr[0]) +
               			   (outPtr[1] * outPtr[1]) +
               			   (outPtr[2] * outPtr[2]));
@@ -1469,139 +1469,139 @@ static void vtkImageAmoebaGridExecute(vtkImageAmoebaGrid *self,
 
               iterations += amoebaParms.Minimizer->GetIterations();
               numMinimized++;
-		  
+		
 	      outPtr+=3;
-	      }
+     }
 	    else // target data < 10% of max, no additional displacement
-	      {
+     {
 	      *outPtr++ = 0.0;
 	      *outPtr++ = 0.0;
 	      *outPtr++ = 0.0;
-	      }
-	    }
-	  }
-        }
-      outPtr += outIncY;
+     }
+   }
+ }
       }
-    outPtr += outIncZ;
+      outPtr += outIncY;
     }
+    outPtr += outIncZ;
+  }
   amoebaParms.Minimizer->Delete();
   delete [] amoebaParms.modelPoints;
-  
+
   if (numMinimized)
-    {
+  {
     cout << "\nMinimized "<< numMinimized <<" using average "
 	 <<iterations/numMinimized<<" funks in thread "<<id<<".\n";
-    }
+  }
   else
-    {
+  {
     cout << "\nMinimized 0 in thread "<<id<<".\n";
-    }
-  
+  }
+
 }
 
 //----------------------------------------------------------------------------
 // This method is passed a input and output region, and executes the filter
 // algorithm to fill the output from the input.
-void vtkImageAmoebaGrid::ThreadedExecute(vtkImageData **inData, 
+void vtkImageAmoebaGrid::ThreadedExecute(vtkImageData **inData,
 					 vtkImageData *outData,
-					 int outExt[6], int id) 
+					 int outExt[6], int id)
 {
   void  *patPtr, *modPtr, *inGridPtr, *outPtr;
 
-  vtkDebugMacro(<< "Execute: inData = " << inData 
+  vtkDebugMacro(<< "Execute: inData = " << inData
                 << ", outData = " << outData);
-  
+
   if (inData[0] == NULL)
-    {
+  {
     vtkErrorMacro(<< "Input 0 must be specified (patient data).");
     return;
-    }
+  }
   patPtr = inData[0]->GetScalarPointer();
 
   if (inData[1] == NULL)
-    {
+  {
     vtkErrorMacro(<< "Input 1 must be specified (model data).");
     return;
-    }
+  }
   modPtr = inData[1]->GetScalarPointer();
 
   if (inData[2] == NULL)
-    {
+  {
     vtkErrorMacro(<< "Input 2 must be specified (input grid).");
     return;
-    }
+  }
   inGridPtr = inData[2]->GetScalarPointer();
 
   outPtr = outData->GetScalarPointerForExtent(outExt);
-  
+
   // this filter expects that the image inputs have the same number of components
-  if (inData[0]->GetNumberOfScalarComponents() != 
+  if (inData[0]->GetNumberOfScalarComponents() !=
       inData[1]->GetNumberOfScalarComponents())
-    {
+  {
     vtkErrorMacro(<< "Execute: input1 NumberOfScalarComponents, "
                   << inData[0]->GetNumberOfScalarComponents()
                   << ", must match out input2 NumberOfScalarComponents "
                   << inData[1]->GetNumberOfScalarComponents());
     return;
-    }
-  
+  }
+
   // This filter expects that input grid is the same type as output,
   // which is set to VTK_FLOAT.
   if (inData[2]->GetScalarType() != outData->GetScalarType())
-    {
+  {
     vtkErrorMacro("Execute: Grid Input ScalarType, " << inData[2]->GetScalarType()
-		  << ", must match Output ScalarType (VTK_FLOAT)" 
+		  << ", must match Output ScalarType (VTK_FLOAT)"
 		  << outData->GetScalarType());
     return;
-    }
-  
+  }
+
   switch (inData[0]->GetScalarType())
-    {
+  {
     case VTK_CHAR:
-      vtkImageAmoebaGridExecute(this, 
-				inData[0], (char *)patPtr, 
+      vtkImageAmoebaGridExecute(this,
+				inData[0], (char *)patPtr,
 				inData[1], (char *)modPtr,
-				inData[2], (float *)inGridPtr, 
-				outData,(float *)(outPtr), 
+				inData[2], (float *)inGridPtr,
+				outData,(float *)(outPtr),
 				outExt, this->VectorsMinimized[id],
-				this->VectorLength[id], 
+				this->VectorLength[id],
 				this->TotalCost[id], id);
       break;
     case VTK_UNSIGNED_CHAR:
-      vtkImageAmoebaGridExecute(this, 
-				inData[0], (unsigned char *)patPtr, 
+      vtkImageAmoebaGridExecute(this,
+				inData[0], (unsigned char *)patPtr,
 				inData[1], (unsigned char *)modPtr,
-				inData[2], (float *)inGridPtr, 
-				outData,(float *)(outPtr), 
+				inData[2], (float *)inGridPtr,
+				outData,(float *)(outPtr),
 				outExt, this->VectorsMinimized[id],
-				this->VectorLength[id], 
+				this->VectorLength[id],
 				this->TotalCost[id], id);
       break;
     case VTK_SHORT:
-      vtkImageAmoebaGridExecute(this, 
-				inData[0], (short *)patPtr, 
+      vtkImageAmoebaGridExecute(this,
+				inData[0], (short *)patPtr,
 				inData[1], (short *)modPtr,
-				inData[2], (float *)inGridPtr, 
-				outData,(float *)(outPtr), 
+				inData[2], (float *)inGridPtr,
+				outData,(float *)(outPtr),
 				outExt, this->VectorsMinimized[id],
-				this->VectorLength[id], 
+				this->VectorLength[id],
 				this->TotalCost[id], id);
       break;
     case VTK_UNSIGNED_SHORT:
-      vtkImageAmoebaGridExecute(this, 
-				inData[0], (unsigned short *)patPtr, 
+      vtkImageAmoebaGridExecute(this,
+				inData[0], (unsigned short *)patPtr,
 				inData[1], (unsigned short *)modPtr,
-				inData[2], (float *)inGridPtr, 
-				outData,(float *)(outPtr), 
+				inData[2], (float *)inGridPtr,
+				outData,(float *)(outPtr),
 				outExt, this->VectorsMinimized[id],
-				this->VectorLength[id], 
+				this->VectorLength[id],
 				this->TotalCost[id], id);
       break;
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
       return;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------

@@ -82,7 +82,7 @@ void ReadDICOMImage(
 
   bool singleFile = true;
   if (vtksys::SystemTools::FileIsDirectory(directoryName))
-    {
+  {
     // get all the DICOM files in the directory
     singleFile = false;
     std::string dirString = directoryName;
@@ -99,48 +99,48 @@ void ReadDICOMImage(
     sorter->Update();
 
     if (sorter->GetNumberOfSeries() == 0)
-      {
+    {
       fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
       exit(1);
-      }
+    }
     else if (sorter->GetNumberOfSeries() > 1)
-      {
+    {
       fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
               directoryName);
       exit(1);
-      }
-    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
     }
+    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+  }
   else
-    {
+  {
     // was given a single file instead of a directory
     reader->SetFileName(directoryName);
-    }
+  }
 
   // For NIfTI coordinate system, use BottomUp
   reader->SetMemoryRowOrderToFileNative();
 
   reader->UpdateInformation();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkStringArray *stackArray = reader->GetStackIDs();
   vtkIdType numStacks = stackArray->GetNumberOfValues();
   for (vtkIdType stackId = 0; stackId+1 < numStacks; stackId++)
-    {
+  {
     // Find the first stack that has more than one image
     if (reader->GetFileIndexArray()->GetNumberOfTuples() > 1)
-      {
+    {
       break;
-      }
+    }
     reader->SetDesiredStackID(stackArray->GetValue(stackId+1));
     reader->UpdateInformation();
-    }
+  }
 
   if (!singleFile)
-    {
+  {
     // when reading images, only read 1st component if the
     // image has multiple components or multiple time points
     vtkIntArray *fileArray = reader->GetFileIndexArray();
@@ -150,33 +150,33 @@ void ReadDICOMImage(
       vtkSmartPointer<vtkStringArray>::New();
     vtkIdType n = fileArray->GetNumberOfTuples();
     for (vtkIdType i = 0; i < n; i++)
-      {
+    {
       std::string newFileName =
         reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
       bool alreadyThere = false;
       vtkIdType m = fileNames->GetNumberOfTuples();
       for (vtkIdType j = 0; j < m; j++)
-        {
+      {
         if (newFileName == fileNames->GetValue(j))
-          {
+        {
           alreadyThere = true;
           break;
-          }
-        }
-      if (!alreadyThere)
-        {
-        fileNames->InsertNextValue(newFileName);
         }
       }
-    reader->SetFileNames(fileNames);
+      if (!alreadyThere)
+      {
+        fileNames->InsertNextValue(newFileName);
+      }
     }
+    reader->SetFileNames(fileNames);
+  }
   reader->SetDesiredTimeIndex(0);
 
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkImageData *image = reader->GetOutput();
 
@@ -227,12 +227,12 @@ void ReadDICOMImage(
   vtkMath::Cross(xdir, ydir, zdir);
 
   for (int i = 0; i < 3; i++)
-    {
+  {
     matrix->Element[i][0] = xdir[i];
     matrix->Element[i][1] = ydir[i];
     matrix->Element[i][2] = zdir[i];
     matrix->Element[i][3] = position[i];
-    }
+  }
   matrix->Element[3][0] = 0;
   matrix->Element[3][1] = 0;
   matrix->Element[3][2] = 0;
@@ -323,13 +323,13 @@ void ReadNIFTIImage(
   static double nMatrix[16] =
     { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
   if (reader->GetSFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
-    }
+  }
   else if (reader->GetQFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
-    }
+  }
 
   // generate the matrix, but modify to use DICOM coords
   static double xyFlipMatrix[16] =
@@ -373,10 +373,10 @@ void printUsage(const char *cmdname)
 int main (int argc, char *argv[])
 {
   if (argc < 3)
-    {
+  {
     printUsage(argv[0]);
     return EXIT_FAILURE;
-    }
+  }
 
   // -------------------------------------------------------
   // the files
@@ -388,34 +388,34 @@ int main (int argc, char *argv[])
   bool display = true;
 
   if (strcmp(argv[argi], "--nodisplay") == 0)
-    {
+  {
     display = false;
     argi++;
-    }
+  }
   if (strcmp(argv[argi], "-o") == 0)
-    {
+  {
     if (argc <= argi + 1)
-      {
+    {
       cerr << argv[0] << " : missing output file after -o\n" << endl;
       return EXIT_FAILURE;
-      }
+    }
     // is the output an xfm file or an image file?
     xfmfile = argv[argi + 1];
     argi += 2;
     size_t m = strlen(xfmfile);
     if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
-      {
+    {
       // it isn't an .xfm file, assume that it is an image file
       outputfile = xfmfile;
       xfmfile = NULL;
-      }
     }
+  }
 
   if (argc <= argi + 1)
-    {
+  {
     printUsage(argv[0]);
     return EXIT_FAILURE;
-    }
+  }
   targetfile = argv[argi];
   sourcefile = argv[argi + 1];
 
@@ -439,20 +439,20 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   n = strlen(sourcefile);
   if (n > 4 && strcmp(&sourcefile[n-4], ".mnc") == 0)
-    {
+  {
     ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  }
 #ifdef AIRS_USE_NIFTI
   else if ((n > 4 && strcmp(&sourcefile[n-4], ".nii") == 0) ||
            (n > 7 && strcmp(&sourcefile[n-7], ".nii.gz") == 0))
-    {
+  {
     ReadNIFTIImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  }
 #endif
   else
-    {
+  {
     ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  }
 
   // Read the target image
   vtkSmartPointer<vtkImageData> targetImage =
@@ -461,20 +461,20 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   n = strlen(targetfile);
   if (n > 4 && strcmp(&targetfile[n-4], ".mnc") == 0)
-    {
+  {
     ReadMINCImage(targetImage, targetMatrix, targetfile);
-    }
+  }
 #ifdef AIRS_USE_NIFTI
   else if ((n > 4 && strcmp(&targetfile[n-4], ".nii") == 0) ||
            (n > 7 && strcmp(&targetfile[n-7], ".nii.gz") == 0))
-    {
+  {
     ReadNIFTIImage(targetImage, targetMatrix, targetfile);
-    }
+  }
 #endif
   else
-    {
+  {
     ReadDICOMImage(targetImage, targetMatrix, targetfile);
-    }
+  }
 
   // -------------------------------------------------------
   // display the images
@@ -574,9 +574,9 @@ int main (int argc, char *argv[])
   renderer->ResetCameraClippingRange();
 
   if (display)
-    {
+  {
     renderWindow->Render();
-    }
+  }
 
   // -------------------------------------------------------
   // prepare for registration
@@ -587,20 +587,20 @@ int main (int argc, char *argv[])
   sourceImage->GetSpacing(sourceSpacing);
 
   for (int jj = 0; jj < 3; jj++)
-    {
+  {
     targetSpacing[jj] = fabs(targetSpacing[jj]);
     sourceSpacing[jj] = fabs(sourceSpacing[jj]);
-    }
+  }
 
   double minSpacing = sourceSpacing[0];
   if (minSpacing > sourceSpacing[1])
-    {
+  {
     minSpacing = sourceSpacing[1];
-    }
+  }
   if (minSpacing > sourceSpacing[2])
-    {
+  {
     minSpacing = sourceSpacing[2];
-    }
+  }
 
   // blur source image with Blackman-windowed sinc
   vtkSmartPointer<vtkImageSincInterpolator> sourceBlurKernel =
@@ -671,19 +671,19 @@ int main (int argc, char *argv[])
   bool initialized = false;
 
   for (;;)
-    {
+  {
     if (stage == 0)
-      {
+    {
       registration->SetInterpolatorTypeToNearest();
       registration->SetTransformTolerance(minSpacing*blurFactor);
-      }
+    }
     else
-      {
+    {
       registration->SetInterpolatorType(interpolatorType);
       registration->SetTransformTolerance(transformTolerance*blurFactor);
-      }
+    }
     if (blurFactor < 1.1)
-      {
+    {
       // full resolution: no blurring or resampling
       sourceBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
@@ -694,19 +694,19 @@ int main (int argc, char *argv[])
       sourceBlur->InterpolateOff();
       targetBlur->SetOutputSpacing(targetSpacing);
       targetBlur->Update();
-      }
+    }
     else
-      {
+    {
       // reduced resolution: set the blurring
       double spacing[3];
       for (int j = 0; j < 3; j++)
-        {
+      {
         spacing[j] = blurFactor*minSpacing;
         if (spacing[j] < sourceSpacing[j])
-          {
+        {
           spacing[j] = sourceSpacing[j];
-          }
         }
+      }
 
       sourceBlurKernel->SetBlurFactors(
         spacing[0]/sourceSpacing[0],
@@ -722,31 +722,31 @@ int main (int argc, char *argv[])
         blurFactor*minSpacing/targetSpacing[2]);
 
       targetBlur->Update();
-      }
+    }
 
     if (initialized)
-      {
+    {
       // re-initialize with the matrix from the previous step
       registration->SetInitializerTypeToNone();
       matrix->DeepCopy(registration->GetTransform()->GetMatrix());
-      }
+    }
 
     registration->Initialize(matrix);
 
     initialized = true;
 
     while (registration->Iterate())
-      {
+    {
       // registration->UpdateRegistration();
       // will iterate until convergence or failure
       vtkMatrix4x4::Multiply4x4(
         targetMatrix,registration->GetTransform()->GetMatrix(),sourceMatrix);
       sourceMatrix->Modified();
       if (display)
-        {
+      {
         interactor->Render();
-        }
       }
+    }
 
     double newTime = timer->GetUniversalTime();
     cout << "blur " << blurFactor << " stage " << stage << " took "
@@ -756,28 +756,28 @@ int main (int argc, char *argv[])
 
     // prepare for next iteration
     if (stage == 1)
-      {
+    {
       blurFactor /= 2.0;
       if (blurFactor < 0.9)
-        {
+      {
         break;
-        }
       }
-    stage = (stage + 1) % 2;
     }
+    stage = (stage + 1) % 2;
+  }
 
   cout << "registration took " << (lastTime - startTime) << "s" << endl;
 
   // -------------------------------------------------------
   // write the output matrix
   if (xfmfile)
-    {
+  {
     vtkSmartPointer<vtkMNITransformWriter> writer =
       vtkSmartPointer<vtkMNITransformWriter>::New();
     writer->SetFileName(xfmfile);
     writer->SetTransform(registration->GetTransform());
     writer->Update();
-    }
+  }
 
   // -------------------------------------------------------
   // do the subtraction
@@ -830,7 +830,7 @@ int main (int argc, char *argv[])
   // -------------------------------------------------------
   // write the subtracted image
   if (outputfile)
-    {
+  {
     double outputSpacing[3];
     difference->GetOutput()->GetSpacing(outputSpacing);
     outputSpacing[0] = fabs(outputSpacing[0]);
@@ -853,7 +853,7 @@ int main (int argc, char *argv[])
     writer->SetQFormMatrix(targetMatrix);
     writer->SetFileName(outputfile);
     writer->Write();
-    }
+  }
 #endif
 
   // -------------------------------------------------------

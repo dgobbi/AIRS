@@ -87,10 +87,10 @@ void vtkImageNeighborhoodCorrelationX(
   int n, int radius, U *workPtr)
 {
   if (radius == 0 || n <= 3*radius + 2)
-    {
+  {
     // use a simple loop with O(n*radius) efficiency
     for (int k = 0; k < n; k++)
-      {
+    {
       workPtr[0] = 0;
       workPtr[1] = 0;
       workPtr[2] = 0;
@@ -106,7 +106,7 @@ void vtkImageNeighborhoodCorrelationX(
       const T *tmpPtr2 = inPtr2 + i*inIncX2;
 
       for (; i < j; i++)
-        {
+      {
         U x = *tmpPtr1;
         U y = *tmpPtr2;
         U xx = x*x;
@@ -120,13 +120,13 @@ void vtkImageNeighborhoodCorrelationX(
         workPtr[5] += 1;
         tmpPtr1 += inIncX1;
         tmpPtr2 += inIncX2;
-        }
-
-      workPtr += 6;
       }
 
-    return;
+      workPtr += 6;
     }
+
+    return;
+  }
 
   // use a sliding window to achieve O(n) efficiency rather than O(n*radius)
   workPtr[0] = 0;
@@ -140,7 +140,7 @@ void vtkImageNeighborhoodCorrelationX(
   U *headPtr = workPtr + 6*(radius + 1);
   int k = radius + 1;
   do
-    {
+  {
     U x = *inPtr1;
     U y = *inPtr2;
     U xx = x*x;
@@ -161,7 +161,7 @@ void vtkImageNeighborhoodCorrelationX(
     headPtr += 6;
     inPtr1 += inIncX1;
     inPtr2 += inIncX2;
-    }
+  }
   while (--k);
 
   workPtr += 6;
@@ -169,7 +169,7 @@ void vtkImageNeighborhoodCorrelationX(
   // lead
   k = radius;
   do
-    {
+  {
     U x = *inPtr1;
     U y = *inPtr2;
     U xx = x*x;
@@ -191,13 +191,13 @@ void vtkImageNeighborhoodCorrelationX(
     headPtr += 6;
     inPtr1 += inIncX1;
     inPtr2 += inIncX2;
-    }
+  }
   while (--k);
 
   // slide
   k = n - 3*radius - 2;
   do
-    {
+  {
     U x = *inPtr1;
     U y = *inPtr2;
     U xx = x*x;
@@ -219,13 +219,13 @@ void vtkImageNeighborhoodCorrelationX(
     headPtr += 6;
     inPtr1 += inIncX1;
     inPtr2 += inIncX2;
-    }
+  }
   while (--k);
 
   // tail
   k = radius + 1;
   do
-    {
+  {
     U x = *inPtr1;
     U y = *inPtr2;
     U xx = x*x;
@@ -240,13 +240,13 @@ void vtkImageNeighborhoodCorrelationX(
     workPtr += 6;
     inPtr1 += inIncX1;
     inPtr2 += inIncX2;
-    }
+  }
   while (--k);
 
   // finish
   k = radius;
   do
-    {
+  {
     workPtr[0] = workPtr[-6] - workPtr[0];
     workPtr[1] = workPtr[-5] - workPtr[1];
     workPtr[2] = workPtr[-4] - workPtr[2];
@@ -254,7 +254,7 @@ void vtkImageNeighborhoodCorrelationX(
     workPtr[4] = workPtr[-2] - workPtr[4];
     workPtr[5] = workPtr[-1] - workPtr[5];
     workPtr += 6;
-    }
+  }
   while (--k);
 }
 
@@ -278,22 +278,22 @@ void vtkImageNeighborhoodCorrelationStencil(
 
   // loop over all stencil extents in the row
   do
-    {
+  {
     int s1 = ((iter == 0) ? xMin : r2 + 1);
     if (stencil)
-      {
+    {
       rval = stencil->GetNextExtent(r1, r2, xMin, xMax, idY, idZ, iter);
-      }
+    }
     int s2 = ((rval == 0) ? xMax : r1 - 1);
 
     if (s1 != s2 + 1)
-      {
+    {
       // zero everything outside of the stencil
       int k = s2 - s1 + 1;
       inPtr1 += k*inInc1[0];
       inPtr2 += k*inInc2[0];
       do
-        {
+      {
         workPtr[0] = 0;
         workPtr[1] = 0;
         workPtr[2] = 0;
@@ -301,17 +301,17 @@ void vtkImageNeighborhoodCorrelationStencil(
         workPtr[4] = 0;
         workPtr[5] = 0;
         workPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
 
     if (rval == 0)
-      {
+    {
       break;
-      }
+    }
 
     if (r1 != r2 + 1)
-      {
+    {
       // apply sliding window filter to stencil extent
       int k = r2 - r1 + 1;
       vtkImageNeighborhoodCorrelationX(
@@ -319,8 +319,8 @@ void vtkImageNeighborhoodCorrelationStencil(
       workPtr += k*6;
       inPtr1 += k*inInc1[0];
       inPtr2 += k*inInc2[0];
-      }
     }
+  }
   while (stencil); // don't loop if no stencil
 }
 
@@ -379,24 +379,24 @@ void vtkImageNeighborhoodCorrelation2D(
   U *checkPtr = rowPtr + elementSize*rowSize;
 
   if (radiusZ + 1 > idZMax - idZMin)
-    {
+  {
     // use the row buffer
     headPtr = rowPtr;
-    }
+  }
 
   // filter in both X and Z directions
   for (int idZ = idZMin; idZ <= idZMax; idZ++)
-    {
+  {
     if (idZMin == idZMax)
-      {
+    {
       // if only one row, set headPtr to that row
       headPtr = workPtr;
-      }
+    }
     else if (headPtr == endPtr || headPtr == checkPtr)
-      {
+    {
       // use the row buffer when beyond the end of the main buffer
       headPtr = rowPtr;
-      }
+    }
 
     // apply the filter in the X direction
     vtkImageNeighborhoodCorrelationStencil(
@@ -404,21 +404,21 @@ void vtkImageNeighborhoodCorrelation2D(
       radiusX, idY, idZ, headPtr);
 
     if (idZMin == idZMax)
-      {
+    {
       // only one row needed
       return;
-      }
+    }
 
     inPtr1 += inInc1[2];
     inPtr2 += inInc2[2];
 
     if (idZ == idZMin)
-      {
+    {
       // initialize first row
       U *tmpPtr = workPtr;
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] = headPtr[0];
         workPtr[1] = headPtr[1];
         workPtr[2] = headPtr[2];
@@ -427,17 +427,17 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr[5] = headPtr[5];
         workPtr += 6;
         headPtr += 6;
-        }
+      }
       while (--k);
       workPtr = tmpPtr;
-      }
+    }
     else if (idZ - idZMin < radiusZ + 1)
-      {
+    {
       // prime the first row
       U *tmpPtr = workPtr;
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] += headPtr[0];
         workPtr[1] += headPtr[1];
         workPtr[2] += headPtr[2];
@@ -446,19 +446,19 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr[5] += headPtr[5];
         workPtr += 6;
         headPtr += 6;
-        }
+      }
       while (--k);
       if (idZ - idZMin < radiusZ)
-        {
-        workPtr = tmpPtr;
-        }
-      }
-    else if (idZ - idZMin < 2*radiusZ + 1)
       {
+        workPtr = tmpPtr;
+      }
+    }
+    else if (idZ - idZMin < 2*radiusZ + 1)
+    {
       // perform the lead-in
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0] + headPtr[0];
         workPtr[1] = lastWorkPtr[1] + headPtr[1];
         workPtr[2] = lastWorkPtr[2] + headPtr[2];
@@ -468,15 +468,15 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr += 6;
         lastWorkPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
     else
-      {
+    {
       // apply the sliding window
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0] + headPtr[0] - workPtr[0];
         workPtr[1] = lastWorkPtr[1] + headPtr[1] - workPtr[1];
         workPtr[2] = lastWorkPtr[2] + headPtr[2] - workPtr[2];
@@ -486,26 +486,26 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr += 6;
         lastWorkPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
     }
+  }
 
   // if workPtr was never incremented, we're done
   if (workPtr == lastWorkPtr)
-    {
+  {
     return;
-    }
+  }
 
   // finish up the final bit
   for (int i = 0; i < radiusZ; i++)
-    {
+  {
     if (idZMax - idZMin + i < 2*radiusZ)
-      {
+    {
       // finishing the "lead-in"
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0];
         workPtr[1] = lastWorkPtr[1];
         workPtr[2] = lastWorkPtr[2];
@@ -514,15 +514,15 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr[5] = lastWorkPtr[5];
         workPtr += 6;
         lastWorkPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
     else
-      {
+    {
       // finishing the "slide"
       int k = rowSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0] - workPtr[0];
         workPtr[1] = lastWorkPtr[1] - workPtr[1];
         workPtr[2] = lastWorkPtr[2] - workPtr[2];
@@ -531,10 +531,10 @@ void vtkImageNeighborhoodCorrelation2D(
         workPtr[5] = lastWorkPtr[5] - workPtr[5];
         workPtr += 6;
         lastWorkPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -604,23 +604,23 @@ void vtkImageNeighborhoodCorrelation3D(
   vtkIdType sliceSize = rowSize*(extent[5] - extent[4] + 1);
   vtkIdType workSize = sliceSize*bufferSize;
   if (extent[5] > extent[4])
-    {
+  {
     workSize += rowSize;
-    }
+  }
 
   // temporary workspace for slices of sums of x,y,xx,yy,xy,n
   U *workPtr2 = new U[workSize*elementSize];
   U **bufferPtr = new U *[bufferSize];
   for (int jj = 0; jj < bufferSize; jj++)
-    {
+  {
     bufferPtr[jj] = workPtr2 + jj*sliceSize*elementSize;
-    }
+  }
   // temporary workspace for a single row of x,y,xx,yy,xy,n
   U *rowPtr = workPtr2;
   if (extent[5] > extent[4])
-    {
+  {
     rowPtr += bufferSize*sliceSize*elementSize;
-    }
+  }
 
   // progress reporting variables
   int progressGoal = idYMax - idYMin + 1;
@@ -629,11 +629,11 @@ void vtkImageNeighborhoodCorrelation3D(
 
   // loop through the XZ slices
   for (int idY = extent[2]; idY <= extent[3]; idY++)
-    {
+  {
     if (progress != NULL && (progressCount % progressStep) == 0)
-      {
+    {
       progress->UpdateProgress(progressCount*1.0/progressGoal);
-      }
+    }
     progressCount++;
 
     // always put the new data into the first buffer, which
@@ -650,18 +650,18 @@ void vtkImageNeighborhoodCorrelation3D(
 
     // rotate the buffers
     for (int j = 1; j < bufferSize; j++)
-      {
+    {
       bufferPtr[j-1] = bufferPtr[j];
-      }
+    }
     bufferPtr[bufferSize-1] = headPtr;
 
     if (idY == idYMin)
-      {
+    {
       // initialize first slice
       workPtr = bufferPtr[radiusY + 1];
       vtkIdType k = sliceSize;
       do
-        {
+      {
         workPtr[0] = headPtr[0];
         workPtr[1] = headPtr[1];
         workPtr[2] = headPtr[2];
@@ -670,16 +670,16 @@ void vtkImageNeighborhoodCorrelation3D(
         workPtr[5] = headPtr[5];
         workPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
     else if (idY - idYMin < radiusY + 1)
-      {
+    {
       // prime the first slice
       workPtr = bufferPtr[radiusY + 1 - (idY - idYMin)];
       vtkIdType k = sliceSize;
       do
-        {
+      {
         workPtr[0] += headPtr[0];
         workPtr[1] += headPtr[1];
         workPtr[2] += headPtr[2];
@@ -688,17 +688,17 @@ void vtkImageNeighborhoodCorrelation3D(
         workPtr[5] += headPtr[5];
         workPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
     else if (idY - idYMin < 2*radiusY + 1)
-      {
+    {
       // perform the lead-in
       U *lastWorkPtr = bufferPtr[0];
       workPtr = bufferPtr[1];
       vtkIdType k = sliceSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0] + headPtr[0];
         workPtr[1] = lastWorkPtr[1] + headPtr[1];
         workPtr[2] = lastWorkPtr[2] + headPtr[2];
@@ -708,17 +708,17 @@ void vtkImageNeighborhoodCorrelation3D(
         workPtr += 6;
         lastWorkPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
     else
-      {
+    {
       // apply the sliding window
       U *lastWorkPtr = bufferPtr[0];
       workPtr = bufferPtr[1];
       vtkIdType k = sliceSize;
       do
-        {
+      {
         workPtr[0] = lastWorkPtr[0] + headPtr[0] - workPtr[0];
         workPtr[1] = lastWorkPtr[1] + headPtr[1] - workPtr[1];
         workPtr[2] = lastWorkPtr[2] + headPtr[2] - workPtr[2];
@@ -728,26 +728,26 @@ void vtkImageNeighborhoodCorrelation3D(
         workPtr += 6;
         lastWorkPtr += 6;
         headPtr += 6;
-        }
-      while (--k);
       }
+      while (--k);
+    }
 
     // read as "if (idY - idYMin >= radiusY) { for (;;) { ... } }",
     // and see break statement below.
     int i = 0;
     while (idY - idYMin >= radiusY)
-      {
+    {
       // the sums over the neighborhoods have been computed for all the
       // voxels in a slice, so compute the normalized cross-correlation
       // (only compute the metric over the pieceExtent)
       int outIdY = idY - radiusY + i;
       if (outIdY >= pieceExtent[2] && outIdY <= pieceExtent[3])
-        {
+      {
         double total = 0.0;
         workPtr = bufferPtr[1];
         workPtr += elementSize*rowSize*(pieceExtent[4] - extent[4]);
         for (int idZ = pieceExtent[4]; idZ <= pieceExtent[5]; idZ++)
-          {
+        {
           workPtr += elementSize*(pieceExtent[0] - extent[0]);
 
           // only compute the metric within the stencil
@@ -758,26 +758,26 @@ void vtkImageNeighborhoodCorrelation3D(
 
           // loop over stencil extents (break at end if no stencil)
           do
-            {
+          {
             int s1 = ((iter == 0) ? pieceExtent[0] : r2 + 1);
             if (stencil)
-              {
+            {
               rval = stencil->GetNextExtent(
                 r1, r2, pieceExtent[0], pieceExtent[1], outIdY, idZ, iter);
-              }
+            }
             int s2 = ((rval == 0) ? pieceExtent[1] : r1 - 1);
             workPtr += elementSize*(s2 - s1 + 1);
 
             if (rval == 0)
-              {
+            {
               break;
-              }
+            }
 
             if (r1 != r2 + 1)
-              {
+            {
               int kk = r2 - r1 + 1;
               do
-                {
+              {
                 U xSum = workPtr[0];
                 U ySum = workPtr[1];
                 U xxSum = workPtr[2];
@@ -790,47 +790,47 @@ void vtkImageNeighborhoodCorrelation3D(
                 double denom = static_cast<double>(xxSum*count - xSum*xSum)*
                   static_cast<double>(yySum*count - ySum*ySum);
                 if (denom > 0)
-                  {
+                {
                   double nccSquared = numer/denom;
                   total += nccSquared;
                   voxels++;
-                  }
                 }
-              while (--kk);
               }
+              while (--kk);
             }
+          }
           while (stencil);
 
           workPtr += elementSize*(extent[1] - pieceExtent[1]);
-          }
+        }
 
         workPtr += elementSize*rowSize*(extent[5] - pieceExtent[5]);
 
         result += total;
-        }
+      }
 
       if (idY < idYMax || outIdY >= pieceExtent[3])
-        {
+      {
         break;
-        }
+      }
 
       // rotate the buffers
       headPtr = bufferPtr[0];
       for (int j = 1; j < bufferSize; j++)
-        {
+      {
         bufferPtr[j-1] = bufferPtr[j];
-        }
+      }
       bufferPtr[bufferSize-1] = headPtr;
 
       // tail off if there is any tail left
       U *lastWorkPtr = bufferPtr[0];
       workPtr = bufferPtr[1];
       if (idYMax - idYMin + i < 2*radiusY)
-        {
+      {
         // finish lead-in
         vtkIdType k = sliceSize;
         do
-          {
+        {
           workPtr[0] = lastWorkPtr[0];
           workPtr[1] = lastWorkPtr[1];
           workPtr[2] = lastWorkPtr[2];
@@ -839,15 +839,15 @@ void vtkImageNeighborhoodCorrelation3D(
           workPtr[5] = lastWorkPtr[5];
           workPtr += 6;
           lastWorkPtr += 6;
-          }
-        while (--k);
         }
+        while (--k);
+      }
       else
-        {
+      {
         // finish slide
         vtkIdType k = sliceSize;
         do
-          {
+        {
           workPtr[0] = lastWorkPtr[0] - workPtr[0];
           workPtr[1] = lastWorkPtr[1] - workPtr[1];
           workPtr[2] = lastWorkPtr[2] - workPtr[2];
@@ -856,14 +856,14 @@ void vtkImageNeighborhoodCorrelation3D(
           workPtr[5] = lastWorkPtr[5] - workPtr[5];
           workPtr += 6;
           lastWorkPtr += 6;
-          }
-        while (--k);
         }
+        while (--k);
+      }
 
       // counter for tail loop
       i++;
-      }
     }
+  }
 
   delete [] workPtr2;
   delete [] bufferPtr;
@@ -911,13 +911,13 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
     inInfo1->Get(vtkDataObject::DATA_OBJECT()));
 
   if (inData0->GetScalarType() != inData1->GetScalarType())
-    {
+  {
     if (pieceId == 0)
-      {
+    {
       vtkErrorMacro("input image types must be the same.");
-      }
-    return;
     }
+    return;
+  }
 
   // copy this, in case the user changes it during execution
   int neighborhoodRadius[3];
@@ -932,7 +932,7 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
 
   int extent[6];
   for (int i = 0; i < 6; i += 2)
-    {
+  {
     // partial sums need to be computed over pieceExtent + radius, to
     // ensure there is no "gap" between slabs assigned to different threads
     int j = i + 1;
@@ -943,7 +943,7 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
     extent[i] = ((extent[i] > inExt1[i]) ? extent[i] : inExt1[i]);
     extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
     extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
-    }
+  }
 
   void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
   void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
@@ -960,27 +960,27 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
   int scalarType = inData0->GetScalarType();
 
   if (scalarType == VTK_FLOAT || scalarType == VTK_DOUBLE)
-    {
+  {
     // use a floating-point type for computing sums
     double workVal = 0;
 
     if (scalarType == VTK_FLOAT)
-      {
+    {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<float *>(inPtr0), static_cast<float *>(inPtr1),
         inInc1, inInc2, extent, pieceExtent, stencil, neighborhoodRadius,
         &workVal, progress, &this->ThreadData->Local(pieceId));
-      }
+    }
     else
-      {
+    {
       vtkImageNeighborhoodCorrelation3D(
         static_cast<double *>(inPtr0), static_cast<double *>(inPtr1),
         inInc1, inInc2, extent, pieceExtent, stencil, neighborhoodRadius,
         &workVal, progress, &this->ThreadData->Local(pieceId));
-      }
     }
+  }
   else
-    {
+  {
     // use an integer type for computing sums
     vtkTypeInt64 workVal = 0;
 
@@ -991,7 +991,7 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
 #define VTK_USE_FLOAT32 0
 
     switch (scalarType)
-      {
+    {
       vtkTemplateAliasMacro(
         vtkImageNeighborhoodCorrelation3D(
           static_cast<VTK_TT *>(inPtr0), static_cast<VTK_TT *>(inPtr1),
@@ -999,8 +999,8 @@ void vtkImageNeighborhoodCorrelation::PieceRequestData(
           &workVal, progress, &this->ThreadData->Local(pieceId)));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -1013,15 +1013,15 @@ void vtkImageNeighborhoodCorrelation::ReduceRequestData(
   for (vtkImageNeighborhoodCorrelationTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
-    {
+  {
     result += iter->Result;
     count += iter->Count;
-    }
+  }
 
   if (count > 0)
-    {
+  {
     result /= count;
-    }
+  }
 
   this->SetValue(result);
   this->SetCost(-result);

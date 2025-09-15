@@ -39,35 +39,35 @@ vtkFunctionMinimizer::vtkFunctionMinimizer()
 vtkFunctionMinimizer::~vtkFunctionMinimizer()
 {
   if ((this->FunctionArg) && (this->FunctionArgDelete))
-    {
+  {
     (*this->FunctionArgDelete)(this->FunctionArg);
-    }
+  }
   this->FunctionArg = NULL;
   this->FunctionArgDelete = NULL;
   this->Function = NULL;
 
   if (this->ParameterNames)
-    {
+  {
     for (int i = 0; i < this->NumberOfParameters; i++)
-      {
+    {
       if (this->ParameterNames[i])
-        {
+      {
         delete [] this->ParameterNames[i];
-        }
       }
+    }
     delete [] this->ParameterNames;
     this->ParameterNames = NULL;
-    }
+  }
   if (this->ParameterValues)
-    {
+  {
     delete [] this->ParameterValues;
     this->ParameterValues = NULL;
-    }
+  }
   if (this->ParameterScales)
-    {
+  {
     delete [] this->ParameterScales;
     this->ParameterScales = NULL;
-    }
+  }
 
   this->NumberOfParameters = 0;
 }
@@ -78,41 +78,41 @@ void vtkFunctionMinimizer::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "NumberOfParameters: " << this->GetNumberOfParameters() << "\n";
   if (this->NumberOfParameters > 0)
-    {
+  {
     int i;
 
     os << indent << "ParameterValues: \n";
     for (i = 0; i < this->NumberOfParameters; i++)
-      {
+    {
       const char *name = this->GetParameterName(i);
       os << indent << "  ";
       if (name)
-        {
+      {
         os << name << ": ";
-        }
-      else
-        {
-        os << i << ": ";
-        }
-      os << this->GetParameterValue(i) << "\n";
       }
+      else
+      {
+        os << i << ": ";
+      }
+      os << this->GetParameterValue(i) << "\n";
+    }
 
     os << indent << "ParameterScales: \n";
     for (i = 0; i < this->NumberOfParameters; i++)
-      {
+    {
       const char *name = this->GetParameterName(i);
       os << indent << "  ";
       if (name)
-        {
+      {
         os << name << ": ";
-        }
-      else
-        {
-        os << i << ": ";
-        }
-      os << this->GetParameterScale(i) << "\n";
       }
+      else
+      {
+        os << i << ": ";
+      }
+      os << this->GetParameterScale(i) << "\n";
     }
+  }
 
   os << indent << "FunctionValue: " << this->GetFunctionValue() << "\n";
   os << indent << "FunctionEvaluations: " << this->GetFunctionEvaluations()
@@ -128,38 +128,38 @@ void vtkFunctionMinimizer::PrintSelf(ostream& os, vtkIndent indent)
 void vtkFunctionMinimizer::SetFunction(void (*f)(void *), void *arg)
 {
   if ( f != this->Function || arg != this->FunctionArg )
-    {
+  {
     // delete the current arg if there is one and a delete meth
     if ((this->FunctionArg) && (this->FunctionArgDelete))
-      {
+    {
       (*this->FunctionArgDelete)(this->FunctionArg);
-      }
+    }
     this->Function = f;
     this->FunctionArg = arg;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkFunctionMinimizer::SetFunctionArgDelete(void (*f)(void *))
 {
   if ( f != this->FunctionArgDelete)
-    {
+  {
     this->FunctionArgDelete = f;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
 double vtkFunctionMinimizer::GetParameterValue(const char *name)
 {
   for (int i = 0; i < this->NumberOfParameters; i++)
-    {
+  {
     if (this->ParameterNames[i] && strcmp(name,this->ParameterNames[i]) == 0)
-      {
+    {
       return this->ParameterValues[i];
-      }
     }
+  }
   vtkErrorMacro("GetParameterValue: no parameter named " << name);
   return 0.0;
 }
@@ -170,37 +170,37 @@ void vtkFunctionMinimizer::SetParameterValue(const char *name, double val)
   int i;
 
   for (i = 0; i < this->NumberOfParameters; i++)
-    {
+  {
     if (this->ParameterNames[i] && strcmp(name,this->ParameterNames[i]) == 0)
-      {
+    {
       break;
-      }
     }
+  }
 
   this->SetParameterValue(i, val);
 
   if (!this->ParameterNames[i])
-    {
+  {
     char *cp = new char[strlen(name)+8];
     strcpy(cp,name);
     this->ParameterNames[i] = cp;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkFunctionMinimizer::SetParameterValue(int i, double val)
 {
   if (i < this->NumberOfParameters)
-    {
+  {
     if (this->ParameterValues[i] != val)
-      {
+    {
       this->ParameterValues[i] = val;
       this->Iterations = 0; // reset to start
       this->FunctionEvaluations = 0;
       this->Modified();
-      }
-    return;
     }
+    return;
+  }
 
   int n = this->NumberOfParameters + 1;
 
@@ -209,12 +209,12 @@ void vtkFunctionMinimizer::SetParameterValue(int i, double val)
   double *newParameterScales = new double[n];
 
   for (int j = 0; j < this->NumberOfParameters; j++)
-    {
+  {
     newParameterNames[j] = this->ParameterNames[j];
     this->ParameterNames[j] = NULL; // or else it will be deleted in Initialize
     newParameterValues[j] = this->ParameterValues[j];
     newParameterScales[j] = this->ParameterScales[j];
-    }
+  }
 
   newParameterNames[n-1] = 0;
   newParameterValues[n-1] = val;
@@ -235,12 +235,12 @@ void vtkFunctionMinimizer::SetParameterValue(int i, double val)
 double vtkFunctionMinimizer::GetParameterScale(const char *name)
 {
   for (int i = 0; i < this->NumberOfParameters; i++)
-    {
+  {
     if (this->ParameterNames[i] && strcmp(name,this->ParameterNames[i]) == 0)
-      {
+    {
       return this->ParameterScales[i];
-      }
     }
+  }
   vtkErrorMacro("GetParameterScale: no parameter named " << name);
   return 1.0;
 }
@@ -249,13 +249,13 @@ double vtkFunctionMinimizer::GetParameterScale(const char *name)
 void vtkFunctionMinimizer::SetParameterScale(const char *name, double scale)
 {
   for (int i = 0; i < this->NumberOfParameters; i++)
-    {
+  {
     if (this->ParameterNames[i] && strcmp(name,this->ParameterNames[i]) == 0)
-      {
+    {
       this->SetParameterScale(i, scale);
       return;
-      }
     }
+  }
   vtkErrorMacro("SetParameterScale: no parameter named " << name);
 }
 
@@ -263,16 +263,16 @@ void vtkFunctionMinimizer::SetParameterScale(const char *name, double scale)
 void vtkFunctionMinimizer::SetParameterScale(int i, double scale)
 {
   if (i < 0 || i > this->NumberOfParameters)
-    {
+  {
     vtkErrorMacro("SetParameterScale: parameter number out of range: " << i);
     return;
-    }
+  }
 
   if (this->ParameterScales[i] != scale)
-    {
+  {
     this->ParameterScales[i] = scale;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -280,27 +280,27 @@ void vtkFunctionMinimizer::SetParameterScale(int i, double scale)
 void vtkFunctionMinimizer::Initialize()
 {
   if (this->ParameterNames)
-    {
+  {
     for (int i = 0; i < this->NumberOfParameters; i++)
-      {
+    {
       if (this->ParameterNames[i])
-        {
+      {
         delete [] this->ParameterNames[i];
-        }
       }
+    }
     delete [] this->ParameterNames;
     this->ParameterNames = 0;
-    }
+  }
   if (this->ParameterValues)
-    {
+  {
     delete [] this->ParameterValues;
     this->ParameterValues = 0;
-    }
+  }
   if (this->ParameterScales)
-    {
+  {
     delete [] this->ParameterScales;
     this->ParameterScales = 0;
-    }
+  }
 
   this->NumberOfParameters = 0;
   this->Iterations = 0;
@@ -314,39 +314,39 @@ void vtkFunctionMinimizer::Initialize()
 void vtkFunctionMinimizer::EvaluateFunction()
 {
   if (!this->AbortFlag)
-    {
+  {
     if (this->Function)
-      {
+    {
       this->Function(this->FunctionArg);
-      }
-    this->FunctionEvaluations++;
     }
+    this->FunctionEvaluations++;
+  }
 }
 
 //----------------------------------------------------------------------------
 int vtkFunctionMinimizer::Iterate()
 {
   if (this->Iterations == 0)
-    {
+  {
     if (!this->Function)
-      {
+    {
       vtkErrorMacro("Iterate: Function is NULL");
       return 0;
-      }
-    this->Start();
     }
+    this->Start();
+  }
 
   if (this->AbortFlag)
-    {
+  {
     return 0;
-    }
+  }
 
   int stillgood = this->Step();
 
   if (this->AbortFlag)
-    {
+  {
     return 0;
-    }
+  }
 
   this->Iterations++;
 
@@ -357,21 +357,21 @@ int vtkFunctionMinimizer::Iterate()
 void vtkFunctionMinimizer::Minimize()
 {
   if (this->Iterations == 0)
-    {
+  {
     if (!this->Function)
-      {
+    {
       vtkErrorMacro("Minimize: Function is NULL");
       return;
-      }
-    this->Start();
     }
+    this->Start();
+  }
 
   for (; this->Iterations < this->MaxIterations; this->Iterations++)
-    {
+  {
     int stillgood = this->Step();
     if (!stillgood)
-      {
+    {
       break;
-      }
     }
+  }
 }

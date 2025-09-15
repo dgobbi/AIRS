@@ -96,16 +96,16 @@ void vtkImageCorrelationRatioExecute(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       T1 *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         double x = *inPtr;
 
         x += xshift;
@@ -123,11 +123,11 @@ void vtkImageCorrelationRatioExecute(
 
         inPtr += pixelInc;
         inPtr1 += pixelInc1;
-        }
       }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -153,16 +153,16 @@ void vtkImageCorrelationRatioExecuteInt(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       T1 *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         int xi = *inPtr;
 
         xi -= binOrigin;
@@ -178,11 +178,11 @@ void vtkImageCorrelationRatioExecuteInt(
 
         inPtr += pixelInc;
         inPtr1 += pixelInc1;
-        }
       }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 }
 
 } // end anonymous namespace
@@ -205,30 +205,30 @@ int vtkImageCorrelationRatio::RequestData(
   this->GetInputRange(0, range);
   // check if the range was set
   if (range[0] == range[1])
-    {
+  {
     range[0] = 0.0;
     range[1] = 255.0;
-    }
+  }
 
   // compute the array size for the partial sums
   if (scalarType == VTK_DOUBLE || scalarType == VTK_FLOAT)
-    {
+  {
     this->NumberOfBins = 4096;
     this->BinOrigin = range[0];
     double l = range[1] - range[0];
     this->BinSpacing = l / (this->NumberOfBins - 1);
-    }
+  }
   else
-    {
+  {
     this->NumberOfBins = 4096;
     this->BinOrigin = static_cast<int>(range[0]);
     int l = static_cast<int>(range[1]) - this->BinOrigin;
     if (l < this->NumberOfBins)
-      {
+    {
       this->NumberOfBins = l + 1;
-      }
-    this->BinSpacing = (l + this->NumberOfBins)/this->NumberOfBins;
     }
+    this->BinSpacing = (l + this->NumberOfBins)/this->NumberOfBins;
+  }
 
   // create the thread-local object
   vtkImageCorrelationRatioTLS tlocal;
@@ -267,7 +267,7 @@ void vtkImageCorrelationRatioExecute1Int(
   vtkIdType pieceId)
 {
   switch (inData0->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageCorrelationRatioExecuteInt(
         self, inData0, inData1, stencil,
@@ -275,7 +275,7 @@ void vtkImageCorrelationRatioExecute1Int(
         outPtr, numBins, binOrigin, binSpacing, pieceId));
     default:
       vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
-    }
+  }
 }
 
 // turn floats back on
@@ -294,19 +294,19 @@ void vtkImageCorrelationRatioExecute1(
   vtkIdType pieceId)
 {
   if (inData0->GetScalarType() == VTK_FLOAT)
-    {
+  {
     vtkImageCorrelationRatioExecute(
       self, inData0, inData1, stencil,
       static_cast<float *>(inPtr), inPtr1, extent,
       outPtr, numBins, binOrigin, binSpacing, pieceId);
-    }
+  }
   else if (inData0->GetScalarType() == VTK_DOUBLE)
-    {
+  {
     vtkImageCorrelationRatioExecute(
       self, inData0, inData1, stencil,
       static_cast<double *>(inPtr), inPtr1, extent,
       outPtr, numBins, binOrigin, binSpacing, pieceId);
-    }
+  }
 }
 
 } // end anonymous namespace
@@ -328,7 +328,7 @@ void vtkImageCorrelationRatio::PieceRequestData(
   double *outPtr = threadLocal->Data;
 
   if (outPtr == 0)
-    {
+  {
     // initialize the partial sums to zero
     vtkIdType outCount = 3*this->NumberOfBins;
     threadLocal->Data = new double[outCount];
@@ -336,7 +336,7 @@ void vtkImageCorrelationRatio::PieceRequestData(
 
     double *outPtr1 = outPtr;
     do { *outPtr1++ = 0; } while (--outCount > 0);
-    }
+  }
 
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
@@ -358,9 +358,9 @@ void vtkImageCorrelationRatio::PieceRequestData(
 
   if (inData0->GetScalarType() != VTK_FLOAT &&
       inData0->GetScalarType() != VTK_DOUBLE)
-    {
+  {
     switch (inData1->GetScalarType())
-      {
+    {
       vtkTemplateAliasMacro(
         vtkImageCorrelationRatioExecute1Int(
           this, inData0, inData1, stencil,
@@ -370,12 +370,12 @@ void vtkImageCorrelationRatio::PieceRequestData(
           pieceId));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
-      }
     }
+  }
   else
-    {
+  {
     switch (inData1->GetScalarType())
-      {
+    {
       vtkTemplateAliasMacro(
         vtkImageCorrelationRatioExecute1(
           this, inData0, inData1, stencil,
@@ -384,8 +384,8 @@ void vtkImageCorrelationRatio::PieceRequestData(
           pieceId));
       default:
         vtkErrorMacro(<< "Execute: Unknown ScalarType");
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -401,7 +401,7 @@ void vtkImageCorrelationRatio::ReduceRequestData(
   double yySum = 0;
   double viSum = 0;
   for (int ix = 0; ix < nx; ++ix)
-    {
+  {
     double ni = 0;
     double yi = 0;
     double yyi = 0;
@@ -409,18 +409,18 @@ void vtkImageCorrelationRatio::ReduceRequestData(
     for (vtkImageCorrelationRatioTLS::iterator
          iter = this->ThreadData->begin();
          iter != this->ThreadData->end(); ++iter)
-      {
+    {
       if (iter->Data)
-        {
+      {
         double *outPtr1 = iter->Data + 3*ix;
         ni += outPtr1[0];
         yi += outPtr1[1];
         yyi += outPtr1[2];
-        }
       }
+    }
 
     if (ni > 0)
-      {
+    {
       // compute the sums for the total variance
       n += ni;
       ySum += yi;
@@ -428,30 +428,30 @@ void vtkImageCorrelationRatio::ReduceRequestData(
 
       // compute the sum for the numerator
       viSum += (yyi - yi*yi/ni);
-      }
     }
+  }
 
   // compute the total variance (the denominator)
   double v = 0;
   if (n > 0)
-    {
+  {
     v = (yySum - ySum*ySum/n);
-    }
+  }
 
   // compute the correlation ratio
   double correlationRatio = 0;
   if (v > 0)
-    {
+  {
     correlationRatio = 1.0 - viSum/v;
-    }
+  }
 
   for (vtkImageCorrelationRatioTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
-    {
+  {
     // delete the temporary memory
     delete [] iter->Data;
-    }
+  }
 
   // output values
   this->SetValue(correlationRatio);

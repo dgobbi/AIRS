@@ -7,7 +7,7 @@
   Version:   $Revision: 1.4 $
 
 
-Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
+Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
 #endif
@@ -57,9 +57,9 @@ vtkCalcCrossCorrelation* vtkCalcCrossCorrelation::New()
   // First try to create the object from the vtkObjectFactory
   vtkObject* ret = vtkObjectFactory::CreateInstance("vtkCalcCrossCorrelation");
   if(ret)
-    {
+  {
     return (vtkCalcCrossCorrelation*)ret;
-    }
+  }
   // If the factory was unable to create the object, then create it here.
   return new vtkCalcCrossCorrelation;
 }
@@ -70,7 +70,7 @@ vtkCalcCrossCorrelation::vtkCalcCrossCorrelation()
   this->CrossCorrelation = 0.0;
   this->ReverseStencil = 0;
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
   // we have the image inputs and the optional stencil input
   this->SetNumberOfInputPorts(2);
 #endif
@@ -105,7 +105,7 @@ void vtkCalcCrossCorrelation::SetStencil(vtkImageStencilData *stencil)
 {
 #if (VTK_MAJOR_VERSION >= 5)
   // if stencil is null, then set the input port to null
-  this->SetNthInputConnection(1, 0, 
+  this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
 #else
   this->vtkProcessObject::SetNthInput(2, stencil);
@@ -117,15 +117,15 @@ vtkImageData *vtkCalcCrossCorrelation::GetInput1()
 {
 #if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(0) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
 #else
-  if (this->GetNumberOfInputs() < 1)    
-    {
+  if (this->GetNumberOfInputs() < 1)
+  {
     return NULL;
-    }
+  }
   return (vtkImageData *)(this->Inputs[0]);
 #endif
 }
@@ -134,15 +134,15 @@ vtkImageData *vtkCalcCrossCorrelation::GetInput2()
 {
 #if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(0) < 2)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 1));
 #else
-  if (this->GetNumberOfInputs() < 2)    
-    {
+  if (this->GetNumberOfInputs() < 2)
+  {
     return NULL;
-    }
+  }
   return (vtkImageData *)(this->Inputs[1]);
 #endif
 }
@@ -152,20 +152,20 @@ vtkImageStencilData *vtkCalcCrossCorrelation::GetStencil()
 {
 #if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(1) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
 #else
   if (this->NumberOfInputs < 3)
-    {
+  {
     return NULL;
-    }
+  }
   else
-    {
+  {
     return (vtkImageStencilData *)(this->Inputs[2]);
-    }
+  }
 #endif
 }
 
@@ -175,37 +175,37 @@ void vtkCalcCrossCorrelation::Update()
 {
   vtkImageData *input1 = this->GetInput1();
   vtkImageData *input2 = this->GetInput2();
-  
+
   // make sure input is available
   if ( ! input1 || ! input2)
-    {
+  {
     vtkErrorMacro(<< "No inputs...can't execute!");
     return;
-    }
+  }
 
   input1->UpdateData();
   input2->UpdateData();
 
   vtkImageStencilData *stencil = this->GetStencil();
   if (stencil)
-    {
+  {
     stencil->SetSpacing(input1->GetSpacing());
     stencil->SetOrigin(input1->GetOrigin());
     stencil->SetUpdateExtent(stencil->GetWholeExtent());
     stencil->Update();
-    }
+  }
 
-  if (input1->GetMTime() > this->ExecuteTime || input2->GetMTime() > this->ExecuteTime || 
+  if (input1->GetMTime() > this->ExecuteTime || input2->GetMTime() > this->ExecuteTime ||
       this->GetMTime() > this->ExecuteTime )
-    {
+  {
     if ( input1->GetDataReleased() )
-      {
+    {
       input1->Update();
-      }
+    }
     if ( input2->GetDataReleased() )
-      {
+    {
       input2->Update();
-      }
+    }
     this->InvokeEvent(vtkCommand::StartEvent,NULL);
 
     // reset Abort flag
@@ -214,25 +214,25 @@ void vtkCalcCrossCorrelation::Update()
     this->Execute();
     this->ExecuteTime.Modified();
     if ( !this->AbortExecute )
-      {
+    {
       this->UpdateProgress(1.0);
-      }
+    }
 
     this->InvokeEvent(vtkCommand::EndEvent,NULL);
-    }
+  }
   if ( input1->ShouldIReleaseData() )
-    {
+  {
     input1->ReleaseData();
-    }
+  }
   if ( input2->ShouldIReleaseData() )
-    {
+  {
     input2->ReleaseData();
-    }
+  }
 }
 
 template <class T>
 void vtkCorrelationHelper(vtkCalcCrossCorrelation *self,
-			  vtkImageData *inData1, T *in1Ptr, 
+			  vtkImageData *inData1, T *in1Ptr,
 			  vtkImageData *inData2, T *in2Ptr,
 			  double *Correlation)
 {
@@ -252,34 +252,34 @@ void vtkCorrelationHelper(vtkCalcCrossCorrelation *self,
 
   inData1->GetUpdateExtent(minX, maxX, minY, maxY, minZ, maxZ);
   inData1->GetIncrements(incX, incY, incZ);
-  
+
   unsigned long count = 0;
   unsigned long target = (unsigned long)((maxZ - minZ + 1)*(maxY - minY +1)/50.0);
   target++;
 
   for (idZ = minZ; idZ <= maxZ; idZ++)
-    {
+  {
      for (idY = minY; idY <= maxY; idY++)
+     {
+      if (!(count%target))
       {
-      if (!(count%target)) 
-	{
         self->UpdateProgress(count/(50.0*target));
-	}
+      }
       count++;
 
       // loop over stencil sub-extents
       iter = 0;
       if (self->GetReverseStencil())
-	{// flag that we want the complementary extents
+      {// flag that we want the complementary extents
 	iter = -1;
-	}
+      }
 
       pminX = minX;
       pmaxX = maxX;
       while ((stencil !=0 &&
 	      stencil->GetNextExtent(pminX, pmaxX, minX, maxX, idY, idZ, iter)) ||
 	     (stencil == 0 && iter++ == 0))
-	{
+      {
 	// set up pointers to the sub-extents
 	temp1Ptr = in1Ptr + (incZ*(idZ - minZ) +
 			     incY*(idY - minY) +
@@ -289,20 +289,20 @@ void vtkCorrelationHelper(vtkCalcCrossCorrelation *self,
 			     (pminX-minX));
 	// compute over the sub-extent
 	for (idX = pminX; idX <= pmaxX; idX++)
-	  { // only add pixels if both are non-zero
-	  if (*temp1Ptr && *temp2Ptr) 
-	    {
+ { // only add pixels if both are non-zero
+	  if (*temp1Ptr && *temp2Ptr)
+   {
 	    topSum += (double)*temp1Ptr * (double)*temp2Ptr;
 	    Sum1   += (double)*temp1Ptr * (double)*temp1Ptr;
 	    Sum2   += (double)*temp2Ptr * (double)*temp2Ptr;
-	    }
+   }
 	  temp1Ptr++;
 	  temp2Ptr++;
-	  }
-	}
+ }
       }
-    }
-  *Correlation = (double) topSum / (sqrt((double)Sum1) * sqrt((double(Sum2)))); 
+     }
+  }
+  *Correlation = (double) topSum / (sqrt((double)Sum1) * sqrt((double(Sum2))));
 }
 
 // Description:
@@ -314,25 +314,25 @@ void vtkCalcCrossCorrelation::Execute()
   vtkImageData *input2 = this->GetInput2();
 
   if (!input1 || !input2)
-    {
+  {
     vtkErrorMacro("Must set both inputs");
     return;
-    }
+  }
   if (input1->GetScalarType() != input2->GetScalarType())
-    {
+  {
     vtkErrorMacro("Scalar Types must be the same");
     return;
-    }
+  }
 
   vtkImageStencilData *stencil = this->GetStencil();
 
   if (stencil)
-    {
+  {
     stencil->SetWholeExtent(input1->GetWholeExtent());
     stencil->SetUpdateExtent(stencil->GetWholeExtent());
     stencil->Update();
-    }
-   
+  }
+
   input1->SetUpdateExtent(input1->GetWholeExtent());
   input1->Update();
   input2->SetUpdateExtent(input2->GetWholeExtent());
@@ -341,13 +341,13 @@ void vtkCalcCrossCorrelation::Execute()
   void *in2Ptr = input2->GetScalarPointer();
 
   if (!in1Ptr || !in2Ptr)
-    {
+  {
     vtkErrorMacro("No data in the ImageDatas");
     return;
-    }
+  }
 
   switch (input1->GetScalarType())
-    {
+  {
 #if (VTK_MAJOR_VERSION < 5)
     vtkTemplateMacro6(vtkCorrelationHelper,this,
 		      input1, (VTK_TT *)(in1Ptr),
@@ -363,7 +363,7 @@ void vtkCalcCrossCorrelation::Execute()
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType (must be char, us char, int, us int");
       return;
-    }
+  }
 }
 
 void vtkCalcCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
@@ -377,22 +377,22 @@ void vtkCalcCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CrossCorrelation: " << this->GetCrossCorrelation () << "\n";
 }
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
 //----------------------------------------------------------------------------
-int vtkCalcCrossCorrelation::FillInputPortInformation(int port, 
+int vtkCalcCrossCorrelation::FillInputPortInformation(int port,
                                                       vtkInformation* info)
 {
   if (port == 0)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
     info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
-    }
+  }
   if (port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     // the stencil input is optional
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
   return 1;
 }
 #endif

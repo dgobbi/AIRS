@@ -76,22 +76,22 @@ vtkImageIslandRemoval::~vtkImageIslandRemoval()
 void vtkImageIslandRemoval::SetInValue(double val)
 {
   if (val != this->InValue || this->ReplaceIn != 1)
-    {
+  {
     this->InValue = val;
     this->ReplaceIn = 1;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkImageIslandRemoval::SetOutValue(double val)
 {
   if (val != this->OutValue || this->ReplaceOut != 1)
-    {
+  {
     this->OutValue = val;
     this->ReplaceOut = 1;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -99,11 +99,11 @@ void vtkImageIslandRemoval::SetOutValue(double val)
 void vtkImageIslandRemoval::ThresholdByUpper(double thresh)
 {
   if (this->LowerThreshold != thresh || this->UpperThreshold < VTK_DOUBLE_MAX)
-    {
+  {
     this->LowerThreshold = thresh;
     this->UpperThreshold = VTK_DOUBLE_MAX;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -113,11 +113,11 @@ void vtkImageIslandRemoval::ThresholdByLower(
 {
   if (this->UpperThreshold != thresh ||
       this->LowerThreshold > VTK_DOUBLE_MIN)
-    {
+  {
     this->UpperThreshold = thresh;
     this->LowerThreshold = VTK_DOUBLE_MIN;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -127,11 +127,11 @@ void vtkImageIslandRemoval::ThresholdBetween(
 {
   if (this->LowerThreshold != lower ||
       this->UpperThreshold != upper)
-    {
+  {
     this->LowerThreshold = lower;
     this->UpperThreshold = upper;
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -139,14 +139,14 @@ int vtkImageIslandRemoval::FillInputPortInformation(
   int port, vtkInformation* info)
 {
   if (port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
   else
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
-    }
+  }
   return 1;
 }
 
@@ -164,9 +164,9 @@ void vtkImageIslandRemoval::SetStencilData(vtkImageStencilData *stencil)
 vtkImageStencilData *vtkImageIslandRemoval::GetStencil()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
-    {
+  {
     return NULL;
-    }
+  }
 
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
@@ -210,35 +210,35 @@ void vtkImageIslandRemovalThresholds(
   vtkImageData *inData, IT &lowerThreshold, IT &upperThreshold)
 {
   if (self->GetLowerThreshold() < inData->GetScalarTypeMin())
-    {
+  {
     lowerThreshold = static_cast<IT>(inData->GetScalarTypeMin());
-    }
+  }
   else
-    {
+  {
     if (self->GetLowerThreshold() > inData->GetScalarTypeMax())
-      {
+    {
       lowerThreshold = static_cast<IT>(inData->GetScalarTypeMax());
-      }
+    }
     else
-      {
+    {
       lowerThreshold = static_cast<IT>(self->GetLowerThreshold());
-      }
     }
+  }
   if (self->GetUpperThreshold() > inData->GetScalarTypeMax())
-    {
+  {
     upperThreshold = static_cast<IT>(inData->GetScalarTypeMax());
-    }
+  }
   else
-    {
+  {
     if (self->GetUpperThreshold() < inData->GetScalarTypeMin())
-      {
+    {
       upperThreshold = static_cast<IT>(inData->GetScalarTypeMin());
-      }
-    else
-      {
-      upperThreshold = static_cast<IT>(self->GetUpperThreshold());
-      }
     }
+    else
+    {
+      upperThreshold = static_cast<IT>(self->GetUpperThreshold());
+    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -249,35 +249,35 @@ void vtkImageIslandRemovalValues(
   vtkImageData *outData, OT &inValue, OT &outValue)
 {
   if (self->GetInValue() < outData->GetScalarTypeMin())
-    {
+  {
     inValue = static_cast<OT>(outData->GetScalarTypeMin());
-    }
+  }
   else
-    {
+  {
     if (self->GetInValue() > outData->GetScalarTypeMax())
-      {
+    {
       inValue = static_cast<OT>(outData->GetScalarTypeMax());
-      }
+    }
     else
-      {
+    {
       inValue = static_cast<OT>(self->GetInValue());
-      }
     }
+  }
   if (self->GetOutValue() > outData->GetScalarTypeMax())
-    {
+  {
     outValue = static_cast<OT>(outData->GetScalarTypeMax());
-    }
+  }
   else
-    {
+  {
     if (self->GetOutValue() < outData->GetScalarTypeMin())
-      {
+    {
       outValue = static_cast<OT>(outData->GetScalarTypeMin());
-      }
-    else
-      {
-      outValue = static_cast<OT>(self->GetOutValue());
-      }
     }
+    else
+    {
+      outValue = static_cast<OT>(self->GetOutValue());
+    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -286,18 +286,18 @@ void vtkImageIslandRemovalApplyStencil(
 {
   vtkImageRegionIterator<unsigned char> iter(maskData, stencil, extent);
   while (!iter.IsAtEnd())
-    {
+  {
     unsigned char *beginptr = iter.BeginSpan();
     unsigned char *endptr = iter.EndSpan();
     unsigned char val = (iter.IsInStencil() ? 0 : 1);
 
     for (unsigned char *ptr = beginptr; ptr < endptr; ptr++)
-      {
+    {
       *ptr = val;
-      }
+    }
 
     iter.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -320,19 +320,19 @@ void vtkImageIslandRemovalSort(
   unsigned char sorted[256];
   vtkIdType oldSize[256];
   for (int i = 0; i < 256; i++)
-    {
+  {
     sorted[i] = i;
     oldSize[i] = islandSize[i];
-    }
+  }
 
   vtkImageIslandRemovalCompare cmpfunc(oldSize);
   std::sort(&sorted[1], &sorted[256], cmpfunc);
 
   for (int i = 0; i < 256; i++)
-    {
+  {
     indexed[sorted[i]] = i;
     islandSize[i] = oldSize[sorted[i]];
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -349,22 +349,22 @@ void vtkImageIslandRemovalPrune(
   vtkImageRegionIterator<unsigned char> iter(maskData, stencil, extent);
 
   while (!iter.IsAtEnd())
-    {
+  {
     unsigned char *ptr = iter.BeginSpan();
     size_t count = iter.EndSpan() - ptr;
 
     if (count != 0 && iter.IsInStencil())
-      {
+    {
       do
-        {
+      {
         unsigned char v = indexed[*ptr];
         *ptr++ = (v < u ? v : u);
-        }
-      while (--count);
       }
+      while (--count);
+    }
 
     iter.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -376,26 +376,26 @@ void vtkImageIslandRemovalPrune(
   vtkImageRegionIterator<unsigned char> iter(maskData, stencil, extent);
 
   while (!iter.IsAtEnd())
-    {
+  {
     unsigned char *ptr = iter.BeginSpan();
     size_t count = iter.EndSpan() - ptr;
 
     if (count != 0 && iter.IsInStencil())
-      {
+    {
       do
-        {
+      {
         if (*ptr)
-          {
+        {
           vtkIdType v = islandSize[*ptr];
           *ptr = ((v >= n && v <= m) ? 1 : 2);
-          }
-        ptr++;
         }
-      while (--count);
+        ptr++;
       }
+      while (--count);
+    }
 
     iter.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -411,9 +411,9 @@ void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
 
   unsigned char indexed[256];
   if (bySize)
-    {
+  {
     vtkImageIslandRemovalSort(islandSize, indexed);
-    }
+  }
 
   // Get replace values as output data type
   bool replaceIn = (self->GetReplaceIn() != 0);
@@ -428,117 +428,117 @@ void vtkImageIslandRemovalFinish(vtkImageIslandRemoval *self,
   inPtr = inIt.BeginSpan();
   outPtr = outIt.BeginSpan();
   while (!iter.IsAtEnd())
-    {
+  {
     unsigned char *ptr = iter.BeginSpan();
     size_t count = iter.EndSpan() - ptr;
 
     if (count != 0 && iter.IsInStencil())
-      {
+    {
       if (!replaceIn && !replaceOut)
-        {
+      {
         do
-          {
-          *outPtr++ = *inPtr++;
-          }
-        while (--count);
-        }
-      else if (bySize)
         {
+          *outPtr++ = *inPtr++;
+        }
+        while (--count);
+      }
+      else if (bySize)
+      {
         if (!replaceIn && replaceOut)
-          {
+        {
           do
-            {
+          {
             unsigned char v = indexed[*ptr++];
             v = ((v >= u && v <= w) ? v : 0);
             *outPtr++ = (v != 0 ? *inPtr : outValue);
             inPtr++;
-            }
-          while (--count);
           }
+          while (--count);
+        }
         else if (replaceIn && !replaceOut)
-          {
+        {
           do
-            {
+          {
             unsigned char v = indexed[*ptr++];
             v = ((v >= u && v <= w) ? v : 0);
             *outPtr++ = (v != 0 ? inValue : *inPtr);
             inPtr++;
-            }
-          while (--count);
           }
+          while (--count);
+        }
         else
-          {
+        {
           do
-            {
+          {
             unsigned char v = indexed[*ptr++];
             v = ((v >= u && v <= w) ? v : 0);
             *outPtr++ = (v != 0 ? inValue : outValue);
-            }
-          while (--count);
           }
+          while (--count);
         }
+      }
       else // !bySize
-        {
+      {
         if (!replaceIn && replaceOut)
-          {
+        {
           do
-            {
+          {
             vtkIdType v = islandSize[*ptr++];
             *outPtr++ = ((v >= n && v <= m) ? *inPtr : outValue);
             inPtr++;
-            }
-          while (--count);
           }
+          while (--count);
+        }
         else if (replaceIn && !replaceOut)
-          {
+        {
           do
-            {
+          {
             vtkIdType v = islandSize[*ptr++];
             *outPtr++ = ((v >= n && v <= m) ? inValue : *inPtr);
             inPtr++;
-            }
-          while (--count);
           }
+          while (--count);
+        }
         else
-          {
+        {
           do
-            {
+          {
             vtkIdType v = islandSize[*ptr++];
             *outPtr++ = ((v >= n && v <= m) ? inValue : outValue);
-            }
+          }
           while (--count);
-          }
         }
       }
+    }
     else // outside of stenciled region
-      {
+    {
       if (replaceOut)
-        {
+      {
         do
-          {
+        {
           *outPtr++ = outValue;
-          }
-        while (--count);
         }
-      else
-        {
-        do
-          {
-          *outPtr++ = *inPtr++;
-          }
         while (--count);
-        }
       }
+      else
+      {
+        do
+        {
+          *outPtr++ = *inPtr++;
+        }
+        while (--count);
+      }
+    }
 
     iter.NextSpan();
     if (outPtr == outIt.EndSpan())
-      {
+    {
       outIt.NextSpan();
       outPtr = outIt.BeginSpan();
       inIt.NextSpan();
       inPtr = inIt.BeginSpan();
-      }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -553,7 +553,7 @@ void vtkImageIslandRemovalFill(
   vtkIdType &counter)
 {
   while (!seedStack.empty())
-    {
+  {
     vtkFloodFillSeed seed = seedStack.top();
     seedStack.pop();
 
@@ -562,9 +562,9 @@ void vtkImageIslandRemovalFill(
                                          seed[2]*maskInc[2]);
 
     if (*maskPtr1 != 0)
-      {
+    {
       continue;
-      }
+    }
 
     *maskPtr1 = maskVal;
 
@@ -574,37 +574,37 @@ void vtkImageIslandRemovalFill(
     IT temp = *inPtr1;
 
     if ((lowerThreshold <= temp) && (temp <= upperThreshold))
-      {
+    {
       // count the seed
       counter += 1;
 
       // push the new seeds
       if (seed[2] > 0 && *(maskPtr1 - maskInc[2]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] - 1));
-        }
+      }
       if (seed[2] < maxIdx[2] && *(maskPtr1 + maskInc[2]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] + 1));
-        }
+      }
       if (seed[1] > 0 && *(maskPtr1 - maskInc[1]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0], seed[1] - 1, seed[2]));
-        }
+      }
       if (seed[1] < maxIdx[1] && *(maskPtr1 + maskInc[1]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0], seed[1] + 1, seed[2]));
-        }
+      }
       if (seed[0] > 0 && *(maskPtr1 - maskInc[0]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0] - 1, seed[1], seed[2]));
-        }
+      }
       if (seed[0] < maxIdx[0] && *(maskPtr1 + maskInc[0]) == 0)
-        {
+      {
         seedStack.push(vtkFloodFillSeed(seed[0] + 1, seed[1], seed[2]));
-        }
       }
     }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -640,25 +640,25 @@ void vtkImageIslandRemovalExecute(
   inData->GetExtent(inExt);
   int outCheck = 0;
   for (int ii = 0; ii < 3; ii++)
-    {
+  {
     if (extent[2*ii] > inExt[2*ii+1] || extent[2*ii+1] < inExt[2*ii])
-      { // extents don't intersect, we're done
+    { // extents don't intersect, we're done
       return;
-      }
+    }
     if (extent[2*ii] < inExt[2*ii])
-      {
+    {
       extent[2*ii] = inExt[2*ii];
-      }
+    }
     if (extent[2*ii+1] > inExt[2*ii+1])
-      {
+    {
       extent[2*ii+1] = inExt[2*ii+1];
-      }
+    }
     // check against output extent
     if (extent[2*ii] < outExt[2*ii] || extent[2*ii+1] > outExt[2*ii+1])
-      {
+    {
       outCheck = 1;
-      }
     }
+  }
 
   // Setup the mask
   maskData->SetOrigin(inData->GetOrigin());
@@ -710,20 +710,20 @@ void vtkImageIslandRemovalExecute(
   unsigned char maskVal = 0;
   vtkIdType islandSize[256];
   if (!islandsSortedBySize)
-    {
+  {
     maskVal = 2;
     islandSize[0] = -1;
     islandSize[1] = smallestIsland;
     islandSize[2] = 0;
-    }
+  }
 
   while (!iter.IsAtEnd())
-    {
+  {
     unsigned char *beginptr = iter.BeginSpan();
     unsigned char *endptr = iter.EndSpan();
 
     if (iter.IsInStencil())
-      {
+    {
       const int *idx = iter.GetIndex();
       int xIdx = idx[0] - extent[0];
       int yIdx = idx[1] - extent[2];
@@ -732,31 +732,31 @@ void vtkImageIslandRemovalExecute(
       IT *inPtr0 = inPtr + (xIdx*inInc[0] + yIdx*inInc[1] + zIdx*inInc[2]);
 
       for (unsigned char *ptr = beginptr; ptr < endptr; ptr++)
-        {
+      {
         IT tval = *inPtr0;
         if (*ptr == 0 && lowerThreshold <= tval && tval <= upperThreshold)
-          {
+        {
           seedStack.push(vtkFloodFillSeed(xIdx, yIdx, zIdx));
 
           // if maskVal wraps around past 255, then prune
           if (++maskVal == 0)
-            {
+          {
             if (islandsSortedBySize)
-              {
+            {
               // need to prune all but N islands
               vtkImageIslandRemovalPrune(
                 maskData, stencil, extent, islandSize, smallestIsland + 1);
               maskVal = static_cast<unsigned char>(smallestIsland + 3);
-              }
+            }
             else
-              {
+            {
               // need to prune islands outside of range [smallest,largest]
               vtkImageIslandRemovalPrune(
                 maskData, stencil, extent, islandSize,
                 smallestIsland, largestIsland);
               maskVal = 3;
-              }
             }
+          }
 
           vtkIdType counter = 0;
 
@@ -767,14 +767,14 @@ void vtkImageIslandRemovalExecute(
             seedStack, counter);
 
           islandSize[maskVal] = counter;
-          }
+        }
 
         inPtr0 += inInc[0];
         xIdx++;
-        }
       }
-    iter.NextSpan();
     }
+    iter.NextSpan();
+  }
 
   // write the output image
   vtkImageIslandRemovalFinish(
@@ -805,23 +805,23 @@ int vtkImageIslandRemoval::RequestUpdateExtent(
 
   // Clip the extent to the inExt
   for (int i = 0; i < 3; i++)
-    {
+  {
     if (extent[2*i] < inExt[2*i])
-      {
+    {
       extent[2*i] = inExt[2*i];
-      }
-    if (extent[2*i+1] > inExt[2*i+1])
-      {
-      extent[2*i+1] = inExt[2*i+1];
-      }
     }
+    if (extent[2*i+1] > inExt[2*i+1])
+    {
+      extent[2*i+1] = inExt[2*i+1];
+    }
+  }
 
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), extent, 6);
   if (stencilInfo)
-    {
+  {
     stencilInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                      extent, 6);
-    }
+  }
 
   return 1;
 }
@@ -844,10 +844,10 @@ int vtkImageIslandRemoval::RequestData(
 
   vtkImageStencilData* stencil = 0;
   if (stencilInfo)
-    {
+  {
     stencil = static_cast<vtkImageStencilData *>(
       stencilInfo->Get(vtkDataObject::DATA_OBJECT()));
-    }
+  }
 
   int outExt[6];
   outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExt);
@@ -864,16 +864,16 @@ int vtkImageIslandRemoval::RequestData(
   int id = 0; // not multi-threaded
 
   if (inData->GetScalarType() != outData->GetScalarType())
-    {
+  {
     vtkErrorMacro("Execute: Output ScalarType "
                   << outData->GetScalarType()
                   << ", must Input ScalarType "
                   << inData->GetScalarType());
     return 0;
-    }
+  }
 
   switch (inData->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageIslandRemovalExecute(
         this, inData, outData, stencil, maskData, outExt, id,
@@ -882,7 +882,7 @@ int vtkImageIslandRemoval::RequestData(
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return 0;
-    }
+  }
 
   return 1;
 }

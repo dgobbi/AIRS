@@ -101,26 +101,26 @@ int GuessFileType(const char *filename)
   size_t n = strlen(filename);
 
   if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
-    {
+  {
     return MINCImage;
-    }
+  }
   if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
       (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0))
-    {
+  {
     return NIFTIImage;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".stl") == 0)
-    {
+  {
     return STLSurface;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".obj") == 0)
-    {
+  {
     return OBJSurface;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".vtk") == 0)
-    {
+  {
     return VTKSurface;
-    }
+  }
 
   return DICOMImage;
 }
@@ -145,35 +145,35 @@ vtkDICOMReader *ReadDICOMImage(
   sorter->Update();
 
   if (sorter->GetNumberOfSeries() == 0)
-    {
+  {
     fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
     exit(1);
-    }
+  }
   else if (sorter->GetNumberOfSeries() > 1)
-    {
+  {
     fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
             directoryName);
     exit(1);
-    }
+  }
 
   // read the image
   vtkDICOMReader *reader = vtkDICOMReader::New();
   reader->SetFileNames(sorter->GetFileNamesForSeries(0));
 
   if (coordSystem == NIFTICoords)
-    {
+  {
     reader->SetMemoryRowOrderToBottomUp();
-    }
+  }
   else
-    {
+  {
     reader->SetMemoryRowOrderToFileNative();
-    }
+  }
 
   reader->UpdateInformation();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   // when reading images, only read 1st component if the
   // image has multiple components or multiple time points
@@ -184,18 +184,18 @@ vtkDICOMReader *ReadDICOMImage(
     vtkSmartPointer<vtkStringArray>::New();
   vtkIdType n = fileArray->GetNumberOfTuples();
   for (vtkIdType i = 0; i < n; i++)
-    {
+  {
     fileNames->InsertNextValue(
       reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
-    }
+  }
   reader->SetDesiredTimeIndex(0);
   reader->SetFileNames(fileNames);
 
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkImageData *image = reader->GetOutput();
 
@@ -215,18 +215,18 @@ void WriteDICOMImage(
   int vtkNotUsed(coordSystem))
 {
   if (vtksys::SystemTools::FileExists(directoryName))
-    {
+  {
     if (!vtksys::SystemTools::FileIsDirectory(directoryName))
-      {
+    {
       fprintf(stderr, "option -o must give a DICOM directory, not a file.\n");
       exit(1);
-      }
     }
+  }
   else if (!vtksys::SystemTools::MakeDirectory(directoryName))
-    {
+  {
     fprintf(stderr, "Cannot create directory: %s\n", directoryName);
     exit(1);
-    }
+  }
 
   // get the meta data
   vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(targetReader);
@@ -236,7 +236,7 @@ void WriteDICOMImage(
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
   if (reader)
-    {
+  {
     // copy the bulk of the meta data from the target image
     meta->DeepCopy(reader->GetMetaData());
     meta->SetAttributeValue(DC::SeriesNumber,
@@ -244,17 +244,17 @@ void WriteDICOMImage(
     std::string seriesDescription =
       meta->GetAttributeValue(DC::SeriesDescription).AsString() + " SEG";
     if (seriesDescription.size() < 64)
-      {
-      meta->SetAttributeValue(DC::SeriesDescription, seriesDescription);
-      }
-    }
-  if (reader2)
     {
+      meta->SetAttributeValue(DC::SeriesDescription, seriesDescription);
+    }
+  }
+  if (reader2)
+  {
     // set the frame of reference from the source image
     meta->SetAttributeValue(DC::FrameOfReferenceUID,
       reader2->GetMetaData()->GetAttributeValue(
       DC::FrameOfReferenceUID));
-    }
+  }
 
   // make the generator
   vtkSmartPointer<vtkDICOMMRGenerator> mrgenerator =
@@ -263,44 +263,44 @@ void WriteDICOMImage(
     vtkSmartPointer<vtkDICOMCTGenerator>::New();
   vtkDICOMGenerator *generator = 0;
   if (reader)
-    {
+  {
     std::string SOPClass =
       meta->GetAttributeValue(DC::SOPClassUID).AsString();
     if (SOPClass == "1.2.840.10008.5.1.4.1.1.2")
-      {
+    {
       generator = ctgenerator;
-      }
-    else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4")
-      {
-      generator = mrgenerator;
-      }
     }
+    else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4")
+    {
+      generator = mrgenerator;
+    }
+  }
 
   // prepare the writer to write the image
   vtkSmartPointer<vtkDICOMWriter> writer =
     vtkSmartPointer<vtkDICOMWriter>::New();
   if (generator)
-    {
+  {
     writer->SetGenerator(generator);
-    }
+  }
   writer->SetMetaData(meta);
   writer->SetFilePrefix(directoryName);
   writer->SetFilePattern("%s/IM-0001-%04.4d.dcm");
   writer->TimeAsVectorOn();
   if (reader)
-    {
+  {
     if (reader->GetTimeDimension() > 1)
-      {
+    {
       writer->SetTimeDimension(reader->GetTimeDimension());
       writer->SetTimeSpacing(reader->GetTimeSpacing());
-      }
+    }
     if (reader->GetRescaleSlope() > 0)
-      {
+    {
       writer->SetRescaleSlope(reader->GetRescaleSlope());
       writer->SetRescaleIntercept(reader->GetRescaleIntercept());
-      }
-    writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
     }
+    writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
+  }
   writer->SET_INPUT_DATA(data);
   writer->SetPatientMatrix(matrix);
   writer->Write();
@@ -318,14 +318,14 @@ vtkDICOMImageReader *ReadDICOMImage(
   reader->SetDirectoryName(directoryName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem != NIFTICoords)
-    {
+  {
     // the reader flips the image and reverses the ordering, so undo these
     vtkSmartPointer<vtkImageReslice> flip =
       vtkSmartPointer<vtkImageReslice>::New();
@@ -336,7 +336,7 @@ vtkDICOMImageReader *ReadDICOMImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
@@ -352,19 +352,19 @@ vtkDICOMImageReader *ReadDICOMImage(
   vtkMath::Cross(xdir, ydir, zdir);
 
   for (int i = 0; i < 3; i++)
-    {
+  {
     matrix->Element[i][0] = xdir[i];
     matrix->Element[i][1] = ydir[i];
     matrix->Element[i][2] = zdir[i];
     matrix->Element[i][3] = position[i];
-    }
+  }
   matrix->Element[3][0] = 0;
   matrix->Element[3][1] = 0;
   matrix->Element[3][2] = 0;
   matrix->Element[3][3] = 1;
 
   if (coordSystem == NIFTICoords)
-    {
+  {
     double spacing[3], origin[3];
     int extent[6];
     image->GetSpacing(spacing);
@@ -378,18 +378,18 @@ vtkDICOMImageReader *ReadDICOMImage(
     point[3] = 1.0;
     matrix->MultiplyPoint(point, point);
     for (int j = 0; j < 3; j++)
-      {
+    {
       matrix->Element[j][1] = -matrix->Element[j][1];
       matrix->Element[j][2] = -matrix->Element[j][2];
       matrix->Element[j][3] = point[j];
-      }
+    }
     // do the DICOM to NIFTI coord conversion
     for (int k = 0; k < 4; k++)
-      {
+    {
       matrix->Element[0][k] = -matrix->Element[0][k];
       matrix->Element[1][k] = -matrix->Element[1][k];
-      }
     }
+  }
 
   matrix->Modified();
 
@@ -407,14 +407,14 @@ vtkMINCImageReader *ReadMINCImage(
   reader->SetFileName(fileName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     double spacing[3];
     reader->GetOutput()->GetSpacing(spacing);
     spacing[0] = fabs(spacing[0]);
@@ -432,14 +432,14 @@ vtkMINCImageReader *ReadMINCImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
   data->GetPointData()->PassData(image->GetPointData());
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     // generate the matrix, but modify to use DICOM coords
     static double xyFlipMatrix[16] =
       { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
@@ -449,11 +449,11 @@ vtkMINCImageReader *ReadMINCImage(
     // do the left/right, up/down dicom-to-minc transformation
     vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
     matrix->Modified();
-    }
+  }
   else
-    {
+  {
     matrix->DeepCopy(reader->GetDirectionCosines());
-    }
+  }
 
   return reader;
 }
@@ -486,14 +486,14 @@ vtkNIFTIReader *ReadNIFTIImage(
   reader->SetFileName(fileName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     double spacing[3];
     reader->GetOutput()->GetSpacing(spacing);
     spacing[0] = fabs(spacing[0]);
@@ -511,7 +511,7 @@ vtkNIFTIReader *ReadNIFTIImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
@@ -521,16 +521,16 @@ vtkNIFTIReader *ReadNIFTIImage(
   static double nMatrix[16] =
     { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
   if (reader->GetQFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
-    }
+  }
   else if (reader->GetSFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
-    }
+  }
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     // generate the matrix, but modify to use DICOM coords
     static double xyFlipMatrix[16] =
       { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
@@ -539,11 +539,11 @@ vtkNIFTIReader *ReadNIFTIImage(
     // do the left/right, up/down dicom-to-minc transformation
     vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
     matrix->Modified();
-    }
+  }
   else
-    {
+  {
     matrix->DeepCopy(nMatrix);
-    }
+  }
 
   return reader;
 }
@@ -558,18 +558,18 @@ void WriteNIFTIImage(
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
   if (reader)
-    {
+  {
     writer->SetNIFTIHeader(reader->GetNIFTIHeader());
     if (reader->GetTimeDimension() > 1)
-      {
+    {
       writer->SetTimeDimension(reader->GetTimeDimension());
       writer->SetTimeSpacing(reader->GetTimeSpacing());
-      }
-    if (reader->GetQFac() < 0)
-      {
-      writer->SetQFac(-1.0);
-      }
     }
+    if (reader->GetQFac() < 0)
+    {
+      writer->SetQFac(-1.0);
+    }
+  }
   writer->SET_INPUT_DATA(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
@@ -586,18 +586,18 @@ vtkImageReader2 *ReadImage(
   int t = GuessFileType(filename);
 
   if (t == MINCImage)
-    {
+  {
     return ReadMINCImage(image, matrix, filename, coordSystem);
-    }
+  }
   else if (t == NIFTIImage)
-    {
+  {
 #ifdef AIRS_USE_NIFTI
     return ReadNIFTIImage(image, matrix, filename, coordSystem);
 #else
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
-    }
+  }
 
   return ReadDICOMImage(image, matrix, filename, coordSystem);
 }
@@ -607,9 +607,9 @@ int CoordSystem(const char *filename)
   int t = GuessFileType(filename);
 
   if (t == MINCImage || t == NIFTIImage)
-    {
+  {
     return NIFTICoords;
-    }
+  }
 
   return DICOMCoords;
 }
@@ -622,12 +622,12 @@ void WriteImage(
   int t = GuessFileType(filename);
 
   if (t == MINCImage)
-    {
+  {
     WriteMINCImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
-    }
+  }
   else if (t == NIFTIImage)
-    {
+  {
 #ifdef AIRS_USE_NIFTI
     WriteNIFTIImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
@@ -635,9 +635,9 @@ void WriteImage(
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
-    }
+  }
   else
-    {
+  {
 #ifdef AIRS_USE_DICOM
     WriteDICOMImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
@@ -645,7 +645,7 @@ void WriteImage(
     fprintf(stderr, "Writing DICOM files is not supported.\n");
     exit(1);
 #endif
-    }
+  }
 }
 
 
@@ -657,9 +657,9 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
   vtkSmartPointer<vtkTransform> transform =
     vtkSmartPointer<vtkTransform>::New();
   if (matrix)
-    {
+  {
     transform->Concatenate(matrix);
-    }
+  }
 
   vtkSmartPointer<vtkTransformPolyDataFilter> filter =
     vtkSmartPointer<vtkTransformPolyDataFilter>::New();
@@ -668,29 +668,29 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
   filter->Update();
 
   if (t == STLSurface)
-    {
+  {
     vtkSmartPointer<vtkSTLWriter> writer =
       vtkSmartPointer<vtkSTLWriter>::New();
     writer->SET_INPUT_DATA(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
-    }
+  }
   else if (t == OBJSurface)
-    {
+  {
     vtkSmartPointer<vtkMNIObjectWriter> writer =
       vtkSmartPointer<vtkMNIObjectWriter>::New();
     writer->SET_INPUT_DATA(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
-    }
+  }
   else if (t == VTKSurface)
-    {
+  {
     vtkSmartPointer<vtkPolyDataWriter> writer =
       vtkSmartPointer<vtkPolyDataWriter>::New();
     writer->SET_INPUT_DATA(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
-    }
+  }
 }
 
 void SetViewFromMatrix(
@@ -707,9 +707,9 @@ void SetViewFromMatrix(
   double viewUp[4] = { 0.0, 1.0, 0.0, 0.0 };
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     viewUp[1] = -1.0;
-    }
+  }
 
   matrix->MultiplyPoint(viewRight, viewRight);
   matrix->MultiplyPoint(viewUp, viewUp);
@@ -730,9 +730,9 @@ void ErrorObserver::Execute(
   vtkObject *, unsigned long, void *callData)
 {
   if (callData)
-    {
+  {
     fprintf(stderr, "%s\n", static_cast<char *>(callData));
-    }
+  }
   exit(1);
 }
 
@@ -745,31 +745,31 @@ void WriteScreenshot(vtkWindow *window, const char *filename)
 
   size_t l = strlen(filename);
   if (l >= 4 && strcmp(filename + (l - 4), ".png") == 0)
-    {
+  {
     vtkSmartPointer<vtkPNGWriter> snapWriter =
       vtkSmartPointer<vtkPNGWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
   else if ((l >= 4 && strcmp(filename + (l - 4), ".jpg") == 0) ||
            (l >= 5 && strcmp(filename + (l - 5), ".jpeg") == 0))
-    {
+  {
     vtkSmartPointer<vtkJPEGWriter> snapWriter =
       vtkSmartPointer<vtkJPEGWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
   else if ((l >= 4 && strcmp(filename + (l - 4), ".tif") == 0) ||
            (l >= 5 && strcmp(filename + (l - 5), ".tiff") == 0))
-    {
+  {
     vtkSmartPointer<vtkTIFFWriter> snapWriter =
       vtkSmartPointer<vtkTIFFWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
 }
 
 void ComputeRange(vtkImageData *image, double range[2])
@@ -786,7 +786,7 @@ void ComputeRange(vtkImageData *image, double range[2])
   image->GetExtent(extent);
 
   for (int i = 0; i < 3; ++i)
-    {
+  {
     double b1 = extent[2*i]*spacing[i] + origin[i];
     double b2 = extent[2*i+1]*spacing[i] + origin[i];
     bounds[2*i] = (b1 < b2 ? b1 : b2);
@@ -797,7 +797,7 @@ void ComputeRange(vtkImageData *image, double range[2])
     double bl = (i == 2 ? 0.0 : 0.01*(bounds[2*i+1] - bounds[2*i]));
     bounds[2*i] += bl;
     bounds[2*i+1] -= bl;
-    }
+  }
 
   // extract just the reconstructed portion of CT image
   vtkSmartPointer<vtkROIStencilSource> cylinder =
@@ -864,39 +864,39 @@ const char *check_next_arg(
   const char *op = argv[*argi - 1];
   if (*argi >= argc ||
       argv[*argi][0] == '-')
-    {
+  {
     fprintf(stderr, "The option \"%s\" must be followed by an argument\n", op);
     exit(1);
-    }
+  }
   const char *arg = argv[(*argi)++];
 
   if (possib == 0)
-    {
+  {
     return arg;
-    }
+  }
 
   bool match = false;
   for (const char **t = possib; *t != 0; t++)
-    {
+  {
     if (strcmp(*t, arg) == 0)
-      {
+    {
       match = true;
       break;
-      }
     }
+  }
 
   if (!match)
-    {
+  {
     fprintf(stderr, "Incorrect value for option \"%s\": %s\n",
             op, arg);
     fprintf(stderr, "Allowed values:");
     for (const char **u = possib; *u != 0; u++)
-      {
+    {
       fprintf(stderr, "%s", *u);
-      }
+    }
     fprintf(stderr, "\n");
     exit(1);
-    }
+  }
 
   return arg;
 }
@@ -1020,132 +1020,132 @@ int skullstrip_read_options(
 
   int argi = 1;
   while (argi < argc)
-    {
+  {
     const char *arg = argv[argi++];
     if (arg[0] != '-')
-      {
+    {
       int t = GuessFileType(arg);
 
       if (t <= LastImageType)
-        {
+      {
         if (options->source == 0)
-          {
+        {
           options->source = arg;
-          }
+        }
         else
-          {
+        {
           fprintf(stderr, "Too many input images listed on command line\n");
           exit(1);
-          }
-        }
-      }
-    else
-      {
-      if (strcmp(arg, "-h") == 0 ||
-          strcmp(arg, "--help") == 0)
-        {
-        skullstrip_show_help(stdout, argv[0]);
-        exit(0);
-        }
-      else if (strcmp(arg, "--threshold") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->bt = strtod(arg, const_cast<char **>(&arg));
-        }
-      else if (strcmp(arg, "--d1") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->d1 = strtod(arg, const_cast<char **>(&arg));
-        }
-      else if (strcmp(arg, "--d2") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->d2 = strtod(arg, const_cast<char **>(&arg));
-        }
-      else if (strcmp(arg, "--rmin") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->rmin = strtod(arg, const_cast<char **>(&arg));
-        }
-      else if (strcmp(arg, "--rmax") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->rmax = strtod(arg, const_cast<char **>(&arg));
-        }
-      else if (strcmp(arg, "--iterations") == 0 ||
-               strcmp(arg, "-N") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->n = strtoul(arg, const_cast<char **>(&arg), 0);
-        }
-      else if (strcmp(arg, "--tesselations") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->t = strtoul(arg, const_cast<char **>(&arg), 0);
-        }
-      else if (strcmp(arg, "-C") == 0 ||
-               strcmp(arg, "--coords") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, coords_args);
-        if (strcmp(arg, "DICOM") == 0 ||
-            strcmp(arg, "LPS") == 0)
-          {
-          options->coords = DICOMCoords;
-          }
-        else if (strcmp(arg, "MINC") == 0 ||
-                 strcmp(arg, "NIFTI") == 0 ||
-                 strcmp(arg, "RAS") == 0)
-          {
-          options->coords = NIFTICoords;
-          }
-        }
-      else if (strcmp(arg, "-d") == 0 ||
-               strcmp(arg, "--display") == 0)
-        {
-        options->display = 1;
-        }
-      else if (strcmp(arg, "-s") == 0 ||
-               strcmp(arg, "--silent") == 0)
-        {
-        options->silent = 1;
-        }
-      else if (strcmp(arg, "-j") == 0 ||
-               strcmp(arg, "--screenshot") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        options->screenshot = arg;
-        }
-      else if (strcmp(arg, "-o") == 0)
-        {
-        arg = check_next_arg(argc, argv, &argi, 0);
-        int t = GuessFileType(arg);
-        if (t <= LastImageType)
-          {
-          if (options->output)
-            {
-            fprintf(stderr, "Too many -o options specified!\n");
-            skullstrip_show_usage(stderr, argv[0]);
-            }
-          options->output = arg;
-          }
-        else if (t <= LastSurfaceType)
-          {
-          if (options->surface)
-            {
-            fprintf(stderr, "Too many -o options specified!\n");
-            skullstrip_show_usage(stderr, argv[0]);
-            }
-          options->surface = arg;
-          }
-        }
-      else
-        {
-        fprintf(stderr, "Unrecognized option \"%s\"\n", arg);
-        skullstrip_show_usage(stderr, argv[0]);
-        exit(1);
         }
       }
     }
+    else
+    {
+      if (strcmp(arg, "-h") == 0 ||
+          strcmp(arg, "--help") == 0)
+      {
+        skullstrip_show_help(stdout, argv[0]);
+        exit(0);
+      }
+      else if (strcmp(arg, "--threshold") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->bt = strtod(arg, const_cast<char **>(&arg));
+      }
+      else if (strcmp(arg, "--d1") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->d1 = strtod(arg, const_cast<char **>(&arg));
+      }
+      else if (strcmp(arg, "--d2") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->d2 = strtod(arg, const_cast<char **>(&arg));
+      }
+      else if (strcmp(arg, "--rmin") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->rmin = strtod(arg, const_cast<char **>(&arg));
+      }
+      else if (strcmp(arg, "--rmax") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->rmax = strtod(arg, const_cast<char **>(&arg));
+      }
+      else if (strcmp(arg, "--iterations") == 0 ||
+               strcmp(arg, "-N") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->n = strtoul(arg, const_cast<char **>(&arg), 0);
+      }
+      else if (strcmp(arg, "--tesselations") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->t = strtoul(arg, const_cast<char **>(&arg), 0);
+      }
+      else if (strcmp(arg, "-C") == 0 ||
+               strcmp(arg, "--coords") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, coords_args);
+        if (strcmp(arg, "DICOM") == 0 ||
+            strcmp(arg, "LPS") == 0)
+        {
+          options->coords = DICOMCoords;
+        }
+        else if (strcmp(arg, "MINC") == 0 ||
+                 strcmp(arg, "NIFTI") == 0 ||
+                 strcmp(arg, "RAS") == 0)
+        {
+          options->coords = NIFTICoords;
+        }
+      }
+      else if (strcmp(arg, "-d") == 0 ||
+               strcmp(arg, "--display") == 0)
+      {
+        options->display = 1;
+      }
+      else if (strcmp(arg, "-s") == 0 ||
+               strcmp(arg, "--silent") == 0)
+      {
+        options->silent = 1;
+      }
+      else if (strcmp(arg, "-j") == 0 ||
+               strcmp(arg, "--screenshot") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        options->screenshot = arg;
+      }
+      else if (strcmp(arg, "-o") == 0)
+      {
+        arg = check_next_arg(argc, argv, &argi, 0);
+        int t = GuessFileType(arg);
+        if (t <= LastImageType)
+        {
+          if (options->output)
+          {
+            fprintf(stderr, "Too many -o options specified!\n");
+            skullstrip_show_usage(stderr, argv[0]);
+          }
+          options->output = arg;
+        }
+        else if (t <= LastSurfaceType)
+        {
+          if (options->surface)
+          {
+            fprintf(stderr, "Too many -o options specified!\n");
+            skullstrip_show_usage(stderr, argv[0]);
+          }
+          options->surface = arg;
+        }
+      }
+      else
+      {
+        fprintf(stderr, "Unrecognized option \"%s\"\n", arg);
+        skullstrip_show_usage(stderr, argv[0]);
+        exit(1);
+      }
+    }
+  }
 
   return 1;
 }
@@ -1165,32 +1165,32 @@ int main(int argc, char *argv[])
                   options.screenshot != 0);
 
   if (!sourcefile)
-    {
+  {
     skullstrip_show_usage(stderr, argv[0]);
     return 1;
-    }
+  }
 
   // -------------------------------------------------------
   // load the images
 
   if (options.coords == NativeCoords)
-    {
+  {
     int ic = CoordSystem(sourcefile);
 
     if (ic == DICOMCoords)
-      {
+    {
       options.coords = DICOMCoords;
-      }
-    else
-      {
-      options.coords = NIFTICoords;
-      }
     }
+    else
+    {
+      options.coords = NIFTICoords;
+    }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "Reading source image: " << sourcefile << endl;
-    }
+  }
 
   vtkSmartPointer<vtkImageData> sourceImage =
     vtkSmartPointer<vtkImageData>::New();
@@ -1201,16 +1201,16 @@ int main(int argc, char *argv[])
   sourceReader->Delete();
 
   if (!options.silent)
-    {
+  {
     if (options.coords == DICOMCoords)
-      {
+    {
       cout << "Using DICOM patient coords." << endl;;
-      }
-    else
-      {
-      cout << "Using NIFTI (or MINC) world coords." << endl;
-      }
     }
+    else
+    {
+      cout << "Using NIFTI (or MINC) world coords." << endl;
+    }
+  }
 
   // -------------------------------------------------------
   // make a timer
@@ -1223,16 +1223,16 @@ int main(int argc, char *argv[])
   double maxval = 0;
   int maxidx = 0;
   for (int idx = 0; idx < 3; idx++)
-    {
+  {
     double vec[4] = { 0.0, 0.0, 0.0, 0.0 };
     vec[idx] = 1.0;
     sourceMatrix->MultiplyPoint(vec, vec);
     if (fabs(vec[2]) > fabs(maxval))
-      {
+    {
       maxval = vec[2];
       maxidx = idx;
-      }
     }
+  }
 
   // set the Z extent to a set fraction of the other extents
   int brainExtent[6];
@@ -1245,17 +1245,17 @@ int main(int argc, char *argv[])
   int size3 = vtkMath::Floor(sqrt(0.7*0.7*size1*size2));
   // make sure computed size is not more than full image size
   if (size3 > maxsize)
-    {
+  {
     size3 = maxsize;
-    }
+  }
   if (maxval < 0)
-    {
+  {
     brainExtent[2*maxidx + 1] -= (maxsize - size3);
-    }
+  }
   else
-    {
+  {
     brainExtent[2*maxidx] += (maxsize - size3);
-    }
+  }
 
   // -------------------------------------------------------
   // strip the image
@@ -1376,56 +1376,56 @@ int main(int argc, char *argv[])
   renderer->ResetCameraClippingRange();
 
   if (display)
-    {
+  {
     renderWindow->Render();
-    }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "stripping took " << (lastTime - startTime) << "s" << endl;
-    }
+  }
 
   // -------------------------------------------------------
   // capture a screen shot
   if (options.screenshot)
-    {
+  {
     WriteScreenshot(renderWindow, options.screenshot);
-    }
+  }
 
   // -------------------------------------------------------
   // write the output file
   if (imagefile)
-    {
+  {
     if (!options.silent)
-      {
+    {
       cout << "Writing stripped image: " << imagefile << endl;
-      }
+    }
 
     WriteImage(sourceReader, sourceReader,
       stripper->GetOutput(), sourceMatrix, imagefile, options.coords);
-    }
+  }
   if (meshfile)
-    {
+  {
     if (!options.silent)
-      {
+    {
       cout << "Writing brain surface: " << meshfile << endl;
-      }
+    }
 
     WriteMesh(stripper->GetBrainMesh(), sourceMatrix, meshfile);
-    }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "Done!" << endl;
-    }
+  }
 
   // -------------------------------------------------------
   // allow user to interact
 
   if (options.display)
-    {
+  {
     interactor->Start();
-    }
+  }
 
   return 0;
 }

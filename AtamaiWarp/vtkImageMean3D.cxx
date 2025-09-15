@@ -7,7 +7,7 @@
   Version:   $Revision: 1.7 $
   Thanks:    Thanks to C. Charles Law who developed this class.
 
-Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen 
+Copyright (c) 1993-2001 Ken Martin, Will Schroeder, Bill Lorensen
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,9 @@ vtkImageMean3D* vtkImageMean3D::New()
   // First try to create the object from the vtkObjectFactory
   vtkObject* ret = vtkObjectFactory::CreateInstance("vtkImageMean3D");
   if(ret)
-    {
+  {
     return (vtkImageMean3D*)ret;
-    }
+  }
   // If the factory was unable to create the object, then create it here.
   return new vtkImageMean3D;
 }
@@ -75,19 +75,19 @@ void vtkImageMean3D::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-// This method sets the size of the neighborhood.  It also sets the 
-// default middle of the neighborhood 
+// This method sets the size of the neighborhood.  It also sets the
+// default middle of the neighborhood
 void vtkImageMean3D::SetKernelSize(int size0, int size1, int size2)
-{  
+{
   int volume;
   int modified = 1;
-  
-  if (this->KernelSize[0] == size0 && this->KernelSize[1] == size1 && 
+
+  if (this->KernelSize[0] == size0 && this->KernelSize[1] == size1 &&
       this->KernelSize[2] == size2)
-    {
+  {
     modified = 0;
-    }
-  
+  }
+
   // Set the kernel size and middle
   volume = 1;
   this->KernelSize[0] = size0;
@@ -112,7 +112,7 @@ void vtkImageMean3D::SetKernelSize(int size0, int size1, int size2)
 // templated function for the mask types.
 template <class T>
 static void vtkImageMean3DExecute(vtkImageMean3D *self,
-				  vtkImageData *inData, T *inPtr, 
+				  vtkImageData *inData, T *inPtr,
 				  vtkImageData *outData, T *outPtr,
 				  int outExt[6], int id)
 {
@@ -145,22 +145,22 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
 
   // avoid compiler warnings
   centerPixelX = centerPixelY = centerPixelZ = (T)0;
-  
+
   // Get information to march through data
-  inData->GetIncrements(inInc0, inInc1, inInc2); 
+  inData->GetIncrements(inInc0, inInc1, inInc2);
   outData->GetContinuousIncrements(outExt, outIncX, outIncY, outIncZ);
   kernelMiddle = self->GetKernelMiddle();
   kernelSize = self->GetKernelSize();
 
   numComp = inData->GetNumberOfScalarComponents();
 
-  hoodMin0 = outExt[0] - kernelMiddle[0]; 
-  hoodMin1 = outExt[2] - kernelMiddle[1]; 
-  hoodMin2 = outExt[4] - kernelMiddle[2]; 
+  hoodMin0 = outExt[0] - kernelMiddle[0];
+  hoodMin1 = outExt[2] - kernelMiddle[1];
+  hoodMin2 = outExt[4] - kernelMiddle[2];
   hoodMax0 = kernelSize[0] + hoodMin0 - 1;
   hoodMax1 = kernelSize[1] + hoodMin1 - 1;
   hoodMax2 = kernelSize[2] + hoodMin2 - 1;
-  
+
   // Clip by the input image extent
   inExt = inData->GetExtent();
   hoodMin0 = (hoodMin0 > inExt[0]) ? hoodMin0 : inExt[0];
@@ -173,7 +173,7 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
   // Save the starting neighborhood dimensions (2 loops only once)
   hoodStartMin0 = hoodMin0;    hoodStartMax0 = hoodMax0;
   hoodStartMin1 = hoodMin1;    hoodStartMax1 = hoodMax1;
-  
+
   // The portion of the output that needs no boundary computation.
   middleMin0 = inExt[0] + kernelMiddle[0];
   middleMax0 = inExt[1] - (kernelSize[0] - 1) + kernelMiddle[0];
@@ -181,174 +181,174 @@ static void vtkImageMean3DExecute(vtkImageMean3D *self,
   middleMax1 = inExt[3] - (kernelSize[1] - 1) + kernelMiddle[1];
   middleMin2 = inExt[4] + kernelMiddle[2];
   middleMax2 = inExt[5] - (kernelSize[2] - 1) + kernelMiddle[2];
-  
+
   target = (unsigned long)((outExt[5] - outExt[4] + 1)*
 			   (outExt[3] - outExt[2] + 1)/50.0);
   target++;
-  
+
   NumberOfElements = self->GetNumberOfElements();
-  
+
   long int numSmoothed=0;
   long int numIgnored = 0;
-  
+
   // loop through pixel of output
   inPtr = (T *)inData->GetScalarPointer(hoodMin0,hoodMin1,hoodMin2);
   inPtr2 = inPtr;
   for (outIdx2 = outExt[4]; outIdx2 <= outExt[5]; ++outIdx2)
-    {
+  {
     inPtr1 = inPtr2;
     hoodMin1 = hoodStartMin1;
     hoodMax1 = hoodStartMax1;
-    for (outIdx1 = outExt[2]; 
+    for (outIdx1 = outExt[2];
 	 !self->AbortExecute && outIdx1 <= outExt[3]; ++outIdx1)
+    {
+      if (!id)
       {
-      if (!id) 
-	{
 	if (!(count%target))
-	  {
+ {
 	  self->UpdateProgress(count/(50.0*target));
-	  }
+ }
 	count++;
-	}
+      }
       inPtr0 = inPtr1;
       hoodMin0 = hoodStartMin0;
       hoodMax0 = hoodStartMax0;
       for (outIdx0 = outExt[0]; outIdx0 <= outExt[1]; ++outIdx0)
-	{
+      {
 	// Compute mean of neighborhood
 	// loop through neighborhood pixels
-	// This could be sped up pretty dramatically by only adding the 
+	// This could be sped up pretty dramatically by only adding the
         // pixels on the leading edge of the neighborhood and subtracting
         // those on the trailing edge of the neighborhood as it moves
         // through the input data.
 	tmpPtr2 = inPtr0;
-	  
+	
 	sumX = sumY = sumZ = 0.0;
 	numPixels = 0;
 	for (hoodIdx2 = hoodMin2; hoodIdx2 <= hoodMax2; ++hoodIdx2)
-	  {
+ {
 	  tmpPtr1 = tmpPtr2;
 	  for (hoodIdx1 = hoodMin1; hoodIdx1 <= hoodMax1; ++hoodIdx1)
-	    {
+   {
 	    tmpPtr0 = tmpPtr1;
 	    for (hoodIdx0 = hoodMin0; hoodIdx0 <= hoodMax0; ++hoodIdx0)
-	      {
+     {
 	      // Add this pixel to the mean
 	      if ((outIdx0-hoodIdx0) | (outIdx1-hoodIdx1) | (outIdx2-hoodIdx2))
-		{
+       {
 		numPixels++;
 		sumX+=(double)*(tmpPtr0++);
 		sumY+=(double)*(tmpPtr0++);
 		sumZ+=(double)*(tmpPtr0++);
-		}
+       }
 	      else // unless it is the center pixel, in which case we save it.
-		{
+       {
 		centerPixelX = *(tmpPtr0++);
 		centerPixelY = *(tmpPtr0++);
 		centerPixelZ = *(tmpPtr0++);
-		}
-	      }
+       }
+     }
 	    tmpPtr1 += inInc1;
-	    }
+   }
 	  tmpPtr2 += inInc2;
-	  }
+ }
 	
-	// Replace this vector with the hood mean assuming its longer 
+	// Replace this vector with the hood mean assuming its longer
 	// than the threshold length.
-	if (((centerPixelX*centerPixelX + 
-	      centerPixelY*centerPixelY + 
+	if (((centerPixelX*centerPixelX +
+	      centerPixelY*centerPixelY +
 	      centerPixelZ*centerPixelZ) > smoothThreshold) &&(numPixels))
-	  {
+ {
 	  numSmoothed++;
-	  *(outPtr++) = (T)(centerWeighting*centerPixelX + 
+	  *(outPtr++) = (T)(centerWeighting*centerPixelX +
 			    surroundWeighting*(sumX/numPixels));
-	  *(outPtr++) = (T)(centerWeighting*centerPixelY + 
+	  *(outPtr++) = (T)(centerWeighting*centerPixelY +
 			    surroundWeighting*(sumY/numPixels));
-	  *(outPtr++) = (T)(centerWeighting*centerPixelZ + 
+	  *(outPtr++) = (T)(centerWeighting*centerPixelZ +
 			    surroundWeighting*(sumZ/numPixels));
-	  } 
-	else 
-	  {
+ }
+	else
+ {
 	  numIgnored++;
 	  *(outPtr++) = (T)centerPixelX;
 	  *(outPtr++) = (T)centerPixelY;
 	  *(outPtr++) = (T)centerPixelZ;
-	  }	    
-	  
+ }	
+	
 	// shift neighborhood considering boundaries
 	if (outIdx0 >= middleMin0)
-	  {
+ {
 	  inPtr0 += inInc0;
 	  ++hoodMin0;
-	  }
+ }
 	if (outIdx0 < middleMax0)
-	  {
+ {
 	  ++hoodMax0;
-	  }
-	}
+ }
+      }
       // shift neighborhood considering boundaries
       if (outIdx1 >= middleMin1)
-	{
+      {
 	inPtr1 += inInc1;
 	++hoodMin1;
-	}
-      if (outIdx1 < middleMax1)
-	{
-	++hoodMax1;
-	}
-      outPtr += outIncY;
       }
+      if (outIdx1 < middleMax1)
+      {
+	++hoodMax1;
+      }
+      outPtr += outIncY;
+    }
     // shift neighborhood considering boundaries
     if (outIdx2 >= middleMin2)
-      {
+    {
       inPtr2 += inInc2;
       ++hoodMin2;
-      }
-    if (outIdx2 < middleMax2)
-      {
-      ++hoodMax2;
-      }
-    outPtr += outIncZ;
     }
-  
+    if (outIdx2 < middleMax2)
+    {
+      ++hoodMax2;
+    }
+    outPtr += outIncZ;
+  }
+
   cout << "Smoothed "<<numSmoothed<<". Ignored "<<numIgnored<<".\n";
 }
 
 //----------------------------------------------------------------------------
 // This method contains the first switch statement that calls the correct
 // templated function for the input and output region types.
-void vtkImageMean3D::ThreadedExecute(vtkImageData *inData, 
+void vtkImageMean3D::ThreadedExecute(vtkImageData *inData,
 				       vtkImageData *outData,
 				       int outExt[6], int id)
 {
   void *inPtr = inData->GetScalarPointerForExtent(outExt);
   void *outPtr = outData->GetScalarPointerForExtent(outExt);
-  
-  vtkDebugMacro(<< "Execute: inData = " << inData 
+
+  vtkDebugMacro(<< "Execute: inData = " << inData
   << ", outData = " << outData);
-  
+
   // this filter expects that input is the same type as output.
   if (inData->GetScalarType() != outData->GetScalarType())
-    {
+  {
     vtkErrorMacro(<< "Execute: input ScalarType, " << inData->GetScalarType()
       << ", must match out ScalarType " << outData->GetScalarType());
     return;
-    }
-  
+  }
+
   switch (inData->GetScalarType())
-    {
+  {
 #if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro7(vtkImageMean3DExecute, this,inData, (VTK_TT *)(inPtr), 
+    vtkTemplateMacro7(vtkImageMean3DExecute, this,inData, (VTK_TT *)(inPtr),
                       outData, (VTK_TT *)(outPtr),outExt, id);
 #else
     vtkTemplateMacro(
-        vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr), 
+        vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr),
                       outData, (VTK_TT *)(outPtr),outExt, id));
 #endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;
-    }
+  }
 }
 
 

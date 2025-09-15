@@ -136,7 +136,7 @@ void SetInterpolator(vtkImageReslice *reslice, int interpolator)
     vtkSmartPointer<vtkLabelInterpolator>::New();
 
   switch (interpolator)
-    {
+  {
     case vtkImageRegistration::Nearest:
       reslice->SetInterpolationModeToNearestNeighbor();
       break;
@@ -159,7 +159,7 @@ void SetInterpolator(vtkImageReslice *reslice, int interpolator)
     case vtkImageRegistration::Label:
       reslice->SetInterpolator(labelInterpolator);
       break;
-    }
+  }
 }
 
 // use file extension to guess file type
@@ -168,51 +168,51 @@ int GuessFileType(const char *filename)
   size_t n = strlen(filename);
 
   if (n > 4 && strcmp(&filename[n-4], ".txt") == 0)
-    {
+  {
     int ftype = TXTTransform;
     ifstream infile(filename);
     if (infile.good())
-      {
+    {
       char firstline[32];
       memset(firstline, '\0', 32);
       infile.getline(firstline, 32);
       if (strncmp(firstline, "#Insight Transform File V1.0", 28) == 0)
-        {
+      {
         ftype = ITKTransform;
-        }
       }
+    }
     infile.close();
     return ftype;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".xfm") == 0)
-    {
+  {
     return MNITransform;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".tfm") == 0)
-    {
+  {
     return ITKTransform;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".mat") == 0)
-    {
+  {
     return TXTTransform;
-    }
+  }
   if (n > 4 && strcmp(&filename[n-4], ".csv") == 0)
-    {
+  {
     return CSVTransform;
-    }
+  }
 
   if (n > 4 && strcmp(&filename[n-4], ".mnc") == 0)
-    {
+  {
     return MINCImage;
-    }
+  }
   if ((n > 4 && strcmp(&filename[n-4], ".nii") == 0) ||
       (n > 7 && strcmp(&filename[n-7], ".nii.gz") == 0) ||
       (n > 4 && strcmp(&filename[n-4], ".hdr") == 0) ||
       (n > 4 && strcmp(&filename[n-4], ".img") == 0) ||
       (n > 7 && strcmp(&filename[n-7], ".img.gz") == 0))
-    {
+  {
     return NIFTIImage;
-    }
+  }
 
   return DICOMImage;
 }
@@ -226,7 +226,7 @@ vtkDICOMReader *ReadDICOMImage(
 
   bool singleFile = true;
   if (vtksys::SystemTools::FileIsDirectory(directoryName))
-    {
+  {
     // get all the DICOM files in the directory
     singleFile = false;
     std::string dirString = directoryName;
@@ -243,41 +243,41 @@ vtkDICOMReader *ReadDICOMImage(
     sorter->Update();
 
     if (sorter->GetNumberOfSeries() == 0)
-      {
+    {
       fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
       exit(1);
-      }
+    }
     else if (sorter->GetNumberOfSeries() > 1)
-      {
+    {
       fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
               directoryName);
       exit(1);
-      }
-    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
     }
+    reader->SetFileNames(sorter->GetFileNamesForSeries(0));
+  }
   else
-    {
+  {
     // was given a single file instead of a directory
     reader->SetFileName(directoryName);
-    }
+  }
 
   if (coordSystem == NIFTICoords)
-    {
+  {
     reader->SetMemoryRowOrderToBottomUp();
-    }
+  }
   else
-    {
+  {
     reader->SetMemoryRowOrderToFileNative();
-    }
+  }
 
   reader->UpdateInformation();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   if (!singleFile)
-    {
+  {
     // when reading images, only read 1st component if the
     // image has multiple components or multiple time points
     vtkIntArray *fileArray = reader->GetFileIndexArray();
@@ -287,33 +287,33 @@ vtkDICOMReader *ReadDICOMImage(
       vtkSmartPointer<vtkStringArray>::New();
     vtkIdType n = fileArray->GetNumberOfTuples();
     for (vtkIdType i = 0; i < n; i++)
-      {
+    {
       std::string newFileName =
         reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0));
       bool alreadyThere = false;
       vtkIdType m = fileNames->GetNumberOfTuples();
       for (vtkIdType j = 0; j < m; j++)
-        {
+      {
         if (newFileName == fileNames->GetValue(j))
-          {
+        {
           alreadyThere = true;
           break;
-          }
-        }
-      if (!alreadyThere)
-        {
-        fileNames->InsertNextValue(newFileName);
         }
       }
-    reader->SetFileNames(fileNames);
+      if (!alreadyThere)
+      {
+        fileNames->InsertNextValue(newFileName);
+      }
     }
+    reader->SetFileNames(fileNames);
+  }
   reader->SetDesiredTimeIndex(0);
 
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkImageData *image = reader->GetOutput();
 
@@ -333,18 +333,18 @@ void WriteDICOMImage(
   int vtkNotUsed(coordSystem))
 {
   if (vtksys::SystemTools::FileExists(directoryName))
-    {
+  {
     if (!vtksys::SystemTools::FileIsDirectory(directoryName))
-      {
+    {
       fprintf(stderr, "option -o must give a DICOM directory, not a file.\n");
       exit(1);
-      }
     }
+  }
   else if (!vtksys::SystemTools::MakeDirectory(directoryName))
-    {
+  {
     fprintf(stderr, "Cannot create directory: %s\n", directoryName);
     exit(1);
-    }
+  }
 
   // get the meta data
   vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(targetReader);
@@ -354,7 +354,7 @@ void WriteDICOMImage(
     vtkSmartPointer<vtkDICOMMetaData>::New();
 
   if (reader)
-    {
+  {
     // copy the bulk of the meta data from the target image
     meta->DeepCopy(reader->GetMetaData());
     meta->SetAttributeValue(DC::SeriesNumber,
@@ -362,17 +362,17 @@ void WriteDICOMImage(
     std::string seriesDescription =
       meta->GetAttributeValue(DC::SeriesDescription).AsString() + " REG";
     if (seriesDescription.size() < 64)
-      {
-      meta->SetAttributeValue(DC::SeriesDescription, seriesDescription);
-      }
-    }
-  if (reader2)
     {
+      meta->SetAttributeValue(DC::SeriesDescription, seriesDescription);
+    }
+  }
+  if (reader2)
+  {
     // set the frame of reference from the source image
     meta->SetAttributeValue(DC::FrameOfReferenceUID,
       reader2->GetMetaData()->GetAttributeValue(
       DC::FrameOfReferenceUID));
-    }
+  }
 
   // make the generator
   vtkSmartPointer<vtkDICOMMRGenerator> mrgenerator =
@@ -381,48 +381,48 @@ void WriteDICOMImage(
     vtkSmartPointer<vtkDICOMCTGenerator>::New();
   vtkDICOMGenerator *generator = 0;
   if (reader)
-    {
+  {
     std::string SOPClass =
       meta->GetAttributeValue(DC::SOPClassUID).AsString();
     if (SOPClass == "1.2.840.10008.5.1.4.1.1.2" ||
         SOPClass == "1.2.840.10008.5.1.4.1.1.2.1" ||
         SOPClass == "1.2.840.10008.5.1.4.1.1.2.2")
-      {
+    {
       generator = ctgenerator;
-      }
+    }
     else if (SOPClass == "1.2.840.10008.5.1.4.1.1.4" ||
              SOPClass == "1.2.840.10008.5.1.4.1.1.4.1" ||
              SOPClass == "1.2.840.10008.5.1.4.1.1.4.4")
-      {
+    {
       generator = mrgenerator;
-      }
     }
+  }
 
   // prepare the writer to write the image
   vtkSmartPointer<vtkDICOMWriter> writer =
     vtkSmartPointer<vtkDICOMWriter>::New();
   if (generator)
-    {
+  {
     writer->SetGenerator(generator);
-    }
+  }
   writer->SetMetaData(meta);
   writer->SetFilePrefix(directoryName);
   writer->SetFilePattern("%s/IM-0001-%04.4d.dcm");
   writer->TimeAsVectorOn();
   if (reader)
-    {
+  {
     if (reader->GetTimeDimension() > 1)
-      {
+    {
       writer->SetTimeDimension(reader->GetTimeDimension());
       writer->SetTimeSpacing(reader->GetTimeSpacing());
-      }
+    }
     if (reader->GetRescaleSlope() > 0)
-      {
+    {
       writer->SetRescaleSlope(reader->GetRescaleSlope());
       writer->SetRescaleIntercept(reader->GetRescaleIntercept());
-      }
-    writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
     }
+    writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
+  }
   writer->SET_INPUT_DATA(data);
   writer->SetPatientMatrix(matrix);
   writer->Write();
@@ -440,14 +440,14 @@ vtkDICOMImageReader *ReadDICOMImage(
   reader->SetDirectoryName(directoryName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem != NIFTICoords)
-    {
+  {
     // the reader flips the image and reverses the ordering, so undo these
     vtkSmartPointer<vtkImageReslice> flip =
       vtkSmartPointer<vtkImageReslice>::New();
@@ -458,7 +458,7 @@ vtkDICOMImageReader *ReadDICOMImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
@@ -474,19 +474,19 @@ vtkDICOMImageReader *ReadDICOMImage(
   vtkMath::Cross(xdir, ydir, zdir);
 
   for (int i = 0; i < 3; i++)
-    {
+  {
     matrix->Element[i][0] = xdir[i];
     matrix->Element[i][1] = ydir[i];
     matrix->Element[i][2] = zdir[i];
     matrix->Element[i][3] = position[i];
-    }
+  }
   matrix->Element[3][0] = 0;
   matrix->Element[3][1] = 0;
   matrix->Element[3][2] = 0;
   matrix->Element[3][3] = 1;
 
   if (coordSystem == NIFTICoords)
-    {
+  {
     double spacing[3], origin[3];
     int extent[6];
     image->GetSpacing(spacing);
@@ -500,18 +500,18 @@ vtkDICOMImageReader *ReadDICOMImage(
     point[3] = 1.0;
     matrix->MultiplyPoint(point, point);
     for (int j = 0; j < 3; j++)
-      {
+    {
       matrix->Element[j][1] = -matrix->Element[j][1];
       matrix->Element[j][2] = -matrix->Element[j][2];
       matrix->Element[j][3] = point[j];
-      }
+    }
     // do the DICOM to NIFTI coord conversion
     for (int k = 0; k < 4; k++)
-      {
+    {
       matrix->Element[0][k] = -matrix->Element[0][k];
       matrix->Element[1][k] = -matrix->Element[1][k];
-      }
     }
+  }
 
   matrix->Modified();
 
@@ -529,14 +529,14 @@ vtkMINCImageReader *ReadMINCImage(
   reader->SetFileName(fileName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     double spacing[3];
     reader->GetOutput()->GetSpacing(spacing);
     spacing[0] = fabs(spacing[0]);
@@ -554,14 +554,14 @@ vtkMINCImageReader *ReadMINCImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
   data->GetPointData()->PassData(image->GetPointData());
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     // generate the matrix, but modify to use DICOM coords
     static double xyFlipMatrix[16] =
       { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
@@ -571,11 +571,11 @@ vtkMINCImageReader *ReadMINCImage(
     // do the left/right, up/down dicom-to-minc transformation
     vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
     matrix->Modified();
-    }
+  }
   else
-    {
+  {
     matrix->DeepCopy(reader->GetDirectionCosines());
-    }
+  }
 
   return reader;
 }
@@ -608,14 +608,14 @@ vtkNIFTIReader *ReadNIFTIImage(
   reader->SetFileName(fileName);
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkSmartPointer<vtkImageData> image = reader->GetOutput();
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     double spacing[3];
     reader->GetOutput()->GetSpacing(spacing);
     spacing[0] = fabs(spacing[0]);
@@ -633,7 +633,7 @@ vtkNIFTIReader *ReadNIFTIImage(
     flip->Update();
 
     image = flip->GetOutput();
-    }
+  }
 
   // get the data
   data->CopyStructure(image);
@@ -643,16 +643,16 @@ vtkNIFTIReader *ReadNIFTIImage(
   static double nMatrix[16] =
     { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
   if (reader->GetQFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetQFormMatrix());
-    }
+  }
   else if (reader->GetSFormMatrix())
-    {
+  {
     vtkMatrix4x4::DeepCopy(nMatrix, reader->GetSFormMatrix());
-    }
+  }
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     // generate the matrix, but modify to use DICOM coords
     static double xyFlipMatrix[16] =
       { -1, 0, 0, 0,  0, -1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
@@ -661,11 +661,11 @@ vtkNIFTIReader *ReadNIFTIImage(
     // do the left/right, up/down dicom-to-minc transformation
     vtkMatrix4x4::Multiply4x4(xyFlipMatrix, *matrix->Element, *matrix->Element);
     matrix->Modified();
-    }
+  }
   else
-    {
+  {
     matrix->DeepCopy(nMatrix);
-    }
+  }
 
   return reader;
 }
@@ -681,21 +681,21 @@ void WriteNIFTIImage(
   vtkSmartPointer<vtkNIFTIWriter> writer =
     vtkSmartPointer<vtkNIFTIWriter>::New();
   if (treader)
-    {
+  {
     writer->SetNIFTIHeader(treader->GetNIFTIHeader());
     if (treader->GetTimeDimension() > 1)
-      {
+    {
       writer->SetTimeDimension(treader->GetTimeDimension());
       writer->SetTimeSpacing(treader->GetTimeSpacing());
-      }
     }
+  }
   if (sreader)
-    {
+  {
     if (sreader->GetQFac() < 0)
-      {
+    {
       writer->SetQFac(-1.0);
-      }
     }
+  }
   writer->SET_INPUT_DATA(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
@@ -713,22 +713,22 @@ vtkImageReader2 *ReadImage(
   vtkImageReader2 *reader = 0;
 
   if (t == MINCImage)
-    {
+  {
     reader = ReadMINCImage(image, matrix, filename, coordSystem);
-    }
+  }
   else if (t == NIFTIImage)
-    {
+  {
 #ifdef AIRS_USE_NIFTI
     reader = ReadNIFTIImage(image, matrix, filename, coordSystem);
 #else
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
-    }
+  }
   else
-    {
+  {
     reader = ReadDICOMImage(image, matrix, filename, coordSystem);
-    }
+  }
 
   // compute the range of values present (between 1st and 99th percentile)
   double fill[2];
@@ -736,7 +736,7 @@ vtkImageReader2 *ReadImage(
 
   // if a pad value was detected, threshold to get rid of it
   if (fill[1] != 0)
-    {
+  {
     vtkSmartPointer<vtkImageThreshold> thresh =
       vtkSmartPointer<vtkImageThreshold>::New();
     thresh->SET_INPUT_DATA(image);
@@ -744,17 +744,17 @@ vtkImageReader2 *ReadImage(
     thresh->ReplaceOutOn();
     thresh->SetOutValue(vrange[0]);
     if (fill[0] > vrange[1])
-      {
+    {
       thresh->ThresholdByLower(fill[0] - fill[1]);
-      }
+    }
     else
-      {
+    {
       thresh->ThresholdByUpper(fill[0] + fill[1]);
-      }
+    }
     thresh->Update();
     image->CopyStructure(thresh->GetOutput());
     image->GetPointData()->PassData(thresh->GetOutput()->GetPointData());
-    }
+  }
 
   // ---------
   // use vtkImageReslice to eliminate any shear caused by CT tilted gantry
@@ -762,9 +762,9 @@ vtkImageReader2 *ReadImage(
   // use sinc interpolation here unless NN or LA requested
   if (interpolator != vtkImageRegistration::Nearest &&
       interpolator != vtkImageRegistration::Label)
-    {
+  {
     interpolator = vtkImageRegistration::Sinc;
-    }
+  }
 
   // get the directions from the patient matrix
   vtkSmartPointer<vtkMatrix4x4> pmat =
@@ -794,18 +794,18 @@ vtkImageReader2 *ReadImage(
   double yshear = rmat->GetElement(1, 2)/zdn;
 
   if (fabs(zdn - 1.0) < 1e-3 && fabs(xshear) < 1e-3)
-    {
+  {
     // pure gantry tilt shear matrix will have only one element that
     // is different from the identity matrix, so enforce this exactly:
     xshear = 0;
     zdn = 1.0;
     rmat->Identity();
     rmat->SetElement(1, 2, yshear);
-    }
+  }
 
   // if shear is not insignificant, resample on an orthogonal grid
   if (fabs(xshear) > 1e-3 || fabs(yshear) > 1e-3)
-    {
+  {
     double origin[3], spacing[3];
     int extent[6];
     image->GetOrigin(origin);
@@ -831,7 +831,7 @@ vtkImageReader2 *ReadImage(
 
     image->CopyStructure(reslice->GetOutput());
     image->GetPointData()->PassData(reslice->GetOutput()->GetPointData());
-    }
+  }
 
   return reader;
 }
@@ -841,9 +841,9 @@ int CoordSystem(const char *filename)
   int t = GuessFileType(filename);
 
   if (t == MINCImage || t == NIFTIImage)
-    {
+  {
     return NIFTICoords;
-    }
+  }
 
   return DICOMCoords;
 }
@@ -861,13 +861,13 @@ void WriteImage(
   // use sinc interpolation here unless NN or LA requested
   if (interpolator != vtkImageRegistration::Nearest &&
       interpolator != vtkImageRegistration::Label)
-    {
+  {
     interpolator = vtkImageRegistration::Sinc;
-    }
+  }
 
   vtkDICOMReader *reader = vtkDICOMReader::SafeDownCast(sourceReader);
   if (reader)
-    {
+  {
     // get the directions from the patient matrix
     vtkSmartPointer<vtkMatrix4x4> pmat =
       vtkSmartPointer<vtkMatrix4x4>::New();
@@ -886,18 +886,18 @@ void WriteImage(
     double yshear = rmat->GetElement(1, 2)/zdn;
 
     if (fabs(zdn - 1.0) < 1e-3 && fabs(xshear) < 1e-3)
-      {
+    {
       // pure gantry tilt shear matrix will have only one element that
       // is different from the identity matrix, so enforce this exactly:
       xshear = 0;
       zdn = 1.0;
       rmat->Identity();
       rmat->SetElement(1, 2, yshear);
-      }
+    }
 
     // if shear is not insignificant, resample on an orthogonal grid
     if (fabs(xshear) > 1e-3 || fabs(yshear) > 1e-3)
-      {
+    {
       double origin[3], spacing[3];
       int extent[6];
       image->GetOrigin(origin);
@@ -920,19 +920,19 @@ void WriteImage(
 
       image = reslice->GetOutput();
       matrix = reader->GetPatientMatrix();
-      }
     }
+  }
 #endif
 
   int t = GuessFileType(filename);
 
   if (t == MINCImage)
-    {
+  {
     WriteMINCImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
-    }
+  }
   else if (t == NIFTIImage)
-    {
+  {
 #ifdef AIRS_USE_NIFTI
     WriteNIFTIImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
@@ -940,9 +940,9 @@ void WriteImage(
     fprintf(stderr, "NIFTI files are not supported.\n");
     exit(1);
 #endif
-    }
+  }
   else
-    {
+  {
 #ifdef AIRS_USE_DICOM
     WriteDICOMImage(
       sourceReader, targetReader, image, matrix, filename, coordSystem);
@@ -950,7 +950,7 @@ void WriteImage(
     fprintf(stderr, "Writing DICOM files is not supported.\n");
     exit(1);
 #endif
-    }
+  }
 }
 
 
@@ -966,10 +966,10 @@ void WriteReport(vtkImageRegistration *reg, const char *fname)
 
   FILE *f = fopen(fname, "w");
   if (!f)
-    {
+  {
     fprintf(stderr, "Unable to open output file %s\n", fname);
     return;
-    }
+  }
 
   // get the number of free parameters
   int dof = paramArray->GetNumberOfComponents();
@@ -977,42 +977,42 @@ void WriteReport(vtkImageRegistration *reg, const char *fname)
   // get the parameter names
   const char **pnames = 0;
   if (reg->GetTransformDimensionality() == 2)
-    {
+  {
     static const char *p[] = {
       "tx", "ty", "r", "s", "a", "q"
-    }; 
+    };
     pnames = p;
-    }
+  }
   else
-    {
+  {
     static const char *p[] = {
       "tx", "ty", "tz", "rx", "ry", "rz", "s", "a", "b", "qx", "qy", "qz"
-    }; 
+    };
     pnames = p;
-    }
+  }
 
   // print the header
   fprintf(f, "\"%s\",\"%s\",\"%s\"", "feval", "cost", "metric");
   for (int k = 0; k < dof; k++)
-    {
+  {
     fprintf(f, ",\"%s\"", pnames[k]);
-    }
+  }
   fprintf(f, "\n");
 
   int n = static_cast<int>(costArray->GetNumberOfTuples());
   int j = 0;
   for (int i = 0; i < n; i++)
-    {
+  {
     // Only report decreasing values, because we want to show the path
     // taken towards convergence
     if (costArray->GetValue(i) <= costArray->GetValue(j))
-      {
+    {
       j = i;
-      }
+    }
     else
-      {
+    {
       continue;
-      }
+    }
 
     double params[12] = {
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -1024,11 +1024,11 @@ void WriteReport(vtkImageRegistration *reg, const char *fname)
             i, costArray->GetValue(j), metricArray->GetValue(j));
 
     for (int k = 0; k < dof; k++)
-      {
+    {
       fprintf(f, ",%g", params[k]);
-      }
-    fprintf(f, "\n");
     }
+    fprintf(f, "\n");
+  }
 
   fclose(f);
 }
@@ -1048,9 +1048,9 @@ void SetViewFromMatrix(
   double viewUp[4] = { 0.0, 1.0, 0.0, 0.0 };
 
   if (coordSystem == DICOMCoords)
-    {
+  {
     viewUp[1] = -1.0;
-    }
+  }
 
   matrix->MultiplyPoint(viewRight, viewRight);
   matrix->MultiplyPoint(viewUp, viewUp);
@@ -1071,9 +1071,9 @@ void ErrorObserver::Execute(
   vtkObject *, unsigned long, void *callData)
 {
   if (callData)
-    {
+  {
     fprintf(stderr, "%s\n", static_cast<char *>(callData));
-    }
+  }
   exit(1);
 }
 
@@ -1084,7 +1084,7 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
   int t = GuessFileType(xfminput);
 
   if (t == MNITransform) // .xfm
-    {
+  {
     // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformReader> reader =
       vtkSmartPointer<vtkMNITransformReader>::New();
@@ -1094,17 +1094,17 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     vtkLinearTransform *transform =
       vtkLinearTransform::SafeDownCast(reader->GetTransform());
     if (transform)
-      {
+    {
       matrix->DeepCopy(transform->GetMatrix());
-      }
+    }
     else
-      {
+    {
       fprintf(stderr, "Unable to read input transform %s\n", xfminput);
       exit(1);
-      }
     }
+  }
   else if (t == ITKTransform) // .tfm
-    {
+  {
     // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMReader> reader =
       vtkSmartPointer<vtkITKXFMReader>::New();
@@ -1114,17 +1114,17 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     vtkLinearTransform *transform =
       vtkLinearTransform::SafeDownCast(reader->GetTransform());
     if (transform)
-      {
+    {
       matrix->DeepCopy(transform->GetMatrix());
-      }
+    }
     else
-      {
+    {
       fprintf(stderr, "Unable to read input transform %s\n", xfminput);
       exit(1);
-      }
     }
+  }
   else
-    {
+  {
     // text file
     double elements[16] = {
       1.0, 0.0, 0.0, 0.0,
@@ -1135,26 +1135,26 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
     ifstream infile(xfminput);
     int i = 0;
     while (infile.good() && i < 16)
-      {
+    {
       infile >> elements[i];
       if (infile.fail() && !infile.bad())
-        {
+      {
         infile.clear();
         infile.get();
-        }
-      else
-        {
-        i++;
-        }
       }
+      else
+      {
+        i++;
+      }
+    }
     infile.close();
     if (i < 16)
-      {
+    {
       fprintf(stderr, "Unable to read input transform %s\n", xfminput);
       exit(1);
-      }
-    matrix->DeepCopy(elements);
     }
+    matrix->DeepCopy(elements);
+  }
 }
 
 void WriteMatrix(
@@ -1169,7 +1169,7 @@ void WriteMatrix(
   int t = GuessFileType(xfmfile);
 
   if (t == MNITransform) // .xfm
-    {
+  {
     // MNI transform file (always in RAS coords)
     vtkSmartPointer<vtkMNITransformWriter> writer =
       vtkSmartPointer<vtkMNITransformWriter>::New();
@@ -1177,9 +1177,9 @@ void WriteMatrix(
     writer->SetTransform(transform);
     writer->AddObserver(vtkCommand::ErrorEvent, observer);
     writer->Update();
-    }
+  }
   else if (t == ITKTransform) // .tfm
-    {
+  {
     // ITK transform file (always in DICOM coords)
     vtkSmartPointer<vtkITKXFMWriter> writer =
       vtkSmartPointer<vtkITKXFMWriter>::New();
@@ -1188,27 +1188,27 @@ void WriteMatrix(
     writer->SetTransformCenter(center);
     writer->AddObserver(vtkCommand::ErrorEvent, observer);
     writer->Write();
-    }
+  }
   else
-    {
+  {
     // Delimited text file
     const char *delim = ((t == CSVTransform) ? "," : "\t");
     std::ofstream outfile(xfmfile, ios::out);
     for (int i = 0; i < 4; i++)
-      {
+    {
       outfile << std::setprecision(10)
               << matrix->Element[i][0] << delim
               << matrix->Element[i][1] << delim
               << matrix->Element[i][2] << delim
               << matrix->Element[i][3] << "\n";
-      }
+    }
     if (!outfile.good())
-      {
+    {
       fprintf(stderr, "Unable to write output transform.\n");
       exit(1);
-      }
-    outfile.close();
     }
+    outfile.close();
+  }
 }
 
 void WriteScreenshot(vtkWindow *window, const char *filename)
@@ -1220,31 +1220,31 @@ void WriteScreenshot(vtkWindow *window, const char *filename)
 
   size_t l = strlen(filename);
   if (l >= 4 && strcmp(filename + (l - 4), ".png") == 0)
-    {
+  {
     vtkSmartPointer<vtkPNGWriter> snapWriter =
       vtkSmartPointer<vtkPNGWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
   else if ((l >= 4 && strcmp(filename + (l - 4), ".jpg") == 0) ||
            (l >= 5 && strcmp(filename + (l - 5), ".jpeg") == 0))
-    {
+  {
     vtkSmartPointer<vtkJPEGWriter> snapWriter =
       vtkSmartPointer<vtkJPEGWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
   else if ((l >= 4 && strcmp(filename + (l - 4), ".tif") == 0) ||
            (l >= 5 && strcmp(filename + (l - 5), ".tiff") == 0))
-    {
+  {
     vtkSmartPointer<vtkTIFFWriter> snapWriter =
       vtkSmartPointer<vtkTIFFWriter>::New();
     snapWriter->SetInputConnection(snap->GetOutputPort());
     snapWriter->SetFileName(filename);
     snapWriter->Write();
-    }
+  }
 }
 
 void ComputeRange(vtkImageData *image, double range[2], double fill[2])
@@ -1261,7 +1261,7 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
   image->GetExtent(extent);
 
   for (int i = 0; i < 3; ++i)
-    {
+  {
     double b1 = extent[2*i]*spacing[i] + origin[i];
     double b2 = extent[2*i+1]*spacing[i] + origin[i];
     bounds[2*i] = (b1 < b2 ? b1 : b2);
@@ -1272,7 +1272,7 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
     double bl = (i == 2 ? 0.0 : 0.01*(bounds[2*i+1] - bounds[2*i]));
     bounds[2*i] += bl;
     bounds[2*i+1] -= bl;
-    }
+  }
 
   // extract just the reconstructed portion of CT image
   vtkSmartPointer<vtkROIStencilSource> cylinder =
@@ -1316,63 +1316,63 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
 
   vtkIdType total = 0;
   for (vtkIdType bin = 0; bin <= brange[0]; bin++)
-    {
+  {
     vtkIdType count = histogram->GetValue(bin);
     total += count;
     if (count > maxCount)
-      {
+    {
       maxCount = count;
       maxBin = bin;
-      }
     }
+  }
   for (vtkIdType bin = brange[1]; bin < numBins; bin++)
-    {
+  {
     vtkIdType count = histogram->GetValue(bin);
     total += count;
     if (count > maxCount)
-      {
+    {
       maxCount = count;
       maxBin = bin;
-      }
     }
+  }
   // if one bin accounts for most of the out-of-range values,
   // then that bin must be a fill value rather than real data
   if (maxCount > total/2 && maxCount > rangeFinder->GetTotal()/10)
-    {
+  {
     fill[0] = maxBin*binSpacing + binOrigin;
     fill[1] = binSpacing;
     // finally, need to re-check the original range, maybe it actually did
     // include the fill value!
     if (maxBin == brange[0])
-      {
+    {
       vtkIdType bin;
       for (bin = brange[0]+1; bin < brange[1]; bin++)
-        {
-        if (histogram->GetValue(bin) != 0) { break; }
-        }
-      if (bin < brange[1] && bin - brange[0] > 4)
-        {
-        range[0] = bin*binSpacing + binOrigin;
-        }
-      }
-    else if (maxBin == brange[1])
       {
+        if (histogram->GetValue(bin) != 0) { break; }
+      }
+      if (bin < brange[1] && bin - brange[0] > 4)
+      {
+        range[0] = bin*binSpacing + binOrigin;
+      }
+    }
+    else if (maxBin == brange[1])
+    {
       vtkIdType bin;
       for (bin = brange[1]-1; bin > brange[0]; bin--)
-        {
+      {
         if (histogram->GetValue(bin) != 0) { break; }
-        }
+      }
       if (bin > brange[0] && brange[1] - bin > 4)
-        {
+      {
         range[1] = bin*binSpacing + binOrigin;
-        }
       }
     }
+  }
   else
-    {
+  {
     fill[0] = 0;
     fill[1] = 0;
-    }
+  }
 }
 
 };
@@ -1448,39 +1448,39 @@ const char *check_next_arg(
   const char *op = argv[*argi - 1];
   if (*argi >= argc ||
       argv[*argi][0] == '-')
-    {
+  {
     fprintf(stderr, "The option \"%s\" must be followed by an argument\n", op);
     exit(1);
-    }
+  }
   const char *arg = argv[(*argi)++];
 
   if (possib == 0)
-    {
+  {
     return arg;
-    }
+  }
 
   bool match = false;
   for (const char **t = possib; *t != 0; t++)
-    {
+  {
     if (strcmp(*t, arg) == 0)
-      {
+    {
       match = true;
       break;
-      }
     }
+  }
 
   if (!match)
-    {
+  {
     fprintf(stderr, "Incorrect value for option \"%s\": %s\n",
             op, arg);
     fprintf(stderr, "Allowed values:");
     for (const char **u = possib; *u != 0; u++)
-      {
+    {
       fprintf(stderr, "%s", *u);
-      }
+    }
     fprintf(stderr, "\n");
     exit(1);
-    }
+  }
 
   return arg;
 }
@@ -1727,308 +1727,308 @@ int register_read_options(
 
   int argi = 1;
   while (argi < argc)
-    {
+  {
     const char *arg = argv[argi++];
     if (arg[0] != '-')
-      {
+    {
       int t = GuessFileType(arg);
 
       if (t <= LastImageType)
-        {
+      {
         if (options->source == 0)
-          {
+        {
           options->source = arg;
-          }
+        }
         else if (options->target == 0)
-          {
+        {
           options->target = arg;
-          }
+        }
         else
-          {
+        {
           fprintf(stderr, "Too many input images listed on command line\n");
           exit(1);
-          }
-        }
-      else if (t <= LastTransformType)
-        {
-        options->transforms.push_back(TransformArg(arg, false));
         }
       }
-    else
+      else if (t <= LastTransformType)
       {
+        options->transforms.push_back(TransformArg(arg, false));
+      }
+    }
+    else
+    {
       if (strcmp(arg, "-h") == 0 ||
           strcmp(arg, "--help") == 0)
-        {
+      {
         register_show_help(stdout, argv[0]);
         exit(0);
-        }
+      }
       else if (strcmp(arg, "-D") == 0 ||
                strcmp(arg, "--dimensionality") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, dimensionality_args);
         options->dimensionality = (arg[0] == '2' ? 2 : 3);
-        }
+      }
       else if (strcmp(arg, "-M") == 0 ||
                strcmp(arg, "--metric") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, metric_args);
         if (strcmp(arg, "SquaredDifference") == 0 ||
             strcmp(arg, "SD") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::SquaredDifference;
-          }
+        }
         else if (strcmp(arg, "CrossCorrelation") == 0 ||
                  strcmp(arg, "CC") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::CrossCorrelation;
-          }
+        }
         else if (strcmp(arg, "NormalizedCrossCorrelation") == 0 ||
                  strcmp(arg, "NCC") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::NormalizedCrossCorrelation;
-          }
+        }
         else if (strcmp(arg, "NeighborhoodCorrelation") == 0 ||
                  strcmp(arg, "NC") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::NeighborhoodCorrelation;
-          }
+        }
         else if (strcmp(arg, "CorrelationRatio") == 0 ||
                  strcmp(arg, "CR") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::CorrelationRatio;
-          }
+        }
         else if (strcmp(arg, "MutualInformation") == 0 ||
                  strcmp(arg, "MI") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::MutualInformation;
-          }
+        }
         else if (strcmp(arg, "NormalizedMutualInformation") == 0 ||
                  strcmp(arg, "NMI") == 0)
-          {
+        {
           options->metric = vtkImageRegistration::NormalizedMutualInformation;
-          }
         }
+      }
       else if (strcmp(arg, "-T") == 0 ||
                strcmp(arg, "--transform") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, transform_args);
         if (strcmp(arg, "Translation") == 0 ||
             strcmp(arg, "TR") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::Translation;
-          }
+        }
         else if (strcmp(arg, "Rigid") == 0 ||
                  strcmp(arg, "RI") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::Rigid;
-          }
+        }
         else if (strcmp(arg, "Similarity") == 0 ||
                  strcmp(arg, "SI") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::Similarity;
-          }
+        }
         else if (strcmp(arg, "ScaleSourceAxes") == 0 ||
                  strcmp(arg, "SS") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::ScaleSourceAxes;
-          }
+        }
         else if (strcmp(arg, "ScaleTargetAxes") == 0 ||
                  strcmp(arg, "ST") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::ScaleTargetAxes;
-          }
+        }
         else if (strcmp(arg, "Affine") == 0 ||
                  strcmp(arg, "AF") == 0)
-          {
+        {
           options->transform = vtkImageRegistration::Affine;
-          }
         }
+      }
       else if (strcmp(arg, "-I") == 0 ||
                strcmp(arg, "--interpolator") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, interpolator_args);
         if (strcmp(arg, "NearestNeighbor") == 0 ||
             strcmp(arg, "NN") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::Nearest;
-          }
+        }
         else if (strcmp(arg, "Linear") == 0 ||
                  strcmp(arg, "LI") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::Linear;
-          }
+        }
         else if (strcmp(arg, "Cubic") == 0 ||
                  strcmp(arg, "CU") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::Cubic;
-          }
+        }
         else if (strcmp(arg, "BSpline") == 0 ||
                  strcmp(arg, "BS") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::BSpline;
-          }
+        }
         else if (strcmp(arg, "WindowedSinc") == 0 ||
                  strcmp(arg, "WS") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::Sinc;
-          }
+        }
         else if (strcmp(arg, "Antialiasing") == 0 ||
                  strcmp(arg, "AS") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::ASinc;
-          }
+        }
         else if (strcmp(arg, "Label") == 0 ||
                  strcmp(arg, "LA") == 0)
-          {
+        {
           options->interpolator = vtkImageRegistration::Label;
-          }
         }
+      }
       else if (strcmp(arg, "-O") == 0 ||
                strcmp(arg, "--optimizer") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, optimizer_args);
         if (strcmp(arg, "Amoeba") == 0 ||
             strcmp(arg, "NM") == 0)
-          {
+        {
           options->optimizer = vtkImageRegistration::Amoeba;
-          }
+        }
         else if (strcmp(arg, "Powell") == 0 ||
                  strcmp(arg, "PW") == 0)
-          {
+        {
           options->optimizer = vtkImageRegistration::Powell;
-          }
         }
+      }
       else if (strcmp(arg, "-P") == 0 ||
                strcmp(arg, "--parallel") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, parallel_args);
         if (strcmp(arg, "MultiThread") == 0 ||
             strcmp(arg, "MT") == 0)
-          {
+        {
           options->parallel = MultiThread;
-          }
+        }
         else if (strcmp(arg, "ThreadPool") == 0 ||
                  strcmp(arg, "TP") == 0)
-          {
+        {
           options->parallel = ThreadPool;
-          }
-        else
-          {
-          options->parallel = 0;
-          }
         }
+        else
+        {
+          options->parallel = 0;
+        }
+      }
       else if (strcmp(arg, "-C") == 0 ||
                strcmp(arg, "--coords") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, coords_args);
         if (strcmp(arg, "DICOM") == 0 ||
             strcmp(arg, "LPS") == 0)
-          {
+        {
           options->coords = DICOMCoords;
-          }
+        }
         else if (strcmp(arg, "MINC") == 0 ||
                  strcmp(arg, "NIFTI") == 0 ||
                  strcmp(arg, "RAS") == 0)
-          {
+        {
           options->coords = NIFTICoords;
-          }
         }
+      }
       else if (strcmp(arg, "-N") == 0 ||
                strcmp(arg, "--maxeval") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, 0);
         for (int i = 0; i < 4; i++)
-          {
+        {
           options->maxeval[i] = static_cast<int>(
             strtoul(arg, const_cast<char **>(&arg), 0));
           if (*arg == 'x') { arg++; }
-          }
         }
+      }
       else if (strcmp(arg, "-d") == 0 ||
                strcmp(arg, "--display") == 0)
-        {
+      {
         options->display = 1;
-        }
+      }
       else if (strcmp(arg, "-t") == 0 ||
                strcmp(arg, "--translucent") == 0)
-        {
+      {
         options->translucent = 1;
-        }
+      }
 #ifdef VTK_HAS_SLAB_SPACING
       else if (strcmp(arg, "--mip") == 0)
-        {
+      {
         options->mip = 1;
-        }
+      }
 #endif
       else if (strcmp(arg, "--source-to-target") == 0)
-        {
+      {
         options->source_to_target = 1;
-        }
+      }
       else if (strcmp(arg, "-s") == 0 ||
                strcmp(arg, "--silent") == 0)
-        {
+      {
         options->silent = 1;
-        }
+      }
       else if (strcmp(arg, "-i") == 0 ||
                strcmp(arg, "--invert") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, 0);
         int t = GuessFileType(arg);
 
         if (t > LastImageType && t <= LastTransformType)
-          {
+        {
           options->transforms.push_back(TransformArg(arg, true));
-          }
+        }
         else
-          {
+        {
           fprintf(stderr,
                   "The \"-i\" option must be followed by a transform\n");
           exit(1);
-          }
         }
+      }
       else if (strcmp(arg, "-j") == 0 ||
                strcmp(arg, "--screenshot") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, 0);
         options->screenshot = arg;
-        }
+      }
       else if (strcmp(arg, "-r") == 0 ||
                strcmp(arg, "--report") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, 0);
         options->report = arg;
-        }
+      }
       else if (strcmp(arg, "-o") == 0)
-        {
+      {
         arg = check_next_arg(argc, argv, &argi, 0);
         int t = GuessFileType(arg);
         if (t <= LastImageType)
-          {
-          if (options->output)
-            {
-            fprintf(stderr, "Too many -o options specified!\n");
-            register_show_usage(stderr, argv[0]);
-            }
-          options->output = arg;
-          }
-        else if (t <= LastTransformType)
-          {
-          if (options->outxfm)
-            {
-            fprintf(stderr, "Too many -o options specified!\n");
-            register_show_usage(stderr, argv[0]);
-            }
-          options->outxfm = arg;
-          }
-        }
-      else
         {
+          if (options->output)
+          {
+            fprintf(stderr, "Too many -o options specified!\n");
+            register_show_usage(stderr, argv[0]);
+          }
+          options->output = arg;
+        }
+        else if (t <= LastTransformType)
+        {
+          if (options->outxfm)
+          {
+            fprintf(stderr, "Too many -o options specified!\n");
+            register_show_usage(stderr, argv[0]);
+          }
+          options->outxfm = arg;
+        }
+      }
+      else
+      {
         fprintf(stderr, "Unrecognized option \"%s\"\n", arg);
         register_show_usage(stderr, argv[0]);
         exit(1);
-        }
       }
     }
+  }
 
   return 1;
 }
@@ -2050,10 +2050,10 @@ int main(int argc, char *argv[])
                   options.screenshot != 0);
 
   if (!sourcefile || !targetfile)
-    {
+  {
     register_show_usage(stderr, argv[0]);
     return 1;
-    }
+  }
 
   // -------------------------------------------------------
   // parameters for registration
@@ -2066,28 +2066,28 @@ int main(int argc, char *argv[])
   // -------------------------------------------------------
   // parameters for parallel processing
   if (options.parallel == ThreadPool)
-    {
+  {
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(true);
 #else
     cerr << "Warning: ThreadPool not available, ";
     cerr << "no backend was configured at build time.\n";
 #endif
-    }
+  }
   else if (options.parallel == MultiThread)
-    {
+  {
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
 #endif
-    }
+  }
   else
-    {
+  {
 #ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
 #endif
     vtkMultiThreader::SetGlobalMaximumNumberOfThreads(1);
     vtkMultiThreader::SetGlobalDefaultNumberOfThreads(1);
-    }
+  }
 
   // -------------------------------------------------------
   // load and concatenate the initial matrix transforms
@@ -2096,48 +2096,48 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkMatrix4x4> tempMatrix =
     vtkSmartPointer<vtkMatrix4x4>::New();
   for (size_t ti = 0; ti < xfminputs->size(); ti++)
-    {
+  {
     TransformArg trans = xfminputs->at(ti);
     if (!options.silent)
-      {
+    {
       cout << "Reading initial transform: " << trans.filename << endl;
       if (trans.invert)
-        {
+      {
         cout << "Using inverse of transform." << endl;
-        }
       }
+    }
 
     ReadMatrix(tempMatrix, trans.filename);
     if (trans.invert)
-      {
+    {
       tempMatrix->Invert();
-      }
+    }
 
     vtkMatrix4x4::Multiply4x4(tempMatrix, initialMatrix, initialMatrix);
-    }
+  }
 
   // -------------------------------------------------------
   // load the images
 
   if (options.coords == NativeCoords)
-    {
+  {
     int ic = CoordSystem(sourcefile);
     int oc = CoordSystem(targetfile);
 
     if (ic == DICOMCoords || oc == DICOMCoords)
-      {
+    {
       options.coords = DICOMCoords;
-      }
-    else
-      {
-      options.coords = NIFTICoords;
-      }
     }
+    else
+    {
+      options.coords = NIFTICoords;
+    }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "Reading source image: " << sourcefile << endl;
-    }
+  }
 
   double sourceRange[2] = { 0.0, 1.0 };
   vtkSmartPointer<vtkImageData> sourceImage =
@@ -2150,9 +2150,9 @@ int main(int argc, char *argv[])
   sourceReader->Delete();
 
   if (!options.silent)
-    {
+  {
     cout << "Reading target image: " << targetfile << endl;
-    }
+  }
 
   double targetRange[2] = { 0.0, 1.0 };
   vtkSmartPointer<vtkImageData> targetImage =
@@ -2165,16 +2165,16 @@ int main(int argc, char *argv[])
   targetReader->Delete();
 
   if (!options.silent)
-    {
+  {
     if (options.coords == DICOMCoords)
-      {
+    {
       cout << "Using DICOM patient coords." << endl;;
-      }
-    else
-      {
-      cout << "Using NIFTI (or MINC) world coords." << endl;
-      }
     }
+    else
+    {
+      cout << "Using NIFTI (or MINC) world coords." << endl;
+    }
+  }
 
   // -------------------------------------------------------
   // save the original source matrix
@@ -2226,13 +2226,13 @@ int main(int argc, char *argv[])
   sourceProperty->SetColorWindow((sourceRange[1]-sourceRange[0]));
   sourceProperty->SetColorLevel(0.5*(sourceRange[0]+sourceRange[1]));
   if (options.translucent)
-    {
+  {
     sourceProperty->SetOpacity(0.5);
-    }
+  }
   else
-    {
+  {
     sourceProperty->CheckerboardOn();
-    }
+  }
 
   sourceActor->SetMapper(sourceMapper);
   sourceActor->SetProperty(sourceProperty);
@@ -2251,11 +2251,11 @@ int main(int argc, char *argv[])
   targetMapper->ResampleToScreenPixelsOff();
 #ifdef VTK_HAS_SLAB_SPACING
   if (options.mip)
-    {
+  {
     targetMapper->SetSlabTypeToMax();
     targetMapper->SetSlabSampleFactor(2);
     targetMapper->SetSlabThickness(sourceImage->GetSpacing()[2]);
-    }
+  }
 #endif
 
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
@@ -2277,10 +2277,10 @@ int main(int argc, char *argv[])
 
   if (interpolatorType == vtkImageRegistration::Nearest ||
       interpolatorType == vtkImageRegistration::Label)
-    {
+  {
     targetProperty->SetInterpolationTypeToNearest();
     sourceProperty->SetInterpolationTypeToNearest();
-    }
+  }
 
   // this variable says which image to move around
   bool showTargetMoving = (options.source_to_target == 0);
@@ -2288,10 +2288,10 @@ int main(int argc, char *argv[])
   vtkMatrix4x4 *cameraMatrix = originalTargetMatrix;
   vtkImageData *cameraImage = targetImage;
   if (showTargetMoving)
-    {
+  {
     cameraMatrix = originalSourceMatrix;
     cameraImage = sourceImage;
-    }
+  }
 
   double bounds[6], center[4], tspacing[3];
   int extent[6];
@@ -2316,9 +2316,9 @@ int main(int argc, char *argv[])
   sourceProperty->SetCheckerboardSpacing(checkSpacing, checkSpacing);
 
   if (display)
-    {
+  {
     renderWindow->Render();
-    }
+  }
 
   // -------------------------------------------------------
   // prepare for registration
@@ -2329,20 +2329,20 @@ int main(int argc, char *argv[])
   sourceImage->GetSpacing(sourceSpacing);
 
   for (int jj = 0; jj < 3; jj++)
-    {
+  {
     targetSpacing[jj] = fabs(targetSpacing[jj]);
     sourceSpacing[jj] = fabs(sourceSpacing[jj]);
-    }
+  }
 
   double minSpacing = sourceSpacing[0];
   if (minSpacing > sourceSpacing[1])
-    {
+  {
     minSpacing = sourceSpacing[1];
-    }
+  }
   if (minSpacing > sourceSpacing[2])
-    {
+  {
     minSpacing = sourceSpacing[2];
-    }
+  }
 
   // blur source image with Blackman-windowed sinc
   vtkSmartPointer<vtkImageSincInterpolator> sourceBlurKernel =
@@ -2395,21 +2395,21 @@ int main(int argc, char *argv[])
   registration->SetCostTolerance(1e-4);
   registration->SetTransformTolerance(transformTolerance);
   if (xfminputs->size() > 0)
-    {
+  {
     registration->SetInitializerTypeToNone();
-    }
+  }
   else
-    {
+  {
     registration->SetInitializerTypeToCentered();
-    }
+  }
   registration->Initialize(matrix);
 
   // -------------------------------------------------------
   // collect the values as it converges
   if (options.report)
-    {
+  {
     registration->CollectValuesOn();
-    }
+  }
 
   // -------------------------------------------------------
   // make a timer
@@ -2428,14 +2428,14 @@ int main(int argc, char *argv[])
   bool initialized = false;
 
   while (level < 4 && options.maxeval[level] > 0)
-    {
+  {
     registration->SetMaximumNumberOfEvaluations(options.maxeval[level]);
     registration->SetMaximumNumberOfIterations(options.maxeval[level]);
     registration->SetInterpolatorType(interpolatorType);
     registration->SetTransformTolerance(transformTolerance*blurFactor);
 
     if (blurFactor < 1.1)
-      {
+    {
       // full resolution: no blurring or resampling
       sourceBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
@@ -2456,19 +2456,19 @@ int main(int argc, char *argv[])
       targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       targetBlur->Update();
 #endif
-      }
+    }
     else
-      {
+    {
       // reduced resolution: set the blurring
       double spacing[3];
       for (int j = 0; j < 3; j++)
-        {
+      {
         spacing[j] = blurFactor*minSpacing;
         if (spacing[j] < sourceSpacing[j])
-          {
+        {
           spacing[j] = sourceSpacing[j];
-          }
         }
+      }
 
       sourceBlurKernel->SetBlurFactors(
         spacing[0]/sourceSpacing[0],
@@ -2494,84 +2494,84 @@ int main(int argc, char *argv[])
       targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
       targetBlur->Update();
 #endif
-      }
+    }
 
     if (initialized)
-      {
+    {
       // re-initialize with the matrix from the previous step
       registration->SetInitializerTypeToNone();
       matrix->DeepCopy(registration->GetTransform()->GetMatrix());
-      }
+    }
 
     registration->Initialize(matrix);
 
     initialized = true;
 
     while (registration->Iterate())
-      {
+    {
       // registration->UpdateRegistration();
       // will iterate until convergence or failure
 
       if (showTargetMoving)
-        {
+      {
         targetMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
         targetMatrix->Invert();
         vtkMatrix4x4::Multiply4x4(
           originalSourceMatrix, targetMatrix, targetMatrix);
         targetMatrix->Modified();
-        }
+      }
       else
-        {
+      {
         sourceMatrix->DeepCopy(registration->GetTransform()->GetMatrix());
         vtkMatrix4x4::Multiply4x4(
           originalTargetMatrix, sourceMatrix, sourceMatrix);
         sourceMatrix->Modified();
-        }
+      }
 
       if (display)
-        {
+      {
         interactor->Render();
-        }
       }
+    }
 
     double newTime = timer->GetUniversalTime();
     double blurSpacing[3];
     sourceBlur->GetOutputSpacing(blurSpacing);
     double minBlurSpacing = VTK_DOUBLE_MAX;
     for (int kk = 0; kk < 3; kk++)
-      {
+    {
       if (blurSpacing[kk] < minBlurSpacing)
-        {
+      {
         minBlurSpacing = blurSpacing[kk];
-        }
       }
+    }
 
     if (!options.silent)
-      {
+    {
       cout << minBlurSpacing << " mm took "
            << (newTime - lastTime) << "s and "
            << registration->GetNumberOfEvaluations() << " evaluations" << endl;
       lastTime = newTime;
-      }
+    }
 
     // prepare for next iteration
     level++;
     blurFactor /= 2.0;
-    }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "registration took " << (lastTime - startTime) << "s" << endl;
-    }
+  }
 
   // -------------------------------------------------------
   // write the output matrix
   if (xfmfile)
-    {
+  {
     if (!options.silent)
-      {
+    {
       cout << "Writing transform file: " << xfmfile << endl;
-      }
+    }
 
     vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
     vtkSmartPointer<vtkMatrix4x4> wmatrix =
@@ -2582,39 +2582,39 @@ int main(int argc, char *argv[])
     vtkMatrix4x4::Multiply4x4(originalTargetMatrix, wmatrix, wmatrix);
 
     WriteMatrix(wmatrix, xfmfile, center);
-    }
+  }
 
   // -------------------------------------------------------
   // capture a screen shot
   if (options.screenshot)
-    {
+  {
     WriteScreenshot(renderWindow, options.screenshot);
-    }
+  }
 
   // -------------------------------------------------------
   // write a report
   if (options.report)
-    {
+  {
     WriteReport(registration, options.report);
-    }
+  }
 
   // -------------------------------------------------------
   // write the output file
   if (imagefile)
-    {
+  {
     if (!options.silent)
-      {
+    {
       cout << "Writing transformed image: " << imagefile << endl;
-      }
+    }
 
     // check which image is to be written
     vtkImageData *resliceImage = targetImage;
     vtkImageData *templateImage = sourceImage;
     if (options.source_to_target)
-      {
+    {
       resliceImage = sourceImage;
       templateImage = targetImage;
-      }
+    }
 
     int outputScalarType = resliceImage->GetScalarType();
 
@@ -2622,11 +2622,11 @@ int main(int argc, char *argv[])
       vtkSmartPointer<vtkImageBSplineCoefficients>::New();
     // if bspline, need to filter the image first
     if (options.interpolator == vtkImageRegistration::BSpline)
-      {
+    {
       bspline->SET_INPUT_DATA(resliceImage);
       bspline->Update();
       resliceImage = bspline->GetOutput();
-      }
+    }
 
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
@@ -2636,25 +2636,25 @@ int main(int argc, char *argv[])
 
 #ifdef VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
     if (outputScalarType != resliceImage->GetScalarType())
-      {
+    {
       reslice->SetOutputScalarType(outputScalarType);
-      }
+    }
 #endif
 
     if (options.source_to_target)
-      {
+    {
       reslice->SetResliceTransform(
         registration->GetTransform()->GetInverse());
-      }
+    }
     else
-      {
+    {
       reslice->SetResliceTransform(
         registration->GetTransform());
-      }
+    }
 
 #ifdef VTK_HAS_SLAB_SPACING
     if (options.mip)
-      {
+    {
       double ss[3];
       double st[3];
       templateImage->GetSpacing(ss);
@@ -2664,10 +2664,10 @@ int main(int argc, char *argv[])
       reslice->SetSlabNumberOfSlices(sn);
       reslice->SetSlabSliceSpacingFraction(1.0/sn);
       if (!options.silent)
-        {
+      {
         cout << "Wrote MIP slabs that are " << ss[2] << " mm thick." << endl;
-        }
       }
+    }
 #endif
 
     reslice->Update();
@@ -2677,41 +2677,41 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageCast> imageCast =
       vtkSmartPointer<vtkImageCast>::New();
     if (outputScalarType != resliceImage->GetScalarType())
-      {
+    {
       imageCast->SET_INPUT_DATA(resliceImage);
       imageCast->SetOutputScalarType(outputScalarType);
       imageCast->ClampOverflowOn();
       imageCast->Update();
       resliceImage = imageCast->GetOutput();
-      }
+    }
 #endif
 
     if (options.source_to_target)
-      {
+    {
       WriteImage(targetReader, sourceReader,
         resliceImage, originalTargetMatrix, imagefile,
         options.coords, options.interpolator);
-      }
+    }
     else
-      {
+    {
       WriteImage(sourceReader, targetReader,
         resliceImage, originalSourceMatrix, imagefile,
         options.coords, options.interpolator);
-      }
     }
+  }
 
   if (!options.silent)
-    {
+  {
     cout << "Done!" << endl;
-    }
+  }
 
   // -------------------------------------------------------
   // allow user to interact
 
   if (options.display)
-    {
+  {
     interactor->Start();
-    }
+  }
 
   return 0;
 }

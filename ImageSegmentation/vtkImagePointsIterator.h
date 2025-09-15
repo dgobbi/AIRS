@@ -66,70 +66,70 @@ public:
   // A span is a contiguous region of the image over which nothing but
   // the point Id and the X index changes.
   void NextSpan()
-    {
+  {
     this->vtkImageRegionIteratorBase::NextSpan();
     this->UpdatePosition();
-    }
+  }
 
   // Description:
   // Move to the next position (rather than directly to the next span).
   // This will automatically advance to the next span if the end of the
   // current span is reached.
   void Next()
-    {
+  {
     if (++(this->Id) == this->SpanEnd)
-      {
+    {
       this->NextSpan();
-      }
+    }
     else
-      {
+    {
       this->Index[0]++;
       this->Position[0] = this->Origin[0] + this->Index[0]*this->Spacing[0];
-      }
     }
+  }
 
   // Description:
   // Test if the iterator has completed iterating over the entire extent.
   bool IsAtEnd()
-    {
+  {
     return this->vtkImageRegionIteratorBase::IsAtEnd();
-    }
+  }
 
   // Description:
   // Get the current position.
   double *GetPosition()
-    {
+  {
     return this->Position;
-    }
+  }
 
   // Description:
   // Get the current position and place it in the provided array.
   void GetPosition(double x[3])
-    {
+  {
     x[0] = this->Position[0];
     x[1] = this->Position[1];
     x[2] = this->Position[2];
-    }
+  }
 
   // Description:
   // Get the current position and place it in the provided array.
   void GetPosition(float x[3])
-    {
+  {
     x[0] = this->Position[0];
     x[1] = this->Position[1];
     x[2] = this->Position[2];
-    }
+  }
 
 protected:
 
   // Description:
   // Helper method to update the position coordinate from the index.
   void UpdatePosition()
-    {
+  {
     this->Position[0] = this->Origin[0] + this->Index[0]*this->Spacing[0];
     this->Position[1] = this->Origin[1] + this->Index[1]*this->Spacing[1];
     this->Position[2] = this->Origin[2] + this->Index[2]*this->Spacing[2];
-    }
+  }
 
   double Origin[3];
   double Spacing[3];

@@ -110,16 +110,16 @@ void ReadDICOMImage(
   sorter->Update();
 
   if (sorter->GetNumberOfSeries() == 0)
-    {
+  {
     fprintf(stderr, "Folder contains no DICOM files: %s\n", directoryName);
     exit(1);
-    }
+  }
   else if (sorter->GetNumberOfSeries() > 1)
-    {
+  {
     fprintf(stderr, "Folder contains more than one DICOM series: %s\n",
             directoryName);
     exit(1);
-    }
+  }
 
   // read the image
   vtkSmartPointer<vtkDICOMReader> reader =
@@ -129,9 +129,9 @@ void ReadDICOMImage(
 
   reader->UpdateInformation();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   // when reading images, only read 1st component if the
   // image has multiple components or multiple time points
@@ -142,18 +142,18 @@ void ReadDICOMImage(
     vtkSmartPointer<vtkStringArray>::New();
   vtkIdType n = fileArray->GetNumberOfTuples();
   for (vtkIdType i = 0; i < n; i++)
-    {
+  {
     fileNames->InsertNextValue(
       reader->GetFileNames()->GetValue(fileArray->GetComponent(i, 0)));
-    }
+  }
   reader->SetDesiredTimeIndex(0);
   reader->SetFileNames(fileNames);
 
   reader->Update();
   if (reader->GetErrorCode())
-    {
+  {
     exit(1);
-    }
+  }
 
   vtkImageData *image = reader->GetOutput();
 
@@ -202,12 +202,12 @@ void ReadDICOMImage(
   vtkMath::Cross(xdir, ydir, zdir);
 
   for (int i = 0; i < 3; i++)
-    {
+  {
     matrix->Element[i][0] = xdir[i];
     matrix->Element[i][1] = ydir[i];
     matrix->Element[i][2] = zdir[i];
     matrix->Element[i][3] = position[i];
-    }
+  }
   matrix->Element[3][0] = 0;
   matrix->Element[3][1] = 0;
   matrix->Element[3][2] = 0;
@@ -291,10 +291,10 @@ void printUsage(const char *cmdname)
 int main (int argc, char *argv[])
 {
   if (argc < 2)
-    {
+  {
     printUsage(argv[0]);
     return EXIT_FAILURE;
-    }
+  }
 
   // -------------------------------------------------------
   // the files
@@ -304,32 +304,32 @@ int main (int argc, char *argv[])
   bool display = true;
 
   if (strcmp(argv[argi], "--nodisplay") == 0)
-    {
+  {
     display = false;
     argi++;
-    }
+  }
   if (strcmp(argv[argi], "-o") == 0)
-    {
+  {
     if (argc <= argi + 1)
-      {
+    {
       cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
       return EXIT_FAILURE;
-      }
+    }
     xfmfile = argv[argi + 1];
     argi += 2;
     size_t m = strlen(xfmfile);
     if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
-      {
+    {
       cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
       return EXIT_FAILURE;
-      }
     }
+  }
 
   if (argc <= argi)
-    {
+  {
     printUsage(argv[0]);
     return EXIT_FAILURE;
-    }
+  }
   sourcefile = argv[argi];
 
   // -------------------------------------------------------
@@ -344,13 +344,13 @@ int main (int argc, char *argv[])
     vtkSmartPointer<vtkMatrix4x4>::New();
   n = strlen(sourcefile);
   if (n > 4 && strcmp(&sourcefile[n-4], ".mnc") == 0)
-    {
+  {
     ReadMINCImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  }
   else
-    {
+  {
     ReadDICOMImage(sourceImage, sourceMatrix, sourcefile);
-    }
+  }
 
   static double leksellToDICOM16[16] = {
      1.0,  0.0,  0.0, -100.0,
@@ -424,9 +424,9 @@ int main (int argc, char *argv[])
   renderer->ResetCameraClippingRange();
 
   if (display)
-    {
+  {
     renderWindow->Render();
-    }
+  }
 
   // -------------------------------------------------------
   // prepare for frame finding
@@ -520,9 +520,9 @@ int main (int argc, char *argv[])
   renderer->AddViewProp(targetActor);
 
   if (display)
-    {
+  {
     renderer->Render();
-    }
+  }
 
 /*
   // -------------------------------------------------------

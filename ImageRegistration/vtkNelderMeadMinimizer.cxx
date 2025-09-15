@@ -56,26 +56,26 @@ int vtkNelderMeadMinimizer::CheckParameterTolerance()
   double size = 0;
 
   for (int i = 1; i <= n; i++)
-    {
+  {
     double *vertex = this->AmoebaVertices[i];
     for (int j = 0; j < n; j++)
-      {
+    {
       double d = fabs((vertex[j] - vertex0[j])/scales[j]);
       size = ((d < size) ? size : d);
-      }
     }
+  }
 
   if (size != this->AmoebaSize)
-    {
+  {
     this->AmoebaNStepsNoImprovement = N_STEPS_NO_VALUE_IMPROVEMENT-1;
-    }
+  }
   this->AmoebaSize = size;
   // if amoeba is static, only make a set number of tries
   if (this->AmoebaNStepsNoImprovement >
       (N_STEPS_NO_VALUE_IMPROVEMENT + N_STEPS_NO_PARAM_IMPROVEMENT))
-    {
+  {
     return 1;
-    }
+  }
 
   return (size <= this->ParameterTolerance);
 }
@@ -93,9 +93,9 @@ int vtkNelderMeadMinimizer::Step()
   int improved = this->PerformAmoeba();
   int paramsWithinTol = 0;
   if (!improved)
-    {
+  {
     paramsWithinTol = this->CheckParameterTolerance();
-    }
+  }
   this->GetAmoebaParameterValues();
 
   return (improved || !paramsWithinTol);
@@ -146,29 +146,29 @@ static  int  vtkAmoebaNumericallyClose(double  n1,
 
   diff = n1 - n2;
   if( diff < 0.0 )
-    {
+  {
     diff = -diff;
-    }
+  }
 
   abs_n1 = (n1 < 0.0 ? -n1 : n1);
   abs_n2 = (n2 < 0.0 ? -n2 : n2);
 
   if( abs_n1 < VTK_AMOEBA_SMALLEST || abs_n2 < VTK_AMOEBA_SMALLEST )
-    {
+  {
     return( abs_n1 < threshold_ratio && abs_n2 < threshold_ratio );
-    }
+  }
 
   avg = (n1 + n2) / 2.0;
 
   if( avg == 0.0 )
-    {
+  {
     return( diff <= threshold_ratio );
-    }
+  }
 
   if( avg < 0.0 )
-    {
+  {
     avg = -avg;
-    }
+  }
 
   return( (diff / avg) <= threshold_ratio );
 }
@@ -198,46 +198,46 @@ void  vtkNelderMeadMinimizer::InitializeAmoeba()
   this->AmoebaVertices[0] = new double[n_parameters*(n_parameters+1)];
 
   for( i = 1 ; i < n_parameters+1 ; i++)
-    {
+  {
     this->AmoebaVertices[i] = this->AmoebaVertices[i-1] + n_parameters;
-    }
+  }
 
   this->AmoebaValues = new double[n_parameters+1];
 
   this->AmoebaSum = new double[n_parameters];
 
   for (j = 0; j < n_parameters; j++)
-    {
+  {
     this->AmoebaSum[j] = 0.0;
-    }
+  }
 
   for( i = 0 ; i < n_parameters+1 ; i++ )
-    {
+  {
     for( j = 0; j < n_parameters ; j++ )
-      {
+    {
       this->AmoebaVertices[i][j] = this->ParameterValues[j];
       if( i > 0 && j == i - 1 )
-        {
+      {
         this->AmoebaVertices[i][j] =
           this->ParameterValues[j] + this->ParameterScales[j];
-        }
+      }
       this->AmoebaSum[j] += this->ParameterValues[j];
-      }
     }
+  }
   for( i = 0 ; i < n_parameters+1 ; i++ )
-    {
+  {
     for( j = 0; j < n_parameters; j++ )
-      {
+    {
       this->ParameterValues[j] = this->AmoebaVertices[i][j];
-      }
+    }
     this->EvaluateFunction();
     this->AmoebaValues[i] = this->FunctionValue;
-    }
+  }
 
   for ( j = 0 ; j < n_parameters ; j++ )
-    {
+  {
     this->ParameterValues[j] = this->AmoebaVertices[0][j];
-    }
+  }
 }
 
 /* ----------------------------- MNI Header -----------------------------------
@@ -260,17 +260,17 @@ void vtkNelderMeadMinimizer::GetAmoebaParameterValues()
 
   low = 0;
   for( i = 1 ; i < this->NumberOfParameters+1 ; i++ )
-    {
+  {
     if( this->AmoebaValues[i] < this->AmoebaValues[low] )
-      {
+    {
       low = i;
-      }
     }
+  }
 
   for( j = 0 ; j < this->NumberOfParameters ; j++ )
-    {
+  {
     this->ParameterValues[j] = this->AmoebaVertices[low][j];
-    }
+  }
 
   this->FunctionValue = this->AmoebaValues[low];
 }
@@ -291,21 +291,21 @@ void vtkNelderMeadMinimizer::GetAmoebaParameterValues()
 void  vtkNelderMeadMinimizer::TerminateAmoeba()
 {
   if (this->AmoebaVertices)
-    {
+  {
     delete [] this->AmoebaVertices[0];
     delete [] this->AmoebaVertices;
     this->AmoebaVertices = NULL;
-    }
+  }
   if (this->AmoebaValues)
-    {
+  {
     delete [] this->AmoebaValues;
     this->AmoebaValues = NULL;
-    }
+  }
   if (this->AmoebaSum)
-    {
+  {
     delete [] this->AmoebaSum;
     this->AmoebaSum = NULL;
-    }
+  }
 }
 
 /* ----------------------------- MNI Header -----------------------------------
@@ -340,22 +340,22 @@ double  vtkNelderMeadMinimizer::TryAmoeba(double  sum[],
   fac2 = fac - fac1;
 
   for( j = 0 ; j < this->NumberOfParameters ; j++ )
-    {
+  {
     parameters[j] = (sum[j] * fac1 + this->AmoebaVertices[high][j] * fac2);
-    }
+  }
 
   this->EvaluateFunction();
   y_try = this->FunctionValue;
 
   if( y_try < this->AmoebaValues[high] )
-    {
+  {
     this->AmoebaValues[high] = y_try;
     for( j = 0 ; j < this->NumberOfParameters ; j++ )
-      {
+    {
       sum[j] += parameters[j] - this->AmoebaVertices[high][j];
       this->AmoebaVertices[high][j] = parameters[j];
-      }
     }
+  }
 
   return( y_try );
 }
@@ -387,92 +387,92 @@ int vtkNelderMeadMinimizer::PerformAmoeba()
   improvement_found = 1;
 
   if( this->AmoebaValues[0] > this->AmoebaValues[1] )
-    {
+  {
     high = 0;
     next_high = 1;
-    }
+  }
   else
-    {
+  {
     high = 1;
     next_high = 0;
-    }
+  }
 
   low = next_high;
 
   for( i = 2 ; i < this->NumberOfParameters+1 ; i++ )
-    {
+  {
     if( this->AmoebaValues[i] < this->AmoebaValues[low] )
-      {
+    {
       low = i;
-      }
+    }
     else if( this->AmoebaValues[i] > this->AmoebaValues[high] )
-      {
+    {
       next_high = high;
       high = i;
-      }
-    else if( this->AmoebaValues[i] > this->AmoebaValues[next_high] )
-      {
-      next_high = i;
-      }
     }
+    else if( this->AmoebaValues[i] > this->AmoebaValues[next_high] )
+    {
+      next_high = i;
+    }
+  }
 
   if( this->AmoebaValues[high] == this->AmoebaHighValue ||
       vtkAmoebaNumericallyClose( this->AmoebaValues[low],
                                  this->AmoebaValues[high],
                                  this->Tolerance ) )
-    {
+  {
     ++this->AmoebaNStepsNoImprovement;
     if( this->AmoebaNStepsNoImprovement >= N_STEPS_NO_VALUE_IMPROVEMENT )
-      {
-      improvement_found = 0;
-      }
-    }
-  else
     {
-    this->AmoebaNStepsNoImprovement = 0;
+      improvement_found = 0;
     }
+  }
+  else
+  {
+    this->AmoebaNStepsNoImprovement = 0;
+  }
 
   this->AmoebaHighValue = this->AmoebaValues[high];
 
   y_try = this->TryAmoeba( this->AmoebaSum, high, -1.0 );
 
   if( y_try <= this->AmoebaValues[low] )
-    {
+  {
     TryAmoeba( this->AmoebaSum, high, this->ExpansionRatio );
-    }
+  }
   else if( y_try >= this->AmoebaValues[next_high] )
-    {
+  {
     y_save = this->AmoebaValues[high];
     y_try = TryAmoeba( this->AmoebaSum, high, this->ContractionRatio );
 
     if( y_try >= y_save )
-      {
+    {
       for( i = 0 ; i < this->NumberOfParameters+1 ; i++)
-        {
+      {
         if( i != low )
-          {
+        {
           for( j = 0 ; j < this->NumberOfParameters ; j++ )
-            {
+          {
             this->ParameterValues[j] = (this->AmoebaVertices[i][j] +
                                         this->AmoebaVertices[low][j]) / 2.0;
             this->AmoebaVertices[i][j] = this->ParameterValues[j];
-            }
+          }
 
           this->EvaluateFunction();
           this->AmoebaValues[i] = this->FunctionValue;
-          }
         }
+      }
 
       for( j = 0 ; j < this->NumberOfParameters ; j++ )
-        {
+      {
         this->AmoebaSum[j] = 0.0;
         for( i = 0 ; i < this->NumberOfParameters+1 ; i++ )
-          {
+        {
           this->AmoebaSum[j] += this->AmoebaVertices[i][j];
-          }
         }
       }
     }
+  }
 
   return( improvement_found );
 }

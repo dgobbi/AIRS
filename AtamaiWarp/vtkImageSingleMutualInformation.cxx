@@ -6,12 +6,12 @@
   Date:      $Date: 2007/08/24 20:02:25 $
   Version:   $Revision: 1.7 $
 
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen 
+  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
   All rights reserved.
   See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
 
-     This software is distributed WITHOUT ANY WARRANTY; without even 
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+     This software is distributed WITHOUT ANY WARRANTY; without even
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
@@ -21,7 +21,7 @@
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
 #endif
@@ -39,7 +39,7 @@ vtkImageSingleMutualInformation::vtkImageSingleMutualInformation()
   this->ImageAComponentOrigin = 0.0;
   this->ImageAComponentExtent[0] = 0;
   this->ImageAComponentExtent[1] = 255;
-  
+
   this->ReverseStencil = 0;
 
   this->NormalizedMI = 0.0;
@@ -55,22 +55,22 @@ vtkImageSingleMutualInformation::~vtkImageSingleMutualInformation()
 void vtkImageSingleMutualInformation::SetImageAComponentExtent(int extent[2])
 {
   if (this->ImageAComponentExtent[0] != extent[0])
-    {
+  {
     this->ImageAComponentExtent[0] = extent[0];
     this->Modified();
-    }
+  }
   if (this->ImageAComponentExtent[1] != extent[1])
-    {
+  {
     this->ImageAComponentExtent[1] = extent[1];
     this->Modified();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkImageSingleMutualInformation::SetImageAComponentExtent(int min, int max)
 {
   int extent[2];
-  
+
   extent[0] = min;  extent[1] = max;
   this->SetImageAComponentExtent(extent);
 }
@@ -89,7 +89,7 @@ void vtkImageSingleMutualInformation::SetStencil(vtkImageStencilData *stencil)
   this->vtkProcessObject::SetNthInput(2, stencil);
 #else
   // if stencil is null, then set the input port to null
-  this->SetNthInputConnection(1, 0, 
+  this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
 #endif
 }
@@ -99,18 +99,18 @@ vtkImageStencilData *vtkImageSingleMutualInformation::GetStencil()
 {
 #if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
   if (this->NumberOfInputs < 3)
-    {
+  {
     return NULL;
-    }
+  }
   else
-    {
+  {
     return (vtkImageStencilData *)(this->Inputs[2]);
-    }
+  }
 #else
   if (this->GetNumberOfInputConnections(1) < 1)
-    {
+  {
     return NULL;
-    }
+  }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
 #endif
@@ -170,7 +170,7 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 
   // Zero count in every bin
   outData->GetExtent(min0, max0, min1, max1, min2, max2);
-  memset((void *)outPtr, 0, 
+  memset((void *)outPtr, 0,
          (max0-min0+1)*(max1-min1+1)*(max2-min2+1)*sizeof(int));
   // Set up and zero the image-specific arrays
   xHist = new int[max0-min0+1];
@@ -179,8 +179,8 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
   memset((void *)xHist, 0, (max0-min0+1)*sizeof(int));
   memset((void *)yHist, 0, (max1-min1+1)*sizeof(int));
 
-    
-  // Get information to march through data 
+
+  // Get information to march through data
   inData1->GetWholeExtent(min0, max0, min1, max1, min2, max2);
   inData1->GetIncrements(inInc0, inInc1, inInc2);
   outExtent = outData->GetExtent();
@@ -193,35 +193,35 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 
   // Loop through input pixels
   for (idZ = min2; idZ <= max2; idZ++)
-    {
+  {
     for (idY = min1; idY <= max1; idY++)
+    {
+      if (!(count%target))
       {
-      if (!(count%target)) 
-        {
         self->UpdateProgress(count/(50.0*target));
-        }
+      }
       count++;
 
       // loop over stencil sub-extents
       iter = 0;
       if (self->GetReverseStencil())
-        { // flag that we want the complementary extents
+      { // flag that we want the complementary extents
         iter = -1;
-        }
+      }
 
       pmin0 = min0;
       pmax0 = max0;
-      while ((stencil != 0 && 
+      while ((stencil != 0 &&
               stencil->GetNextExtent(pmin0,pmax0,min0,max0,idY,idZ,iter)) ||
              (stencil == 0 && iter++ == 0))
-        {
+      {
         // set up pointer for sub extent
         tempPtr1 = in1Ptr + (inInc2*(idZ - min2) +
 			     inInc1*(idY - min1) +
 			     (pmin0 - min0));
         // accumulate over the sub extent
         for (idX = pmin0; idX <= pmax0; idX++)
-          {
+        {
 	  // compute the indices
 	  sum += *tempPtr1;
 	  totalVoxels++;
@@ -231,40 +231,40 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
 	  // the imageA data are the 'x' dimension
 	  // This is set up to leave 'top' and 'bottom' bins zeroed
 	  if ((outIdx > outExtent[0]) && (outIdx < outExtent[1]))
-	    {
+   {
             // In bin range
 	    voxelCount++;
             outPtrC = outPtr + outIdx;
 	    ++(*outPtrC);
 	    xHist[outIdx]++;
 	    yHist[outIdy]++;
-	    }
-          }
+   }
         }
       }
     }
-  
+  }
+
   double xEntropy, yEntropy, xyEntropy;
   xEntropy = yEntropy = xyEntropy = 0.0;
 
   for (outIdx = 0; outIdx < outExtent[1]; outIdx++)
-    {
+  {
     if (xHist[outIdx]>0)
       xEntropy += (xHist[outIdx]*log((double)(xHist[outIdx])));
-    }
+  }
   for (outIdy = 0; outIdy < outExtent[3]; outIdy++)
-    {
+  {
     if (yHist[outIdy]>0)
       yEntropy += (yHist[outIdy]*log((double)(yHist[outIdy])));
-    }
+  }
 
   outPtrC = outPtr;
   for (outIdx = 0; outIdx < outIncs[2]; outIdx++)
-    {
+  {
     if ((*outPtrC)>0)
       xyEntropy += ((*outPtrC) * log((double)(*outPtrC)));
     outPtrC++;
-    }
+  }
 
   xEntropy  = -   xEntropy * log((double)xEntropy)  / (double)voxelCount + log((double)voxelCount);
   yEntropy  = -   yEntropy * log((double)yEntropy)  / (double)voxelCount + log((double)voxelCount);
@@ -274,15 +274,15 @@ void vtkImageSingleMutualInformationExecute(vtkImageSingleMutualInformation *sel
   cout << "totalVoxels "<<totalVoxels<< " xyEntropy "<<xyEntropy<<"\n";
 
   if(voxelCount > 0)
-    {    
+  {
     *NormalizedMI = (xEntropy+yEntropy)/xyEntropy;
     *MeanVoxel = sum / voxelCount;
-    }
+  }
   else
-    {
+  {
     *NormalizedMI = 0;
     *MeanVoxel = 0;
-    }
+  }
 
   delete [] xHist;
   delete [] yHist;
@@ -301,56 +301,56 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
 
   vtkImageData *inData1 = this->GetInput();
   if (inData1 == NULL)
-    {
+  {
     vtkErrorMacro(<<"Input 0 must be specified.");
     return;
-    }
+  }
 
   vtkImageData *outData = this->GetOutput();
-  
+
   vtkDebugMacro(<<"In vtkImageSingleMutualInformation::ExecuteData");
-  
+
   // We need to allocate our own scalars since we are overriding
   // the superclasses "Execute()" method.
   outData->SetExtent(outData->GetWholeExtent());
   outData->SetScalarType(VTK_INT);
   outData->AllocateScalars();
-  
+
   inPtr1 = inData1->GetScalarPointer();
   outPtr = outData->GetScalarPointer();
-  
+
   // Components turned into x, y and z
   if (this->GetInput()->GetNumberOfScalarComponents() > 1)
-    {
+  {
     vtkErrorMacro("This filter can only handle 1 scalar component.");
     return;
-    }
-  
+  }
+
   // this filter expects that output is type int.
   if (outData->GetScalarType() != VTK_INT)
-    {
+  {
     vtkErrorMacro(<< "Execute: out ScalarType " << outData->GetScalarType()
                   << " must be int\n");
     return;
-    }
+  }
 
   int wholeInExt1[6];
   inData1->GetWholeExtent(wholeInExt1);
-  
+
   switch (inData1->GetScalarType())
-    {
+  {
 #if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro7(vtkImageSingleMutualInformationExecute, this, 
+    vtkTemplateMacro7(vtkImageSingleMutualInformationExecute, this,
 		      (VTK_TT *)(inPtr1),
-		      inData1, 
+		      inData1,
 		      outData, (int *)(outPtr),
 		      &this->NormalizedMI,
 		      &this->MeanVoxel);
 #else
     vtkTemplateMacro(
-      vtkImageSingleMutualInformationExecute(this, 
+      vtkImageSingleMutualInformationExecute(this,
 					     (VTK_TT *)(inPtr1),
-					     inData1, 
+					     inData1,
 					     outData, (int *)(outPtr),
 					     &this->NormalizedMI,
 					     &this->MeanVoxel));
@@ -358,11 +358,11 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
       return;
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
-void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData *input, 
+void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData *input,
 							 vtkImageData *output)
 {
   output->SetWholeExtent(this->ImageAComponentExtent[0],
@@ -379,10 +379,10 @@ void vtkImageSingleMutualInformation::ExecuteInformation(vtkImageData *input,
   // need to set the spacing and origin of the stencil to match the output
   vtkImageStencilData *stencil = this->GetStencil();
   if (stencil)
-    {
+  {
     stencil->SetSpacing(input->GetSpacing());
     stencil->SetOrigin(input->GetOrigin());
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -425,22 +425,22 @@ void vtkImageSingleMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
      << 0 << "," << 1 << " }\n";
 }
 
-#if (VTK_MAJOR_VERSION >= 5) 
+#if (VTK_MAJOR_VERSION >= 5)
 //----------------------------------------------------------------------------
-int vtkImageSingleMutualInformation::FillInputPortInformation(int port, 
+int vtkImageSingleMutualInformation::FillInputPortInformation(int port,
                                                         vtkInformation* info)
 {
   if (port == 0)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageData");
     info->Set(vtkAlgorithm::INPUT_IS_REPEATABLE(), 1);
-    }
+  }
   if (port == 1)
-    {
+  {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkImageStencilData");
     // the stencil input is optional
     info->Set(vtkAlgorithm::INPUT_IS_OPTIONAL(), 1);
-    }
+  }
   return 1;
 }
 #endif

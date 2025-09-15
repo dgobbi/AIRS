@@ -44,39 +44,39 @@ public:
   vtkImageSimilarityMetricTLSIterator(T *iter) : Pter(iter) {}
 
   vtkImageSimilarityMetricTLSIterator& operator++()
-    {
+  {
     if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
     return *this;
-    }
+  }
 
   vtkImageSimilarityMetricTLSIterator operator++(int)
-    {
+  {
     vtkImageSimilarityMetricTLSIterator copy = *this;
     if (this->Pter) { ++this->Pter; } else { ++this->Iter; }
     return copy;
-    }
+  }
 
   bool operator==(const vtkImageSimilarityMetricTLSIterator& other)
-    {
+  {
     return (this->Pter ? (this->Pter == other.Pter)
                        : (this->Iter == other.Iter));
-    }
+  }
 
   bool operator!=(const vtkImageSimilarityMetricTLSIterator& other)
-    {
+  {
     return (this->Pter ? (this->Pter != other.Pter)
                        : (this->Iter != other.Iter));
-    }
+  }
 
   T& operator*()
-    {
+  {
     return (this->Pter ? *this->Pter : *this->Iter);
-    }
+  }
 
   T* operator->()
-    {
+  {
     return (this->Pter ? this->Pter : &*this->Iter);
-    }
+  }
 
 private:
   T *Pter;
@@ -95,55 +95,55 @@ public:
     : MT(0), NumberOfThreads(0) {}
 
   ~vtkImageSimilarityMetricTLS()
-    {
+  {
     delete [] this->MT;
-    }
+  }
 
   void Initialize(vtkImageSimilarityMetric *a)
-    {
+  {
     if (!a->GetEnableSMP())
-      {
+    {
       size_t n = a->GetNumberOfThreads();
       this->MT = new T[n];
       this->NumberOfThreads = n;
-      }
     }
+  }
 
   T& Local(size_t threadId)
-    {
+  {
     if (this->MT == 0)
-      {
+    {
       return this->SMP.Local();
-      }
-    else
-      {
-      return this->MT[threadId];
-      }
     }
+    else
+    {
+      return this->MT[threadId];
+    }
+  }
 
   iterator begin()
-    {
+  {
     if (this->MT == 0)
-      {
+    {
       return this->SMP.begin();
-      }
-    else
-      {
-      return this->MT;
-      }
     }
+    else
+    {
+      return this->MT;
+    }
+  }
 
   iterator end()
-    {
+  {
     if (this->MT == 0)
-      {
+    {
       return this->SMP.end();
-      }
-    else
-      {
-      return this->MT + this->NumberOfThreads;
-      }
     }
+    else
+    {
+      return this->MT + this->NumberOfThreads;
+    }
+  }
 
 private:
   vtkImageSimilarityMetricTLS(const vtkImageSimilarityMetricTLS&);
@@ -169,31 +169,31 @@ public:
   vtkImageSimilarityMetricTLS() : MT(0), NumberOfThreads(0) {}
 
   ~vtkImageSimilarityMetricTLS()
-    {
+  {
     delete [] this->MT;
-    }
+  }
 
   void Initialize(vtkImageSimilarityMetric *a)
-    {
+  {
     size_t n = a->GetNumberOfThreads();
     this->MT = new T[n];
     this->NumberOfThreads = n;
-    }
+  }
 
   T& Local(size_t threadId)
-    {
+  {
     return this->MT[threadId];
-    }
+  }
 
   iterator begin()
-    {
+  {
     return this->MT;
-    }
+  }
 
   iterator end()
-    {
+  {
     return this->MT + this->NumberOfThreads;
-    }
+  }
 
 private:
   vtkImageSimilarityMetricTLS(const vtkImageSimilarityMetricTLS&);

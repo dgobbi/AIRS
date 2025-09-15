@@ -172,16 +172,16 @@ void vtkImageMutualInformationExecute(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       T1 *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         double x = *inPtr;
         double y = *inPtr1;
 
@@ -206,11 +206,11 @@ void vtkImageMutualInformationExecute(
 
         inPtr += pixelInc;
         inPtr1 += pixelInc1;
-        }
       }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -235,16 +235,16 @@ void vtkImageMutualInformationExecutePreScaled(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       unsigned char *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         int x = *inPtr;
         int y = *inPtr1;
 
@@ -257,11 +257,11 @@ void vtkImageMutualInformationExecutePreScaled(
 
         inPtr += pixelInc;
         inPtr1 += pixelInc1;
-        }
       }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -275,9 +275,9 @@ void vtkImageMutualInformationCopyRow(
   xyHist += outStart;
 
   do
-    {
+  {
     *outPtr++ = static_cast<T>(*xyHist++);
-    }
+  }
   while (--n);
 }
 
@@ -291,18 +291,18 @@ int vtkImageMutualInformation::RequestData(
 {
   // for each input
   for (int i = 0; i < 2; i++)
-    {
+  {
     // get the range (possibly winsorized) for the image
     double range[2];
     this->GetInputRange(i, range);
     // check if the range was set
     if (range[0] < range[1])
-      {
+    {
       // set the bin origin and spacing
       this->BinOrigin[i] = range[0];
       this->BinSpacing[i] = (range[1] - range[0])/(this->NumberOfBins[i] - 1);
-      }
     }
+  }
 
   // create the thread-local object
   vtkImageMutualInformationTLS tlocal;
@@ -335,7 +335,7 @@ void vtkImageMutualInformationExecute1(
   vtkIdType pieceId)
 {
   switch (inData1->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageMutualInformationExecute(
         self, inData0, inData1, stencil,
@@ -343,7 +343,7 @@ void vtkImageMutualInformationExecute1(
         outPtr, numBins, binOrigin, binSpacing, pieceId));
     default:
       vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
-    }
+  }
 }
 
 } // end anonymous namespace
@@ -365,7 +365,7 @@ void vtkImageMutualInformation::PieceRequestData(
   vtkIdType *outPtr = threadLocal->Data;
 
   if (outPtr == 0)
-    {
+  {
     // initialize the joint histogram to zero
     vtkIdType outIncY = this->NumberOfBins[0];
     vtkIdType outCount = outIncY;
@@ -376,7 +376,7 @@ void vtkImageMutualInformation::PieceRequestData(
 
     vtkIdType *outPtr1 = outPtr;
     do { *outPtr1++ = 0; } while (--outCount > 0);
-    }
+  }
 
   vtkInformation *inInfo0 = inputVector[0]->GetInformationObject(0);
   vtkInformation *inInfo1 = inputVector[1]->GetInformationObject(0);
@@ -393,7 +393,7 @@ void vtkImageMutualInformation::PieceRequestData(
 
   int extent[6];
   for (int i = 0; i < 6; i += 2)
-    {
+  {
     int j = i + 1;
     extent[i] = pieceExtent[i];
     extent[i] = ((extent[i] > inExt0[i]) ? extent[i] : inExt0[i]);
@@ -402,10 +402,10 @@ void vtkImageMutualInformation::PieceRequestData(
     extent[j] = ((extent[j] < inExt0[j]) ? extent[j] : inExt0[j]);
     extent[j] = ((extent[j] < inExt1[j]) ? extent[j] : inExt1[j]);
     if (extent[i] > extent[j])
-      {
+    {
       return;
-      }
     }
+  }
 
   void *inPtr0 = inData0->GetScalarPointerForExtent(extent);
   void *inPtr1 = inData1->GetScalarPointerForExtent(extent);
@@ -424,15 +424,15 @@ void vtkImageMutualInformation::PieceRequestData(
       vtkMath::Floor(binOrigin[1] + binSpacing[1]*maxY + 0.5) == maxY &&
       inData0->GetScalarType() == VTK_UNSIGNED_CHAR &&
       inData1->GetScalarType() == VTK_UNSIGNED_CHAR)
-    {
+  {
     vtkImageMutualInformationExecutePreScaled(
       this, inData0, inData1, stencil,
       static_cast<unsigned char *>(inPtr0),
       static_cast<unsigned char *>(inPtr1),
       extent, outPtr, numBins, pieceId);
-    }
+  }
   else switch (inData0->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageMutualInformationExecute1(
         this, inData0, inData1, stencil,
@@ -441,7 +441,7 @@ void vtkImageMutualInformation::PieceRequestData(
         pieceId));
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -478,102 +478,102 @@ void vtkImageMutualInformation::ReduceRequestData(
   // clear xHist to zero
   int ix;
   for (ix = 0; ix < nx; ++ix)
-    {
+  {
     xHist[ix] = 0;
-    }
+  }
 
   // piece together the joint histogram results from each thread
   for (int iy = 0; iy < ny; ++iy)
-    {
+  {
     int outStart = updateExtent[0];
     int outEnd = updateExtent[1];
     if (iy < updateExtent[2] || iy > updateExtent[3])
-      {
+    {
       outStart = 0;
       outEnd = -1;
-      }
+    }
 
     // clear the output
     for (ix = 0; ix < nx; ++ix)
-      {
+    {
       xyHist[ix] = 0;
-      }
+    }
 
     // add the contribution from thread j
     vtkIdType a = 0;
     for (vtkImageMutualInformationTLS::iterator
          iter = this->ThreadData->begin();
          iter != this->ThreadData->end(); ++iter)
-      {
+    {
       if (iter->Data)
-        {
+      {
         vtkIdType *outPtr2 = iter->Data + static_cast<vtkIdType>(nx)*iy;
 
         for (ix = 0; ix < nx; ++ix)
-          {
+        {
           vtkIdType c = *outPtr2++;
           xyHist[ix] += c;
           a += c;
-          }
         }
       }
+    }
 
     // copy this row of the joint histogram to the output
     if (outStart <= outEnd)
-      {
+    {
       switch (outScalarType)
-        {
+      {
         vtkTemplateAliasMacro(
           vtkImageMutualInformationCopyRow(
             xyHist, static_cast<VTK_TT *>(outPtr), outStart, outEnd));
         default:
           vtkErrorMacro("Execute: Unknown output ScalarType");
-        }
+      }
       // increment outPtr to the next row
       outPtr =
         static_cast<char *>(outPtr) + outScalarSize*(outEnd - outStart + 1);
-      }
+    }
 
     // compute the entropy of second image
     double da = static_cast<double>(a);
     if (da > 0)
-      {
+    {
       yEntropy += da*log(da);
-      }
+    }
 
     // compute joint entropy
     for (ix = 0; ix < nx; ++ix)
-      {
+    {
       vtkIdType c = xyHist[ix];
       xHist[ix] += c;
       double dc = static_cast<double>(c);
       if (dc > 0)
-        {
+      {
         xyEntropy += dc*log(dc);
-        }
       }
     }
+  }
 
   // compute total pixel count and entropy of first image
   vtkIdType count = 0;
   for (ix = 0; ix < nx; ++ix)
-    {
+  {
     vtkIdType b = xHist[ix];
     count += b;
     double db = static_cast<double>(b);
     if (db > 0)
-      {
+    {
       xEntropy += db*log(db);
-      }
     }
+  }
 
   for (vtkImageMutualInformationTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
-    {
+  {
     // delete the temporary memory
     delete [] iter->Data;
-    }
+  }
 
   delete [] xyHist;
 
@@ -582,7 +582,7 @@ void vtkImageMutualInformation::ReduceRequestData(
   double normalizedMutualInformation = 1.0;
 
   if (count)
-    {
+  {
     // correct for total voxel count, convert to negative
     double dc = static_cast<double>(count);
     double ldc = log(dc);
@@ -595,19 +595,19 @@ void vtkImageMutualInformation::ReduceRequestData(
 
     // compute the normalized mutual information (Studholme 1999)
     normalizedMutualInformation = (xEntropy + yEntropy)/xyEntropy;
-    }
+  }
 
   this->MutualInformation = mutualInformation;
   this->NormalizedMutualInformation = normalizedMutualInformation;
 
   if (this->Metric == NMI)
-    {
+  {
     this->SetValue(normalizedMutualInformation);
     this->SetCost(-normalizedMutualInformation);
-    }
+  }
   else
-    {
+  {
     this->SetValue(mutualInformation);
     this->SetCost(-mutualInformation);
-    }
+  }
 }

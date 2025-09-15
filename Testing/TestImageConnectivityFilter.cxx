@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
   seedData->GetPointData()->SetScalars(seedScalars);
 
   for (int i = 0; i < 12; i++)
-    {
+  {
     int j = i % 4;
     int k = i / 4;
     vtkSmartPointer<vtkRenderer> renderer =
@@ -96,17 +96,17 @@ int main(int argc, char *argv[])
     //connectivity->SetExtractionModeToSeededRegions();
     connectivity->SetLabelModeToSizeRank();
     if (k == 0)
-      {
+    {
       connectivity->SetScalarRange(0, 800);
-      }
+    }
     else if (k == 1)
-      {
+    {
       connectivity->SetScalarRange(1200, 4095);
-      }
+    }
     else
-      {
+    {
       connectivity->SetScalarRange(800, 1200);
-      }
+    }
     connectivity->GenerateRegionExtentsOn();
 
     // test a previous bug where OutputExtent != InputExtent cause a crash.
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
     vtkIdType rn = connectivity->GetNumberOfExtractedRegions();
     cout << "info";
     for (vtkIdType r = 0; r < rn; r++)
-      {
+    {
       cout << " (" << idArray->GetValue(r) << ","
            << labelArray->GetValue(r) << ","
            << sizeArray->GetValue(r) << ",["
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
            << extentArray->GetValue(6*r+3) << ","
            << extentArray->GetValue(6*r+4) << ","
            << extentArray->GetValue(6*r+5) << "])";
-      }
+    }
     cout << "\n";
 
     vtkSmartPointer<vtkImageSliceMapper> imageMapper =
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     image->GetProperty()->SetColorWindow(6);
     image->GetProperty()->SetColorLevel(3);
     renderer->AddViewProp(image);
-    }
+  }
 
   renWin->SetSize(192, 256);
 

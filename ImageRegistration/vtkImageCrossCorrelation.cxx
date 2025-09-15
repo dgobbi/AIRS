@@ -112,16 +112,16 @@ void vtkImageCrossCorrelationExecute(
 
   // iterate over all spans in the stencil
   while (!inIter.IsAtEnd())
-    {
+  {
     if (inIter.IsInStencil())
-      {
+    {
       inPtr = inIter.BeginSpan();
       T1 *inPtrEnd = inIter.EndSpan();
       inPtr1 = inIter1.BeginSpan();
 
       // iterate over all voxels in the span
       while (inPtr != inPtrEnd)
-        {
+      {
         double x = *inPtr;
         double y = *inPtr1;
 
@@ -134,11 +134,11 @@ void vtkImageCrossCorrelationExecute(
 
         inPtr += pixelInc;
         inPtr1 += pixelInc1;
-        }
       }
+    }
     inIter.NextSpan();
     inIter1.NextSpan();
-    }
+  }
 
   output[0] = xSum;
   output[1] = ySum;
@@ -157,14 +157,14 @@ void vtkImageCrossCorrelationExecute1(
   const int extent[6], double output[6], vtkIdType pieceId)
 {
   switch (inData1->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageCrossCorrelationExecute(
         self, inData0, inData1, stencil,
         inPtr, static_cast<VTK_TT *>(inPtr1), extent, output, pieceId));
     default:
       vtkErrorWithObjectMacro(self, "Execute: Unknown input ScalarType");
-    }
+  }
 }
 
 } // end anonymous namespace
@@ -218,7 +218,7 @@ void vtkImageCrossCorrelation::PieceRequestData(
   vtkImageStencilData *stencil = this->GetStencil();
 
   switch (inData0->GetScalarType())
-    {
+  {
     vtkTemplateAliasMacro(
       vtkImageCrossCorrelationExecute1(
         this, inData0, inData1, stencil,
@@ -226,7 +226,7 @@ void vtkImageCrossCorrelation::PieceRequestData(
         outPtr, pieceId));
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
-    }
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -245,7 +245,7 @@ void vtkImageCrossCorrelation::ReduceRequestData(
   for (vtkImageCrossCorrelationTLS::iterator
        iter = this->ThreadData->begin();
        iter != this->ThreadData->end(); ++iter)
-    {
+  {
     double *data = iter->Data;
     xSum += data[0];
     ySum += data[1];
@@ -253,42 +253,42 @@ void vtkImageCrossCorrelation::ReduceRequestData(
     yySum += data[3];
     xySum += data[4];
     count += data[5];
-    }
+  }
 
   // minimum possible values
   double crossCorrelation = 0.0;
   double normalizedCrossCorrelation = 0.0;
 
   if (count > 0)
-    {
+  {
     crossCorrelation = (xySum - xSum*ySum/count)/count;
 
     if (xxSum > 0 && yySum > 0)
-      {
+    {
       normalizedCrossCorrelation = (xySum - xSum*ySum/count)/
         sqrt((xxSum - xSum*xSum/count)*(yySum - ySum*ySum/count));
 
       // was double precision able to capture the sums exactly?
       if (xxSum > 1e16 || yySum > 1e16)
-        {
+      {
         vtkWarningMacro("Possible incorrect result due to "
                         "insufficient precision in subtraction");
-        }
       }
     }
+  }
 
   // output values
   this->CrossCorrelation = crossCorrelation;
   this->NormalizedCrossCorrelation = normalizedCrossCorrelation;
 
   if (this->Metric == NCC)
-    {
+  {
     this->SetValue(normalizedCrossCorrelation);
     this->SetCost(-normalizedCrossCorrelation);
-    }
+  }
   else
-    {
+  {
     this->SetValue(crossCorrelation);
     this->SetCost(-crossCorrelation);
-    }
+  }
 }
