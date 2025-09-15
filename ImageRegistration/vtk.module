@@ -1,0 +1,9 @@
+NAME
+  VTK::ImageRegistration
+LIBRARY_NAME
+  vtkImageRegistration
+DEPENDS
+  VTK::ImagingCore
+  VTK::ImagingStatistics
+TEST_DEPENDS
+  VTK::TestingCore

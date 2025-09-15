@@ -1,29 +1,31 @@
-PROJECT (Programs)
+include_directories(${AIRS_INCLUDE_DIRS})
 
-INCLUDE_DIRECTORIES(${AIRS_INCLUDE_DIRS})
+set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
+    vtkRenderingFreeType vtkIOImage vtkIOMINC vtkIOGeometry vtkIOLegacy
+    vtkImagingStencil vtkImagingStatistics vtkCommonSystem vtksys)
+set(VTK_EXTRA_LIBS vtkIOMPIImage
+    vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
+    vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
+foreach(TMP_LIB ${VTK_EXTRA_LIBS})
+  list(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
+  if(TMP_INDEX GREATER -1)
+    set(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+  endif()
+endforeach()
 
-IF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
-  SET(VTK_LIBS vtkRendering vtkIO)
-ELSE(${VTK_MAJOR_VERSION} VERSION_LESS 6)
-  SET(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingFreeType vtkIOImage vtkIOMINC vtkIOGeometry vtkIOLegacy
-      vtkImagingStencil vtkImagingStatistics vtkCommonSystem vtksys)
-  SET(VTK_EXTRA_LIBS vtkIOMPIImage
-      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
-      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
-  FOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
-    LIST(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
-    IF(TMP_INDEX GREATER -1)
-      SET(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
-    ENDIF(TMP_INDEX GREATER -1)
-  ENDFOREACH(TMP_LIB ${VTK_EXTRA_LIBS})
-  IF(VTK_MINOR_VERSION VERSION_GREATER 1)
-    ADD_DEFINITIONS(-DVTK_HAS_SLAB_SPACING)
-  ENDIF(VTK_MINOR_VERSION VERSION_GREATER 1)
-ENDIF(${VTK_MAJOR_VERSION} VERSION_LESS 6)
+# TODO: remove corresponding conditionals in register.cxx
+add_definitions(-DVTK_HAS_SLAB_SPACING)
 
-ADD_EXECUTABLE(register register.cxx)
-TARGET_LINK_LIBRARIES(register vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
+add_executable(register register.cxx)
+target_link_libraries(register
+  vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 
-ADD_EXECUTABLE(skullstrip skullstrip.cxx)
-TARGET_LINK_LIBRARIES(skullstrip vtkImageSegmentation ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
+add_executable(skullstrip skullstrip.cxx)
+target_link_libraries(skullstrip
+  vtkImageSegmentation ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
+
+install(TARGETS register skullstrip
+  EXPORT DICOMTargets
+  RUNTIME DESTINATION ${AIRS_RUNTIME_INSTALL_DEST} COMPONENT RuntimeLibraries
+  LIBRARY DESTINATION ${AIRS_LIBRARY_INSTALL_DEST} COMPONENT RuntimeLibraries
+  ARCHIVE DESTINATION ${AIRS_ARCHIVE_INSTALL_DEST} COMPONENT Development)

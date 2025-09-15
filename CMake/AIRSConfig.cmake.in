@@ -1,0 +1,51 @@
+#-----------------------------------------------------------------------------
+#
+# AIRSConfig.cmake - cmake configuration file for external projects.
+#
+#-----------------------------------------------------------------------------
+@AIRS_CONFIG_CODE@
+# The C and C++ flags added to the cmake-configured flags.
+set(AIRS_REQUIRED_C_FLAGS "@AIRS_REQUIRED_C_FLAGS@")
+set(AIRS_REQUIRED_CXX_FLAGS "@AIRS_REQUIRED_CXX_FLAGS@")
+
+# The version number
+set(AIRS_MAJOR_VERSION "@AIRS_MAJOR_VERSION@")
+set(AIRS_MINOR_VERSION "@AIRS_MINOR_VERSION@")
+set(AIRS_PATCH_VERSION "@AIRS_PATCH_VERSION@")
+
+# Configured settings
+set(AIRS_BUILD_SHARED_LIBS "@BUILD_SHARED_LIBS@")
+
+# Dependencies
+set(AIRS_VTK_DIR "@VTK_DIR@")
+if(NOT VTK_FOUND)
+  find_package(VTK PATHS "${AIRS_VTK_DIR}")
+else()
+  get_filename_component(tmp1 "${AIRS_VTK_DIR}" REALPATH)
+  get_filename_component(tmp2 "${VTK_DIR}" REALPATH)
+  if(NOT "${tmp1}" STREQUAL "${tmp2}")
+    message(WARNING
+      "Mismatch for VTK between AIRS and current project: "
+      "AIRS_DIR=${AIRS_DIR} "
+      "AIRS_VTK_DIR=${AIRS_VTK_DIR} "
+      "VTK_DIR=${VTK_DIR}")
+  endif()
+endif()
+
+# Get the current directory
+get_filename_component(AIRS_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+# The location of the "use" file.
+set(AIRS_USE_FILE "${AIRS_CMAKE_DIR}/UseAIRS.cmake")
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+if(NOT TARGET vtkImageRegistration AND NOT AIRS_BINARY_DIR)
+  include("${AIRS_CMAKE_DIR}/AIRSTargets.cmake")
+endif()
+
+# Compute paths
+set(AIRS_INCLUDE_DIRS "@INCLUDE_DIRS_CONFIG@")
+set(AIRS_LIBRARY_DIRS "@LIBRARY_DIRS_CONFIG@")
+
+# These are IMPORTED targets created by AIRSTargets.cmake
+set(AIRS_LIBRARIES @AIRS_LIBRARIES@)

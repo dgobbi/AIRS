@@ -1,0 +1,10 @@
+NAME
+  VTK::ImageSegmentation
+LIBRARY_NAME
+  vtkImageSegmentation
+DEPENDS
+  VTK::ImagingStencil
+  VTK::FiltersModeling
+  VTK::FiltersSources
+TEST_DEPENDS
+  VTK::TestingCore

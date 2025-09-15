@@ -16,4 +16,16 @@ Module:    AIRSConfig.h.in
 #cmakedefine AIRS_BUILD_TESTING
 #cmakedefine AIRS_USE_DICOM
 
+/* Version number. */
+#define AIRS_MAJOR_VERSION @AIRS_MAJOR_VERSION@
+#define AIRS_MINOR_VERSION @AIRS_MINOR_VERSION@
+#define AIRS_PATCH_VERSION @AIRS_PATCH_VERSION@
+#define AIRS_SHORT_VERSION "@AIRS_SHORT_VERSION@"
+#define AIRS_VERSION "@AIRS_VERSION@"
+
+/* To support 'override' for C++11 compilers */
+#define VTK_AIRS_OVERRIDE@AIRS_OVERRIDE@
+/* To support '=delete' for C++11 compilers */
+#define VTK_AIRS_DELETE@AIRS_DELETE@
+
 #endif

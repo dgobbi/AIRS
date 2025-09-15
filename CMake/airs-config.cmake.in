@@ -1,0 +1,38 @@
+#-----------------------------------------------------------------------------
+#
+# airs-config.cmake - cmake configuration file for external projects.
+#
+#-----------------------------------------------------------------------------
+@AIRS_CONFIG_CODE@
+# The version number
+set(AIRS_MAJOR_VERSION "@AIRS_MAJOR_VERSION@")
+set(AIRS_MINOR_VERSION "@AIRS_MINOR_VERSION@")
+set(AIRS_PATCH_VERSION "@AIRS_PATCH_VERSION@")
+
+# Configured settings
+set(AIRS_BUILD_SHARED_LIBS "@BUILD_SHARED_LIBS@")
+
+# Dependencies
+set(AIRS_VTK_DIR "@VTK_DIR@")
+if(NOT VTK_FOUND)
+  find_package(VTK PATHS "${AIRS_VTK_DIR}")
+else()
+  get_filename_component(tmp1 "${AIRS_VTK_DIR}" REALPATH)
+  get_filename_component(tmp2 "${VTK_DIR}" REALPATH)
+  if(NOT "${tmp1}" STREQUAL "${tmp2}")
+    message(WARNING
+      "Mismatch for VTK between vtk-dicom and current project: "
+      "AIRS_DIR=${AIRS_DIR} "
+      "AIRS_VTK_DIR=${AIRS_VTK_DIR} "
+      "VTK_DIR=${VTK_DIR}")
+  endif()
+endif()
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+if(NOT TARGET ImageRegistration AND NOT AIRS_BINARY_DIR)
+  include("${CMAKE_CURRENT_LIST_DIR}/AIRS-targets.cmake")
+  include("${CMAKE_CURRENT_LIST_DIR}/AIRS-vtk-module-properties.cmake")
+endif()
+
+# These are IMPORTED targets created by AIRS-targets.cmake
+set(AIRS_LIBRARIES @VTK_AIRS_LINK_TARGET@)

@@ -1,0 +1,27 @@
+# This module is provided as AIRS_USE_FILE by AIRSConfig.cmake.  It can
+# be INCLUDEd in a project to load the needed compiler and linker settings.
+
+if(NOT AIRS_USE_FILE_INCLUDED)
+  set(AIRS_USE_FILE_INCLUDED 1)
+
+  # Dependencies
+  if(VTK_FOUND)
+    include(${VTK_USE_FILE})
+  else()
+    message(FATAL_ERROR
+      "VTK not found in AIRS_VTK_DIR=\"${AIRS_VTK_DIR}\".")
+  endif()
+
+  # Update CMAKE_MODULE_PATH so includes work.
+  set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH}
+    ${AIRS_CMAKE_DIR})
+
+  # Add compiler flags needed to use AIRS.
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${AIRS_REQUIRED_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AIRS_REQUIRED_CXX_FLAGS}")
+
+  # Add include directories needed to use AIRS.
+  include_directories(${AIRS_INCLUDE_DIRS})
+
+endif(NOT AIRS_USE_FILE_INCLUDED)
