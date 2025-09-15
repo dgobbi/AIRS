@@ -111,15 +111,7 @@ int main(int argc, char *argv[])
 
     // test a previous bug where OutputExtent != InputExtent cause a crash.
     int extent[6] = { 0, 63, 0, 63, 3, 3 };
-#if VTK_MAJOR_VERSION >= 6
-    connectivity->UpdateInformation();
-    connectivity->SetUpdateExtent(extent);
-    connectivity->Update();
-#else
-    connectivity->GetOutput()->UpdateInformation();
-    connectivity->GetOutput()->SetUpdateExtent(extent);
-    connectivity->GetOutput()->Update();
-#endif
+    connectivity->UpdateExtent(extent);
 
     vtkIdTypeArray *sizeArray = connectivity->GetExtractedRegionSizes();
     vtkIdTypeArray *idArray = connectivity->GetExtractedRegionSeedIds();
