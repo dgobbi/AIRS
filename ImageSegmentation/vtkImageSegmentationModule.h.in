@@ -4,7 +4,7 @@
 #define vtkImageSegmentationModule_h
 
 #include "vtkABI.h"
-#include "vtkAIRSConfig.h"
+#include "AIRSConfig.h"
 
 #if defined(AIRS_BUILD_SHARED_LIBS)
 # if defined(vtkImageSegmentation_EXPORTS)

@@ -133,11 +133,11 @@ endif()
 
 # Configure whether to mark methods with override, delete
 if(VTK_VERSION VERSION_LESS 8.90)
-  set(VTKIMAGEREGISTRATION_OVERRIDE " VTK_OVERRIDE")
-  set(VTKIMAGEREGISTRATION_DELETE " VTK_DELETE_FUNCTION")
+  set(AIRS_OVERRIDE " VTK_OVERRIDE")
+  set(AIRS_DELETE " VTK_DELETE_FUNCTION")
 else()
-  set(VTKIMAGEREGISTRATION_OVERRIDE " override")
-  set(VTKIMAGEREGISTRATION_DELETE " = delete")
+  set(AIRS_OVERRIDE " override")
+  set(AIRS_DELETE " = delete")
 endif()
 
 # Configuration header
@@ -226,6 +226,9 @@ if(NOT VTK_VERSION VERSION_LESS 8.90)
     vtk_module_definitions(${airs_modules}
       PRIVATE -D_CRT_SECURE_NO_DEPRECATE)
   endif()
+
+  # Set targets to be exported by airs-config.cmake
+  set(AIRS_LINK_TARGETS ${airs_modules})
 
   if(BUILD_PYTHON_WRAPPERS)
     find_package(Python${VTK_PYTHON_VERSION} QUIET COMPONENTS Development)

@@ -4,7 +4,7 @@
 #define vtkImageRegistrationModule_h
 
 #include "vtkABI.h"
-#include "vtkAIRSConfig.h"
+#include "AIRSConfig.h"
 
 #if defined(AIRS_BUILD_SHARED_LIBS)
 # if defined(vtkImageRegistration_EXPORTS)

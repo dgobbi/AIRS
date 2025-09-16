@@ -35,4 +35,4 @@ if(NOT TARGET ImageRegistration AND NOT AIRS_BINARY_DIR)
 endif()
 
 # These are IMPORTED targets created by AIRS-targets.cmake
-set(AIRS_LIBRARIES @VTK_AIRS_LINK_TARGET@)
+set(AIRS_LIBRARIES @AIRS_LINK_TARGETS@)
