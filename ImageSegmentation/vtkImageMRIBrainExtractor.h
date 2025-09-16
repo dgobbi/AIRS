@@ -42,8 +42,8 @@ POSSIBILITY OF SUCH DAMAGES.
 // Human Brain Mapping, 17:143-155, 2002.
 
 
-#ifndef __vtkImageMRIBrainExtractor_h
-#define __vtkImageMRIBrainExtractor_h
+#ifndef vtkImageMRIBrainExtractor_h
+#define vtkImageMRIBrainExtractor_h
 
 #include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageAlgorithm.h"

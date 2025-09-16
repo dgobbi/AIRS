@@ -32,8 +32,8 @@
 // vtkImageReslice, vtkImageResize
 
 
-#ifndef __vtkGaussianInterpolator_h
-#define __vtkGaussianInterpolator_h
+#ifndef vtkGaussianInterpolator_h
+#define vtkGaussianInterpolator_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"

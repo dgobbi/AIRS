@@ -45,8 +45,8 @@ POSSIBILITY OF SUCH DAMAGES.
 // .SECTION Thanks
 // Thanks to David Gobbi for writing this class.
 
-#ifndef __vtkITKXFMWriter_h
-#define __vtkITKXFMWriter_h
+#ifndef vtkITKXFMWriter_h
+#define vtkITKXFMWriter_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"

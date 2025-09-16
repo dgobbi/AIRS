@@ -39,8 +39,8 @@ POSSIBILITY OF SUCH DAMAGES.
 // .SECTION Description
 // This class will attempt to locate a Leksell frame within its input image.
 
-#ifndef __vtkFrameFinder_h
-#define __vtkFrameFinder_h
+#ifndef vtkFrameFinder_h
+#define vtkFrameFinder_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"
@@ -139,4 +139,4 @@ private:
   void operator=(const vtkFrameFinder&);
 };
 
-#endif //__vtkFrameFinder_h
+#endif //vtkFrameFinder_h

@@ -43,8 +43,8 @@ POSSIBILITY OF SUCH DAMAGES.
 // .SECTION Thanks
 // Thanks to David Gobbi for writing this class.
 
-#ifndef __vtkITKXFMReader_h
-#define __vtkITKXFMReader_h
+#ifndef vtkITKXFMReader_h
+#define vtkITKXFMReader_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"

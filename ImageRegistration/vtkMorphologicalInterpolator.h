@@ -23,8 +23,8 @@
 // vtkImageReslice
 
 
-#ifndef __vtkMorphologicalInterpolator_h
-#define __vtkMorphologicalInterpolator_h
+#ifndef vtkMorphologicalInterpolator_h
+#define vtkMorphologicalInterpolator_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"

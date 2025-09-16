@@ -50,8 +50,8 @@
 // vtkImageReslice, vtkImageResize
 
 
-#ifndef __vtkLabelInterpolator_h
-#define __vtkLabelInterpolator_h
+#ifndef vtkLabelInterpolator_h
+#define vtkLabelInterpolator_h
 
 #include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"

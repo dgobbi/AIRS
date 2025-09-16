@@ -28,8 +28,8 @@
 // Thanks to David Gobbi at the Dept. of Radiology and and Dept. of Clinical
 // Neurosciences, University of Calgary, for providing this class.
 
-#ifndef __vtkImageIslandRemoval_h
-#define __vtkImageIslandRemoval_h
+#ifndef vtkImageIslandRemoval_h
+#define vtkImageIslandRemoval_h
 
 #include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
