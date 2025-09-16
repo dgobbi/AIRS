@@ -43,11 +43,13 @@
 #ifndef vtkImageMutualInformation_h
 #define vtkImageMutualInformation_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkImageSimilarityMetric.h"
 
 class vtkImageMutualInformationTLS;
 
-class VTK_EXPORT vtkImageMutualInformation : public vtkImageSimilarityMetric
+class VTKIMAGEREGISTRATION_EXPORT vtkImageMutualInformation :
+  public vtkImageSimilarityMetric
 {
 public:
   static vtkImageMutualInformation *New();

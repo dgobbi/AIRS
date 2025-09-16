@@ -26,9 +26,11 @@
 #ifndef vtkNelderMeadMinimizer_h
 #define vtkNelderMeadMinimizer_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkFunctionMinimizer.h"
 
-class VTK_EXPORT vtkNelderMeadMinimizer : public vtkFunctionMinimizer
+class VTKIMAGEREGISTRATION_EXPORT vtkNelderMeadMinimizer :
+  public vtkFunctionMinimizer
 {
 public:
   static vtkNelderMeadMinimizer *New();

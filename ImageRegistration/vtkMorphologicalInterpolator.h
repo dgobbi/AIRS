@@ -26,6 +26,7 @@
 #ifndef __vtkMorphologicalInterpolator_h
 #define __vtkMorphologicalInterpolator_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"
 
 #define VTK_IMIOPERATION_DILATE 0
@@ -35,7 +36,7 @@
 class vtkImageData;
 struct vtkInterpolationInfo;
 
-class VTK_EXPORT vtkMorphologicalInterpolator :
+class VTKIMAGEREGISTRATION_EXPORT vtkMorphologicalInterpolator :
   public vtkAbstractImageInterpolator
 {
 public:

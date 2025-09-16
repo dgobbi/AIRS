@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkITKXFMWriter_h
 #define __vtkITKXFMWriter_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"
 
 class vtkAbstractTransform;
@@ -56,7 +57,7 @@ class vtkThinPlateSplineTransform;
 class vtkGridTransform;
 class vtkCollection;
 
-class VTK_EXPORT vtkITKXFMWriter : public vtkAlgorithm
+class VTKIMAGEREGISTRATION_EXPORT vtkITKXFMWriter : public vtkAlgorithm
 {
 public:
   vtkTypeMacro(vtkITKXFMWriter,vtkAlgorithm);

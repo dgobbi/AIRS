@@ -26,13 +26,15 @@
 #ifndef vtkImageSimilarityMetric_h
 #define vtkImageSimilarityMetric_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
 class vtkImageStencilData;
 class vtkImageSimilarityMetricThreadData;
 class vtkImageSimilarityMetricSMPThreadLocal;
 
-class VTK_EXPORT vtkImageSimilarityMetric : public vtkThreadedImageAlgorithm
+class VTKIMAGEREGISTRATION_EXPORT vtkImageSimilarityMetric :
+  public vtkThreadedImageAlgorithm
 {
 public:
   vtkTypeMacro(vtkImageSimilarityMetric,vtkThreadedImageAlgorithm);

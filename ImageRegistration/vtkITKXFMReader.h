@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkITKXFMReader_h
 #define __vtkITKXFMReader_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"
 
 class vtkAbstractTransform;
@@ -54,7 +55,7 @@ class vtkDoubleArray;
 class vtkStringArray;
 class vtkCollection;
 
-class VTK_EXPORT vtkITKXFMReader : public vtkAlgorithm
+class VTKIMAGEREGISTRATION_EXPORT vtkITKXFMReader : public vtkAlgorithm
 {
 public:
   vtkTypeMacro(vtkITKXFMReader,vtkAlgorithm);

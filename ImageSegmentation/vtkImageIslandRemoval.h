@@ -31,13 +31,14 @@
 #ifndef __vtkImageIslandRemoval_h
 #define __vtkImageIslandRemoval_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
 
 class vtkPoints;
 class vtkImageData;
 class vtkImageStencilData;
 
-class VTK_EXPORT vtkImageIslandRemoval :
+class VTKIMAGESEGMENTATION_EXPORT vtkImageIslandRemoval :
   public vtkImageAlgorithm
 {
 public:

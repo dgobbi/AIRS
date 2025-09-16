@@ -22,11 +22,12 @@
 #ifndef vtkImageNeighborhoodCorrelation_h
 #define vtkImageNeighborhoodCorrelation_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkImageSimilarityMetric.h"
 
 class vtkImageNeighborhoodCorrelationTLS;
 
-class VTK_EXPORT vtkImageNeighborhoodCorrelation :
+class VTKIMAGEREGISTRATION_EXPORT vtkImageNeighborhoodCorrelation :
   public vtkImageSimilarityMetric
 {
 public:

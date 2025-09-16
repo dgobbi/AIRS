@@ -53,6 +53,7 @@
 #ifndef __vtkLabelInterpolator_h
 #define __vtkLabelInterpolator_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"
 
 #define VTK_LABEL_KERNEL_SIZE_MAX 32
@@ -61,7 +62,7 @@
 class vtkImageData;
 struct vtkInterpolationInfo;
 
-class VTK_EXPORT vtkLabelInterpolator :
+class VTKIMAGEREGISTRATION_EXPORT vtkLabelInterpolator :
   public vtkAbstractImageInterpolator
 {
 public:

@@ -18,9 +18,10 @@
 #ifndef vtkFunctionMinimizer_h
 #define vtkFunctionMinimizer_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkObject.h"
 
-class VTK_EXPORT vtkFunctionMinimizer : public vtkObject
+class VTKIMAGEREGISTRATION_EXPORT vtkFunctionMinimizer : public vtkObject
 {
 public:
   vtkTypeMacro(vtkFunctionMinimizer,vtkObject);

@@ -29,6 +29,7 @@
 #ifndef vtkImageRegionIteratorBase_h
 #define vtkImageRegionIteratorBase_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkSystemIncludes.h"
 
 class vtkDataArray;
@@ -36,7 +37,7 @@ class vtkImageData;
 class vtkImageStencilData;
 class vtkAlgorithm;
 
-class VTK_EXPORT vtkImageRegionIteratorBase
+class VTKIMAGESEGMENTATION_EXPORT vtkImageRegionIteratorBase
 {
 public:
   // Description:

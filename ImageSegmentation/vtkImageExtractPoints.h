@@ -44,11 +44,12 @@
 #ifndef vtkImageExtractPoints_h
 #define vtkImageExtractPoints_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
 class vtkImageStencilData;
 
-class VTK_EXPORT vtkImageExtractPoints :
+class VTKIMAGESEGMENTATION_EXPORT vtkImageExtractPoints :
   public vtkPolyDataAlgorithm
 {
 public:

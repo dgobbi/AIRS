@@ -21,9 +21,11 @@
 #ifndef vtkPowellMinimizer_h
 #define vtkPowellMinimizer_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkFunctionMinimizer.h"
 
-class VTK_EXPORT vtkPowellMinimizer : public vtkFunctionMinimizer
+class VTKIMAGEREGISTRATION_EXPORT vtkPowellMinimizer :
+  public vtkFunctionMinimizer
 {
 public:
   static vtkPowellMinimizer *New();

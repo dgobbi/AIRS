@@ -29,9 +29,10 @@
 #ifndef vtkImagePointsIterator_h
 #define vtkImagePointsIterator_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageRegionIteratorBase.h"
 
-class VTK_EXPORT vtkImagePointsIterator :
+class VTKIMAGESEGMENTATION_EXPORT vtkImagePointsIterator :
   public vtkImageRegionIteratorBase
 {
 public:

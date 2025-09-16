@@ -42,13 +42,14 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkFrameFinder_h
 #define __vtkFrameFinder_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"
 
 class vtkImageData;
 class vtkPolyData;
 class vtkMatrix4x4;
 
-class VTK_EXPORT vtkFrameFinder : public vtkAlgorithm
+class VTKIMAGEREGISTRATION_EXPORT vtkFrameFinder : public vtkAlgorithm
 {
 public:
   vtkTypeMacro(vtkFrameFinder, vtkAlgorithm);

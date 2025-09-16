@@ -24,10 +24,11 @@
 #ifndef vtkImageRegionIterator_h
 #define vtkImageRegionIterator_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageRegionIteratorBase.h"
 
 template<class DType>
-class VTK_EXPORT vtkImageRegionIterator :
+class VTKIMAGESEGMENTATION_EXPORT vtkImageRegionIterator :
   public vtkImageRegionIteratorBase
 {
 public:

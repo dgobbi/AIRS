@@ -35,6 +35,7 @@
 #ifndef __vtkGaussianInterpolator_h
 #define __vtkGaussianInterpolator_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAbstractImageInterpolator.h"
 
 #define VTK_GAUSSIAN_INTERPOLATION 0
@@ -46,7 +47,7 @@
 class vtkImageData;
 struct vtkInterpolationInfo;
 
-class VTK_EXPORT vtkGaussianInterpolator :
+class VTKIMAGEREGISTRATION_EXPORT vtkGaussianInterpolator :
   public vtkAbstractImageInterpolator
 {
 public:

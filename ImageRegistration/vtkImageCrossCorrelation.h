@@ -21,11 +21,13 @@
 #ifndef vtkImageCrossCorrelation_h
 #define vtkImageCrossCorrelation_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkImageSimilarityMetric.h"
 
 class vtkImageCrossCorrelationTLS;
 
-class VTK_EXPORT vtkImageCrossCorrelation : public vtkImageSimilarityMetric
+class VTKIMAGEREGISTRATION_EXPORT vtkImageCrossCorrelation :
+  public vtkImageSimilarityMetric
 {
 public:
   static vtkImageCrossCorrelation *New();

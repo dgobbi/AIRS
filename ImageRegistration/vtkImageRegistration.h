@@ -20,6 +20,7 @@
 #ifndef vtkImageRegistration_h
 #define vtkImageRegistration_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkAlgorithm.h"
 
 class vtkImageData;
@@ -37,7 +38,7 @@ class vtkImageSimilarityMetric;
 
 struct vtkImageRegistrationInfo;
 
-class VTK_EXPORT vtkImageRegistration : public vtkAlgorithm
+class VTKIMAGEREGISTRATION_EXPORT vtkImageRegistration : public vtkAlgorithm
 {
 public:
   vtkTypeMacro(vtkImageRegistration, vtkAlgorithm);

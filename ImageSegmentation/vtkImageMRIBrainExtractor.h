@@ -45,12 +45,14 @@ POSSIBILITY OF SUCH DAMAGES.
 #ifndef __vtkImageMRIBrainExtractor_h
 #define __vtkImageMRIBrainExtractor_h
 
+#include "vtkImageSegmentationModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
 
 class vtkPolyData;
 class vtkPoints;
 
-class VTK_EXPORT vtkImageMRIBrainExtractor : public vtkImageAlgorithm
+class VTKIMAGESEGMENTATION_EXPORT vtkImageMRIBrainExtractor :
+  public vtkImageAlgorithm
 {
 public:
   static vtkImageMRIBrainExtractor* New();

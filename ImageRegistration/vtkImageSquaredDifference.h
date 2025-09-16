@@ -20,11 +20,13 @@
 #ifndef vtkImageSquaredDifference_h
 #define vtkImageSquaredDifference_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkImageSimilarityMetric.h"
 
 class vtkImageSquaredDifferenceTLS;
 
-class VTK_EXPORT vtkImageSquaredDifference : public vtkImageSimilarityMetric
+class VTKIMAGEREGISTRATION_EXPORT vtkImageSquaredDifference :
+  public vtkImageSimilarityMetric
 {
 public:
   static vtkImageSquaredDifference *New();

@@ -35,11 +35,13 @@
 #ifndef vtkImageCorrelationRatio_h
 #define vtkImageCorrelationRatio_h
 
+#include "vtkImageRegistrationModule.h" // For export macro
 #include "vtkImageSimilarityMetric.h"
 
 class vtkImageCorrelationRatioTLS;
 
-class VTK_EXPORT vtkImageCorrelationRatio : public vtkImageSimilarityMetric
+class VTKIMAGEREGISTRATION_EXPORT vtkImageCorrelationRatio :
+  public vtkImageSimilarityMetric
 {
 public:
   static vtkImageCorrelationRatio *New();
