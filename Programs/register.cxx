@@ -62,7 +62,6 @@ Module:    register.cxx
 
 #include <vtksys/SystemTools.hxx>
 
-#include "AIRSConfig.h"
 #include "vtkITKXFMReader.h"
 #include "vtkITKXFMWriter.h"
 #include "vtkImageRegistration.h"
@@ -1064,7 +1063,7 @@ class ErrorObserver : public vtkCommand
 public:
   static ErrorObserver *New() { return new ErrorObserver; }
   vtkTypeMacro(ErrorObserver, vtkCommand);
-  virtual void Execute(vtkObject *o, unsigned long eventId, void *callData);
+  void Execute(vtkObject *o, unsigned long eventId, void *callData) override;
 };
 
 void ErrorObserver::Execute(

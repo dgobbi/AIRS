@@ -68,7 +68,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkLabelInterpolator :
 public:
   static vtkLabelInterpolator *New();
   vtkTypeMacro(vtkLabelInterpolator, vtkAbstractImageInterpolator);
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // The radius of the Gaussian kernel will be equal to the product
@@ -125,12 +125,12 @@ public:
   // will be sampled on a regular grid, then pass a matrix describing the
   // structured coordinate transformation between the output and the input.
   // Otherwise, pass NULL as the matrix to retrieve the full kernel size.
-  virtual void ComputeSupportSize(const double matrix[16], int support[3]);
+  void ComputeSupportSize(const double matrix[16], int support[3]) override;
 
   // Description:
   // Returns true if the interpolator supports weight precomputation.
   // This will always return true for this interpolator.
-  virtual bool IsSeparable();
+  bool IsSeparable() override;
 
   // Description:
   // If the data is going to be sampled on a regular grid, then the
@@ -141,16 +141,16 @@ public:
   // i.e. each of the three columns must have only one non-zero value.
   // A new extent is provided for out-of-bounds checks.
   // THIS METHOD IS THREAD SAFE.
-  virtual void PrecomputeWeightsForExtent(
+  void PrecomputeWeightsForExtent(
     const double matrix[16], const int extent[6], int newExtent[6],
-    vtkInterpolationWeights *&weights);
-  virtual void PrecomputeWeightsForExtent(
+    vtkInterpolationWeights *&weights) override;
+  void PrecomputeWeightsForExtent(
     const float matrix[16], const int extent[6], int newExtent[6],
-    vtkInterpolationWeights *&weights);
+    vtkInterpolationWeights *&weights) override;
 
   // Description:
   // Free the precomputed weights.  THIS METHOD IS THREAD SAFE.
-  virtual void FreePrecomputedWeights(vtkInterpolationWeights *&weights);
+  void FreePrecomputedWeights(vtkInterpolationWeights *&weights) override;
 
 protected:
   vtkLabelInterpolator();
@@ -158,29 +158,29 @@ protected:
 
   // Description:
   // Update the interpolator.
-  virtual void InternalUpdate();
+  void InternalUpdate() override;
 
   // Description:
   // Copy the interpolator.
-  virtual void InternalDeepCopy(vtkAbstractImageInterpolator *obj);
+  void InternalDeepCopy(vtkAbstractImageInterpolator *obj) override;
 
   // Description:
   // Get the interpolation functions.
-  virtual void GetInterpolationFunc(
+  void GetInterpolationFunc(
     void (**doublefunc)(
-      vtkInterpolationInfo *, const double [3], double *));
-  virtual void GetInterpolationFunc(
+      vtkInterpolationInfo *, const double [3], double *)) override;
+  void GetInterpolationFunc(
     void (**floatfunc)(
-      vtkInterpolationInfo *, const float [3], float *));
+      vtkInterpolationInfo *, const float [3], float *)) override;
 
   // Description:
   // Get the row interpolation functions.
-  virtual void GetRowInterpolationFunc(
+  void GetRowInterpolationFunc(
     void (**doublefunc)(
-      vtkInterpolationWeights *, int, int, int, double *, int));
-  virtual void GetRowInterpolationFunc(
+      vtkInterpolationWeights *, int, int, int, double *, int)) override;
+  void GetRowInterpolationFunc(
     void (**floatfunc)(
-      vtkInterpolationWeights *, int, int, int, float *, int));
+      vtkInterpolationWeights *, int, int, int, float *, int)) override;
 
   // Description:
   // Build the lookup tables used for the interpolation.

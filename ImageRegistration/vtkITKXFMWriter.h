@@ -63,7 +63,7 @@ public:
   vtkTypeMacro(vtkITKXFMWriter,vtkAlgorithm);
 
   static vtkITKXFMWriter *New();
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the file name.
@@ -126,9 +126,9 @@ protected:
 
   static bool IsMatFile(const char *fname);
 
-  virtual int ProcessRequest(vtkInformation* request,
-                             vtkInformationVector** inInfo,
-                             vtkInformationVector* outInfo);
+  int ProcessRequest(vtkInformation* request,
+                     vtkInformationVector** inInfo,
+                     vtkInformationVector* outInfo) override;
 
 private:
   vtkITKXFMWriter(const vtkITKXFMWriter&); // Not implemented

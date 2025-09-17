@@ -55,7 +55,7 @@ class VTKIMAGESEGMENTATION_EXPORT vtkImageExtractPoints :
 public:
   static vtkImageExtractPoints *New();
   vtkTypeMacro(vtkImageExtractPoints,vtkPolyDataAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Only extract the points that lie within the stencil.
@@ -74,20 +74,20 @@ protected:
   vtkImageExtractPoints();
   ~vtkImageExtractPoints();
 
-  virtual int RequestInformation(vtkInformation *request,
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *outInfo);
+  int RequestInformation(vtkInformation *request,
+                         vtkInformationVector **inInfo,
+                         vtkInformationVector *outInfo) override;
 
-  virtual int RequestUpdateExtent(vtkInformation *request,
-                                 vtkInformationVector **inInfo,
-                                 vtkInformationVector *outInfo);
-
-  virtual int RequestData(vtkInformation *request,
+  int RequestUpdateExtent(vtkInformation *request,
                           vtkInformationVector **inInfo,
-                          vtkInformationVector *outInfo);
+                          vtkInformationVector *outInfo) override;
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info);
-  virtual int FillOutputPortInformation(int port, vtkInformation *info);
+  int RequestData(vtkInformation *request,
+                  vtkInformationVector **inInfo,
+                  vtkInformationVector *outInfo) override;
+
+  int FillInputPortInformation(int port, vtkInformation *info) override;
+  int FillOutputPortInformation(int port, vtkInformation *info) override;
 
   int OutputPointsPrecision;
 

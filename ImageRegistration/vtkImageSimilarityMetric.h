@@ -38,7 +38,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkImageSimilarityMetric :
 {
 public:
   vtkTypeMacro(vtkImageSimilarityMetric,vtkThreadedImageAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   //@{
   //! Use a stencil to limit the comparison to a specific image region.
@@ -88,11 +88,11 @@ protected:
   vtkImageSimilarityMetric();
   ~vtkImageSimilarityMetric();
 
-  int FillInputPortInformation(int port, vtkInformation *info);
+  int FillInputPortInformation(int port, vtkInformation *info) override;
 
   int RequestUpdateExtent(vtkInformation *request,
                           vtkInformationVector **inInfo,
-                          vtkInformationVector *outInfo);
+                          vtkInformationVector *outInfo) override;
 
   //@{
   //! Subclasses override this method to create the thread-local info.
@@ -103,7 +103,7 @@ protected:
    */
   int RequestData(vtkInformation *request,
                   vtkInformationVector **inInfo,
-                  vtkInformationVector *outInfo);
+                  vtkInformationVector *outInfo) override;
 
   //! Subclasses override this method to operate on one piece of input.
   /*!

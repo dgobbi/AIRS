@@ -35,7 +35,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkNelderMeadMinimizer :
 public:
   static vtkNelderMeadMinimizer *New();
   vtkTypeMacro(vtkNelderMeadMinimizer,vtkFunctionMinimizer);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the simplex contraction ratio.  The default value of 0.5 gives
@@ -54,8 +54,8 @@ protected:
   vtkNelderMeadMinimizer();
   ~vtkNelderMeadMinimizer();
 
-  void Start();
-  int Step();
+  void Start() override;
+  int Step() override;
 
   void InitializeAmoeba();
   void GetAmoebaParameterValues();

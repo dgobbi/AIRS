@@ -53,7 +53,6 @@ Module:    skullstrip.cxx
 
 #include <vtksys/SystemTools.hxx>
 
-#include "AIRSConfig.h"
 #include "vtkImageMRIBrainExtractor.h"
 
 // optional readers
@@ -723,7 +722,7 @@ class ErrorObserver : public vtkCommand
 public:
   static ErrorObserver *New() { return new ErrorObserver; }
   vtkTypeMacro(ErrorObserver, vtkCommand);
-  virtual void Execute(vtkObject *o, unsigned long eventId, void *callData);
+  void Execute(vtkObject *o, unsigned long eventId, void *callData) override;
 };
 
 void ErrorObserver::Execute(

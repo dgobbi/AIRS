@@ -57,7 +57,7 @@ class VTKIMAGESEGMENTATION_EXPORT vtkImageMRIBrainExtractor :
 public:
   static vtkImageMRIBrainExtractor* New();
   vtkTypeMacro(vtkImageMRIBrainExtractor, vtkImageAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the region where the brain is expected to be.  If this is
@@ -119,9 +119,9 @@ protected:
   vtkImageMRIBrainExtractor();
   ~vtkImageMRIBrainExtractor();
 
-  virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+  int RequestData(vtkInformation *,
+                  vtkInformationVector **,
+                  vtkInformationVector *) override;
 
   static void ComputeMeshCentroid(vtkPolyData *data, double cen[3]);
 

@@ -25,7 +25,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkFunctionMinimizer : public vtkObject
 {
 public:
   vtkTypeMacro(vtkFunctionMinimizer,vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Specify the function to be minimized.  When this function

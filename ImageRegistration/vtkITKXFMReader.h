@@ -61,7 +61,7 @@ public:
   vtkTypeMacro(vtkITKXFMReader,vtkAlgorithm);
 
   static vtkITKXFMReader *New();
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the file name.
@@ -166,9 +166,9 @@ protected:
 
   virtual int CreateOutputTransform();
 
-  virtual int ProcessRequest(vtkInformation* request,
-                             vtkInformationVector** inInfo,
-                             vtkInformationVector* outInfo);
+  int ProcessRequest(vtkInformation* request,
+                     vtkInformationVector** inInfo,
+                     vtkInformationVector* outInfo) override;
 
 private:
   vtkITKXFMReader(const vtkITKXFMReader&); // Not implemented

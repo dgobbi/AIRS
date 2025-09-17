@@ -54,7 +54,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkFrameFinder : public vtkAlgorithm
 public:
   vtkTypeMacro(vtkFrameFinder, vtkAlgorithm);
   static vtkFrameFinder *New();
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // The input to this filter should be an image of a head with a
@@ -108,20 +108,20 @@ protected:
   ~vtkFrameFinder();
 
   // Functions overridden from Superclass
-  virtual int ProcessRequest(vtkInformation *,
-                             vtkInformationVector **,
-                             vtkInformationVector *);
+  int ProcessRequest(vtkInformation *,
+                     vtkInformationVector **,
+                     vtkInformationVector *) override;
   virtual int RequestData(vtkInformation *,
-			  vtkInformationVector **,
-			  vtkInformationVector *);
+                          vtkInformationVector **,
+                          vtkInformationVector *);
   virtual int RequestUpdateExtent(vtkInformation *vtkNotUsed(request),
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
   virtual int RequestInformation(vtkInformation *vtkNotUsed(request),
                                  vtkInformationVector **inInfo,
                                  vtkInformationVector *vtkNotUsed(outInfo));
-  virtual int FillInputPortInformation(int port, vtkInformation* info);
-  virtual int FillOutputPortInformation(int port, vtkInformation* info);
+  int FillInputPortInformation(int port, vtkInformation* info) override;
+  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
   int FindFrame(vtkImageData *, vtkPolyData *,
                 const double direction[3], vtkMatrix4x4 *matrix);

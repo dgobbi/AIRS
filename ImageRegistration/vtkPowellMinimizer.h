@@ -30,7 +30,7 @@ class VTKIMAGEREGISTRATION_EXPORT vtkPowellMinimizer :
 public:
   static vtkPowellMinimizer *New();
   vtkTypeMacro(vtkPowellMinimizer,vtkFunctionMinimizer);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
 protected:
   vtkPowellMinimizer();
@@ -51,11 +51,11 @@ protected:
 
   // Description:
   // Initialize the workspace required for the method.
-  void Start();
+  void Start() override;
 
   // Description:
   // Run one iteration of Powell's method.
-  int Step();
+  int Step() override;
 
   double *PowellWorkspace;
   double **PowellVectors;

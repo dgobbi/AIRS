@@ -32,7 +32,7 @@ public:
   static vtkImageSquaredDifference *New();
   vtkTypeMacro(vtkImageSquaredDifference, vtkImageSimilarityMetric);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
 protected:
   vtkImageSquaredDifference();
@@ -40,16 +40,16 @@ protected:
 
   int RequestData(vtkInformation *request,
                   vtkInformationVector **inputVector,
-                  vtkInformationVector *outputVector);
+                  vtkInformationVector *outputVector) override;
 
   void PieceRequestData(vtkInformation *request,
                         vtkInformationVector **inputVector,
                         vtkInformationVector *outputVector,
-                        const int pieceExtent[6], vtkIdType pieceId);
+                        const int pieceExtent[6], vtkIdType pieceId) override;
 
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
-                         vtkInformationVector *outInfo);
+                         vtkInformationVector *outInfo) override;
 
   vtkImageSquaredDifferenceTLS *ThreadData;
 

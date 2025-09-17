@@ -44,7 +44,7 @@ class VTKIMAGESEGMENTATION_EXPORT vtkImageIslandRemoval :
 public:
   static vtkImageIslandRemoval *New();
   vtkTypeMacro(vtkImageIslandRemoval, vtkImageAlgorithm);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Values greater than or equal to this threshold will be filled.
@@ -132,7 +132,7 @@ public:
 
   // Description:
   // Override the MTime to account for the seed points.
-  unsigned long GetMTime();
+  unsigned long GetMTime() override;
 
 protected:
   vtkImageIslandRemoval();
@@ -161,11 +161,11 @@ protected:
 
   void ComputeInputUpdateExtent(int inExt[6], int outExt[6]);
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info);
-  virtual int RequestUpdateExtent(vtkInformation *, vtkInformationVector **,
-                                  vtkInformationVector *);
-  virtual int RequestData(vtkInformation *, vtkInformationVector **,
-                          vtkInformationVector *);
+  int FillInputPortInformation(int port, vtkInformation *info) override;
+  int RequestUpdateExtent(vtkInformation *, vtkInformationVector **,
+                          vtkInformationVector *) override;
+  int RequestData(vtkInformation *, vtkInformationVector **,
+                  vtkInformationVector *) override;
 
 private:
   vtkImageIslandRemoval(const vtkImageIslandRemoval&);  // Not implemented.

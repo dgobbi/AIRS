@@ -55,7 +55,7 @@ public:
   static vtkImageMutualInformation *New();
   vtkTypeMacro(vtkImageMutualInformation, vtkImageSimilarityMetric);
 
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the type for the output.  The joint histogram will always be
@@ -132,20 +132,20 @@ protected:
 
   int RequestInformation(vtkInformation *request,
                          vtkInformationVector **inInfo,
-                         vtkInformationVector *outInfo);
+                         vtkInformationVector *outInfo) override;
 
   int RequestData(vtkInformation *request,
                   vtkInformationVector **inputVector,
-                  vtkInformationVector *outputVector);
+                  vtkInformationVector *outputVector) override;
 
   void PieceRequestData(vtkInformation *request,
                         vtkInformationVector **inputVector,
                         vtkInformationVector *outputVector,
-                        const int pieceExtent[6], vtkIdType pieceId);
+                        const int pieceExtent[6], vtkIdType pieceId) override;
 
   void ReduceRequestData(vtkInformation *request,
                          vtkInformationVector **inInfo,
-                         vtkInformationVector *outInfo);
+                         vtkInformationVector *outInfo) override;
 
   int NumberOfBins[2];
   double BinOrigin[2];
