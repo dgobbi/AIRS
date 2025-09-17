@@ -13,6 +13,7 @@
 =========================================================================*/
 #include "vtkPowellMinimizer.h"
 #include "vtkObjectFactory.h"
+#include "vtkMath.h"
 
 vtkStandardNewMacro(vtkPowellMinimizer);
 

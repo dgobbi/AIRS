@@ -169,7 +169,7 @@ int GuessFileType(const char *filename)
   if (n > 4 && strcmp(&filename[n-4], ".txt") == 0)
   {
     int ftype = TXTTransform;
-    ifstream infile(filename);
+    std::ifstream infile(filename);
     if (infile.good())
     {
       char firstline[32];
@@ -1131,7 +1131,7 @@ void ReadMatrix(vtkMatrix4x4 *matrix, const char *xfminput)
       0.0, 0.0, 1.0, 0.0,
       0.0, 0.0, 0.0, 1.0 };
 
-    ifstream infile(xfminput);
+    std::ifstream infile(xfminput);
     int i = 0;
     while (infile.good() && i < 16)
     {

@@ -136,7 +136,7 @@ int vtkITKXFMReader::CanReadFile(const char* fname)
 
   if (vtkITKXFMReader::IsMatFile(fname))
   {
-    ifstream infile(fname, ios::in | ios::binary);
+    std::ifstream infile(fname, ios::in | ios::binary);
     if (infile.good())
     {
       char header[20];
@@ -154,7 +154,7 @@ int vtkITKXFMReader::CanReadFile(const char* fname)
   }
   else
   {
-    ifstream infile(fname);
+    std::ifstream infile(fname);
 
     if (infile.good())
     {
@@ -753,7 +753,7 @@ int vtkITKXFMReader::ReadMatFile()
   }
 
   // Make sure that the file is readable.
-  ifstream infile(this->FileName);
+  std::ifstream infile(this->FileName);
 
   if (infile.fail())
   {
@@ -1233,7 +1233,7 @@ int vtkITKXFMReader::ReadTextFile()
   }
 
   // Make sure that the file is readable.
-  ifstream infile(this->FileName);
+  std::ifstream infile(this->FileName);
 
   if (infile.fail())
   {
@@ -1445,5 +1445,5 @@ const char *vtkITKXFMReader::GetNthTransformName(int i)
     return 0;
   }
 
-  return this->TransformNames->GetValue(i);
+  return this->TransformNames->GetValue(i).c_str();
 }

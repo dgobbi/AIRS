@@ -250,7 +250,7 @@ int vtkITKXFMWriter::WriteFile()
   bool isMat = vtkITKXFMWriter::IsMatFile(this->FileName);
 
   // Open the file.
-  ofstream outfile(this->FileName,
+  std::ofstream outfile(this->FileName,
                    (isMat ? ios::out | ios::trunc | ios::binary :
                             ios::out | ios::trunc));
 
