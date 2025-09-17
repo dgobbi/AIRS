@@ -61,8 +61,8 @@ protected:
   double **PowellVectors;
 
 private:
-  vtkPowellMinimizer(const vtkPowellMinimizer&);  // Not implemented.
-  void operator=(const vtkPowellMinimizer&);  // Not implemented.
+  vtkPowellMinimizer(const vtkPowellMinimizer&) = delete;
+  void operator=(const vtkPowellMinimizer&) = delete;
 };
 
 #endif

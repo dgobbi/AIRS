@@ -168,8 +168,8 @@ protected:
                   vtkInformationVector *) override;
 
 private:
-  vtkImageIslandRemoval(const vtkImageIslandRemoval&);  // Not implemented.
-  void operator=(const vtkImageIslandRemoval&);  // Not implemented.
+  vtkImageIslandRemoval(const vtkImageIslandRemoval&) = delete;
+  void operator=(const vtkImageIslandRemoval&) = delete;
 };
 
 #endif

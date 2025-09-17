@@ -64,8 +64,8 @@ protected:
   vtkImageNeighborhoodCorrelationTLS *ThreadData;
 
 private:
-  vtkImageNeighborhoodCorrelation(const vtkImageNeighborhoodCorrelation&);  // Not implemented.
-  void operator=(const vtkImageNeighborhoodCorrelation&);  // Not implemented.
+  vtkImageNeighborhoodCorrelation(const vtkImageNeighborhoodCorrelation&) = delete;
+  void operator=(const vtkImageNeighborhoodCorrelation&) = delete;
 };
 
 #endif

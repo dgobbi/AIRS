@@ -215,8 +215,8 @@ protected:
   double LastBlurFactors[3];
 
 private:
-  vtkGaussianInterpolator(const vtkGaussianInterpolator&);  // Not implemented.
-  void operator=(const vtkGaussianInterpolator&);  // Not implemented.
+  vtkGaussianInterpolator(const vtkGaussianInterpolator&) = delete;
+  void operator=(const vtkGaussianInterpolator&) = delete;
 };
 
 #endif

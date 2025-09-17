@@ -92,8 +92,8 @@ protected:
   int OutputPointsPrecision;
 
 private:
-  vtkImageExtractPoints(const vtkImageExtractPoints&);  // Not implemented.
-  void operator=(const vtkImageExtractPoints&);  // Not implemented.
+  vtkImageExtractPoints(const vtkImageExtractPoints&) = delete;
+  void operator=(const vtkImageExtractPoints&) = delete;
 };
 
 #endif

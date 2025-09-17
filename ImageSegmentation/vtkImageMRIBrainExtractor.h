@@ -136,8 +136,8 @@ protected:
   double RMax;
 
 private:
-  vtkImageMRIBrainExtractor(const vtkImageMRIBrainExtractor&);  // Not implemented.
-  void operator=(const vtkImageMRIBrainExtractor&);  // Not implemented.
+  vtkImageMRIBrainExtractor(const vtkImageMRIBrainExtractor&) = delete;
+  void operator=(const vtkImageMRIBrainExtractor&) = delete;
 };
 
 #endif

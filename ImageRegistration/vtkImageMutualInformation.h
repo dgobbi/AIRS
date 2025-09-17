@@ -161,8 +161,8 @@ protected:
   vtkImageMutualInformationTLS *ThreadData;
 
 private:
-  vtkImageMutualInformation(const vtkImageMutualInformation&);  // Not implemented.
-  void operator=(const vtkImageMutualInformation&);  // Not implemented.
+  vtkImageMutualInformation(const vtkImageMutualInformation&) = delete;
+  void operator=(const vtkImageMutualInformation&) = delete;
 };
 
 #endif

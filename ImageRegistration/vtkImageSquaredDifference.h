@@ -54,8 +54,8 @@ protected:
   vtkImageSquaredDifferenceTLS *ThreadData;
 
 private:
-  vtkImageSquaredDifference(const vtkImageSquaredDifference&);  // Not implemented.
-  void operator=(const vtkImageSquaredDifference&);  // Not implemented.
+  vtkImageSquaredDifference(const vtkImageSquaredDifference&) = delete;
+  void operator=(const vtkImageSquaredDifference&) = delete;
 };
 
 #endif

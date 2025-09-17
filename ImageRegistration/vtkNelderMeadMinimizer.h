@@ -75,8 +75,8 @@ protected:
   int AmoebaNStepsNoImprovement;
 
 private:
-  vtkNelderMeadMinimizer(const vtkNelderMeadMinimizer&);  // Not implemented.
-  void operator=(const vtkNelderMeadMinimizer&);  // Not implemented.
+  vtkNelderMeadMinimizer(const vtkNelderMeadMinimizer&) = delete;
+  void operator=(const vtkNelderMeadMinimizer&) = delete;
 };
 
 #endif

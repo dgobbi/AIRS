@@ -171,9 +171,8 @@ protected:
                      vtkInformationVector* outInfo) override;
 
 private:
-  vtkITKXFMReader(const vtkITKXFMReader&); // Not implemented
-  void operator=(const vtkITKXFMReader&);  // Not implemented
-
+  vtkITKXFMReader(const vtkITKXFMReader&) = delete;
+  void operator=(const vtkITKXFMReader&) = delete;
 };
 
 #endif

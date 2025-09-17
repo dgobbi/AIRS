@@ -170,8 +170,8 @@ protected:
   int AbortFlag;
 
 private:
-  vtkFunctionMinimizer(const vtkFunctionMinimizer&);  // Not implemented.
-  void operator=(const vtkFunctionMinimizer&);  // Not implemented.
+  vtkFunctionMinimizer(const vtkFunctionMinimizer&) = delete;
+  void operator=(const vtkFunctionMinimizer&) = delete;
 };
 
 #endif

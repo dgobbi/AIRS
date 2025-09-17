@@ -131,9 +131,8 @@ protected:
                      vtkInformationVector* outInfo) override;
 
 private:
-  vtkITKXFMWriter(const vtkITKXFMWriter&); // Not implemented
-  void operator=(const vtkITKXFMWriter&);  // Not implemented
-
+  vtkITKXFMWriter(const vtkITKXFMWriter&) = delete;
+  void operator=(const vtkITKXFMWriter&) = delete;
 };
 
 #endif

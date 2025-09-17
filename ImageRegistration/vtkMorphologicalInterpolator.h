@@ -140,8 +140,8 @@ protected:
   double InternalRadius[6];
 
 private:
-  vtkMorphologicalInterpolator(const vtkMorphologicalInterpolator&);  // Not implemented.
-  void operator=(const vtkMorphologicalInterpolator&);  // Not implemented.
+  vtkMorphologicalInterpolator(const vtkMorphologicalInterpolator&) = delete;
+  void operator=(const vtkMorphologicalInterpolator&) = delete;
 };
 
 #endif

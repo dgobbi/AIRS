@@ -79,8 +79,8 @@ protected:
   vtkImageCorrelationRatioTLS *ThreadData;
 
 private:
-  vtkImageCorrelationRatio(const vtkImageCorrelationRatio&);  // Not implemented.
-  void operator=(const vtkImageCorrelationRatio&);  // Not implemented.
+  vtkImageCorrelationRatio(const vtkImageCorrelationRatio&) = delete;
+  void operator=(const vtkImageCorrelationRatio&) = delete;
 };
 
 #endif

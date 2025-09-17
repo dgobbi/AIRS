@@ -135,8 +135,8 @@ protected:
 
 private:
   // Copy constructor and assigment operator are purposely not implemented
-  vtkFrameFinder(const vtkFrameFinder&);
-  void operator=(const vtkFrameFinder&);
+  vtkFrameFinder(const vtkFrameFinder&) = delete;
+  void operator=(const vtkFrameFinder&) = delete;
 };
 
 #endif //vtkFrameFinder_h

@@ -81,8 +81,8 @@ protected:
   vtkImageCrossCorrelationTLS *ThreadData;
 
 private:
-  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&);  // Not implemented.
-  void operator=(const vtkImageCrossCorrelation&);  // Not implemented.
+  vtkImageCrossCorrelation(const vtkImageCrossCorrelation&) = delete;
+  void operator=(const vtkImageCrossCorrelation&) = delete;
 };
 
 #endif

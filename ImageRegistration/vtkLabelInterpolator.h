@@ -198,8 +198,8 @@ protected:
   double LastBlurFactors[3];
 
 private:
-  vtkLabelInterpolator(const vtkLabelInterpolator&);  // Not implemented.
-  void operator=(const vtkLabelInterpolator&);  // Not implemented.
+  vtkLabelInterpolator(const vtkLabelInterpolator&) = delete;
+  void operator=(const vtkLabelInterpolator&) = delete;
 };
 
 #endif

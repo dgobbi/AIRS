@@ -136,8 +136,8 @@ protected:
   //@}
 
 private:
-  vtkImageSimilarityMetric(const vtkImageSimilarityMetric&);
-  void operator=(const vtkImageSimilarityMetric&);
+  vtkImageSimilarityMetric(const vtkImageSimilarityMetric&) = delete;
+  void operator=(const vtkImageSimilarityMetric&) = delete;
 
   double InputRange[2][2];
 

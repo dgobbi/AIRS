@@ -384,9 +384,8 @@ protected:
   vtkDoubleArray                  *ParameterValues;
 
 private:
-  // Copy constructor and assigment operator are purposely not implemented
-  vtkImageRegistration(const vtkImageRegistration&);
-  void operator=(const vtkImageRegistration&);
+  vtkImageRegistration(const vtkImageRegistration&) = delete;
+  void operator=(const vtkImageRegistration&) = delete;
 };
 
 #endif /* vtkImageRegistration_h */
