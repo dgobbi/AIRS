@@ -190,13 +190,9 @@ if(NOT VTK_VERSION VERSION_LESS 8.90)
     "${CMAKE_CURRENT_SOURCE_DIR}/ImageRegistration/vtk.module"
     "${CMAKE_CURRENT_SOURCE_DIR}/ImageSegmentation/vtk.module")
 
-  set(airs_requested_modules
-    VTK::ImageRegistration
-    VTK::ImageSegmentation)
-
   vtk_module_scan(
     MODULE_FILES        ${airs_module_files}
-    REQUEST_MODULES     ${airs_requested_modules}
+    WANT_BY_DEFAULT     ON
     PROVIDES_MODULES    airs_modules
     ENABLE_TESTS        "${BUILD_TESTING}")
 
@@ -355,11 +351,9 @@ if(MSVC_VERSION EQUAL 1400 OR MSVC_VERSION GREATER 1400 OR MSVC10)
   add_definitions(-D_SCL_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_WARNINGS)
 endif()
 
-# Add subdirs if not handled by the VTK 9 functions
-if(NOT DEFINED VTK_MODULE_ENABLE_VTK_ImageRegistration)
+# Add subdirs if not handled by modular build
+if(VTK_VERSION VERSION_LESS 8.90)
   add_subdirectory(ImageRegistration)
-endif()
-if(NOT DEFINED VTK_MODULE_ENABLE_VTK_ImageSegmentation)
   add_subdirectory(ImageSegmentation)
 endif()
 
