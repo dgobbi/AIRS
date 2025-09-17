@@ -3,6 +3,7 @@ NAME
 LIBRARY_NAME
   vtkImageRegistration
 DEPENDS
+  VTK::CommonSystem
   VTK::ImagingCore
   VTK::ImagingStatistics
 TEST_DEPENDS
