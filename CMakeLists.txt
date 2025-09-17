@@ -131,15 +131,6 @@ else()
   unset(BUILD_PYTHON_WRAPPERS CACHE)
 endif()
 
-# Configure whether to mark methods with override, delete
-if(VTK_VERSION VERSION_LESS 8.90)
-  set(AIRS_OVERRIDE " VTK_OVERRIDE")
-  set(AIRS_DELETE " VTK_DELETE_FUNCTION")
-else()
-  set(AIRS_OVERRIDE " override")
-  set(AIRS_DELETE " = delete")
-endif()
-
 # Configuration header
 CONFIGURE_FILE(CMake/AIRSConfig.h.in
   "${AIRS_BINARY_DIR}/AIRSConfig.h" @ONLY)
