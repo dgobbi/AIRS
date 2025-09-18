@@ -30,35 +30,52 @@ else(NOT AIRS_BINARY_DIR)
   set(AIRS_EXAMPLES_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
 endif()
 
-if(${VTK_MAJOR_VERSION} VERSION_LESS 6)
-  set(VTK_LIBS vtkRendering vtkIO)
-else(${VTK_MAJOR_VERSION} VERSION_LESS 6)
-  set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-      vtkRenderingFreeType vtkIOImage vtkIOMINC vtkCommonSystem
-      vtkImagingStencil vtkImagingMath vtkFiltersSources vtkFiltersGeneral
-      vtksys)
-  set(VTK_EXTRA_LIBS vtkIOMPIImage
-      vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
-      vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
-  foreach(TMP_LIB ${VTK_EXTRA_LIBS})
-    list(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
-    if(TMP_INDEX GREATER -1)
-      set(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
-    endif()
-  endforeach()
+# The library dependencies
+set(VTK_TARGET_PREFIX "VTK::")
+if(VTK_VERSION VERSION_LESS 8.90)
+  set(VTK_TARGET_PREFIX "vtk")
+endif()
+set(VTK_LIBS)
+
+# required libraries
+foreach(_lib RenderingCore RenderingImage InteractionStyle
+  RenderingFreeType IOImage IOMINC CommonSystem CommonCore
+  ImagingStencil ImagingMath FiltersSources FiltersGeneral)
+
+  list(APPEND VTK_LIBS ${VTK_TARGET_PREFIX}${_lib})
+endforeach()
+
+# factory libraries (only needed if present)
+foreach(_lib IOMPIImage
+  RenderingOpenGL RenderingFreeTypeOpenGL
+  RenderingOpenGL2 RenderingFreeTypeOpenGL2)
+
+  list(FIND VTK_LIBRARIES ${VTK_TARGET_PREFIX}${_lib} _index)
+  if(_index GREATER -1)
+    list(APPEND VTK_LIBS ${VTK_TARGET_PREFIX}${_lib})
+  endif()
+endforeach()
+
+# utility libraries
+if(VTK_VERSION VERSION_LESS 8.90)
+  list(APPEND VTK_LIBS vtksys)
+else()
+  list(APPEND VTK_LIBS ${VTK_TARGET_PREFIX}vtksys)
 endif()
 
 add_executable(RigidImageRegistration RigidImageRegistration.cxx)
 target_link_libraries(RigidImageRegistration
-  vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+  ${VTK_TARGET_PREFIX}ImageRegistration
+  ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 add_executable(DifferenceRegistration DifferenceRegistration.cxx)
 target_link_libraries(DifferenceRegistration
-  vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+  ${VTK_TARGET_PREFIX}ImageRegistration
+  ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 
 #add_executable(WarpAnts WarpAnts.cxx)
-#target_link_libraries(WarpAnts
-#  vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+#target_link_libraries(WarpAnts ${VTK_TARGET_PREFIX}ImageRegistration
+#  ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 
 add_executable(FrameFinder FrameFinder.cxx)
-target_link_libraries(FrameFinder
-  vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES})
+target_link_libraries(FrameFinder ${VTK_TARGET_PREFIX}ImageRegistration
+  ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})

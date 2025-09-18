@@ -135,7 +135,7 @@ void ReadDICOMImage(
     {
       break;
     }
-    reader->SetDesiredStackID(stackArray->GetValue(stackId+1));
+    reader->SetDesiredStackID(stackArray->GetValue(stackId+1).c_str());
     reader->UpdateInformation();
   }
 
