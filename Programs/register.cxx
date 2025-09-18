@@ -84,24 +84,6 @@ Module:    register.cxx
 #include <vector>
 #include <string>
 
-// A macro to assist VTK 5 backwards compatibility
-#if VTK_MAJOR_VERSION >= 6
-#define SET_INPUT_DATA SetInputData
-#define SET_STENCIL_DATA SetStencilData
-#else
-#define SET_INPUT_DATA SetInput
-#define SET_STENCIL_DATA SetStencil
-#endif
-
-// Check for vtkImageReslice::SetOutputScalarType()
-#if VTK_MAJOR_VERSION > 6 || (VTK_MAJOR_VERSION == 6 && VTK_MINOR_VERSION >= 2)
-#define VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
-#endif
-
-#if VTK_MAJOR_VERSION > 7 || (VTK_MAJOR_VERSION == 7 && VTK_MINOR_VERSION >= 0)
-#define USE_SMP_THREADED_IMAGE_ALGORITHM
-#endif
-
 // parallel processing
 enum { MultiThread = 1, ThreadPool = 2 };
 
@@ -422,7 +404,7 @@ void WriteDICOMImage(
     }
     writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
   }
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   writer->SetPatientMatrix(matrix);
   writer->Write();
 }
@@ -590,7 +572,7 @@ void WriteMINCImage(
   vtkSmartPointer<vtkMINCImageWriter> writer =
     vtkSmartPointer<vtkMINCImageWriter>::New();
   writer->SetFileName(fileName);
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   // the input matrix must be converted
   //writer->SetDirectionCosines(matrix);
   writer->Write();
@@ -695,7 +677,7 @@ void WriteNIFTIImage(
       writer->SetQFac(-1.0);
     }
   }
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
   writer->SetFileName(fileName);
@@ -738,7 +720,7 @@ vtkImageReader2 *ReadImage(
   {
     vtkSmartPointer<vtkImageThreshold> thresh =
       vtkSmartPointer<vtkImageThreshold>::New();
-    thresh->SET_INPUT_DATA(image);
+    thresh->SetInputData(image);
     thresh->ReplaceInOff();
     thresh->ReplaceOutOn();
     thresh->SetOutValue(vrange[0]);
@@ -820,7 +802,7 @@ vtkImageReader2 *ReadImage(
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetResliceAxes(rmat);
-    reslice->SET_INPUT_DATA(image);
+    reslice->SetInputData(image);
     reslice->SetOutputOrigin(origin);
     reslice->SetOutputSpacing(spacing);
     reslice->SetOutputExtent(extent);
@@ -910,7 +892,7 @@ void WriteImage(
       origin[1] -= yshear*0.5*spacing[2]*(extent[5] - extent[4]);
 
       reslice->SetResliceAxes(rmat);
-      reslice->SET_INPUT_DATA(image);
+      reslice->SetInputData(image);
       reslice->SetOutputOrigin(origin);
       reslice->SetOutputSpacing(spacing);
       reslice->SetOutputExtent(extent);
@@ -1286,14 +1268,14 @@ void ComputeRange(vtkImageData *image, double range[2], double fill[2])
   vtkSmartPointer<vtkImageHistogramStatistics> rangeFinder =
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
-  rangeFinder->SET_INPUT_DATA(image);
-  rangeFinder->SET_STENCIL_DATA(cylinder->GetOutput());
+  rangeFinder->SetInputData(image);
+  rangeFinder->SetStencilData(cylinder->GetOutput());
   rangeFinder->Update();
 
   rangeFinder->GetAutoRange(range);
 
   // run again, with no cylinder stencil
-  rangeFinder->SET_STENCIL_DATA(0);
+  rangeFinder->SetStencilData(0);
   rangeFinder->SetMaximumNumberOfBins(65536);
   rangeFinder->Modified();
   rangeFinder->Update();
@@ -1399,9 +1381,7 @@ struct register_options
   int display;         // -d --display
   int translucent;     // -t --translucent
   int silent;          // -s --silent
-#ifdef VTK_HAS_SLAB_SPACING
   int mip;             // --mip
-#endif
   int source_to_target; // --source-to-target
   const char *outxfm;  // -o (output transform)
   const char *output;  // -o (output image)
@@ -1428,9 +1408,7 @@ void register_initialize_options(register_options *options)
   options->display = 0;
   options->translucent = 0;
   options->silent = 0;
-#ifdef VTK_HAS_SLAB_SPACING
   options->mip = 0;
-#endif
   options->source_to_target = 0;
   options->screenshot = NULL;
   options->report = NULL;
@@ -1629,14 +1607,12 @@ void register_show_help(FILE *fp, const char *command)
     "\n"
     "    Set the maximum number of metric evaluations per stage.  Set this\n"
     "    to zero if you want to use the initial transform as-is.\n"
-#ifdef VTK_HAS_SLAB_SPACING
     "\n"
     " --mip             (default: off)\n"
     "\n"
     "    Do a maximum intensity projection for each output slice.  This is\n"
     "    useful for angiography, since it ensures that vessels will not be\n"
     "    lost.\n"
-#endif
     "\n"
     " -d --display      (default: off)\n"
     "\n"
@@ -1953,12 +1929,10 @@ int register_read_options(
       {
         options->translucent = 1;
       }
-#ifdef VTK_HAS_SLAB_SPACING
       else if (strcmp(arg, "--mip") == 0)
       {
         options->mip = 1;
       }
-#endif
       else if (strcmp(arg, "--source-to-target") == 0)
       {
         options->source_to_target = 1;
@@ -2066,24 +2040,15 @@ int main(int argc, char *argv[])
   // parameters for parallel processing
   if (options.parallel == ThreadPool)
   {
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(true);
-#else
-    cerr << "Warning: ThreadPool not available, ";
-    cerr << "no backend was configured at build time.\n";
-#endif
   }
   else if (options.parallel == MultiThread)
   {
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
-#endif
   }
   else
   {
-#ifdef USE_SMP_THREADED_IMAGE_ALGORITHM
     vtkThreadedImageAlgorithm::SetGlobalDefaultEnableSMP(false);
-#endif
     vtkMultiThreader::SetGlobalMaximumNumberOfThreads(1);
     vtkMultiThreader::SetGlobalDefaultNumberOfThreads(1);
   }
@@ -2217,7 +2182,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SET_INPUT_DATA(sourceImage);
+  sourceMapper->SetInputData(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -2244,18 +2209,16 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> targetProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  targetMapper->SET_INPUT_DATA(targetImage);
+  targetMapper->SetInputData(targetImage);
   targetMapper->SliceAtFocalPointOn();
   targetMapper->SliceFacesCameraOn();
   targetMapper->ResampleToScreenPixelsOff();
-#ifdef VTK_HAS_SLAB_SPACING
   if (options.mip)
   {
     targetMapper->SetSlabTypeToMax();
     targetMapper->SetSlabSampleFactor(2);
     targetMapper->SetSlabThickness(sourceImage->GetSpacing()[2]);
   }
-#endif
 
   targetProperty->SetColorWindow((targetRange[1]-targetRange[0]));
   targetProperty->SetColorLevel(0.5*(targetRange[0]+targetRange[1]));
@@ -2352,7 +2315,7 @@ int main(int argc, char *argv[])
   // reduce the source resolution
   vtkSmartPointer<vtkImageResize> sourceBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  sourceBlur->SET_INPUT_DATA(sourceImage);
+  sourceBlur->SetInputData(sourceImage);
   sourceBlur->SetResizeMethodToOutputSpacing();
   sourceBlur->SetInterpolator(sourceBlurKernel);
   sourceBlur->SetInterpolate(
@@ -2367,7 +2330,7 @@ int main(int argc, char *argv[])
   // keep target at full resolution
   vtkSmartPointer<vtkImageResize> targetBlur =
     vtkSmartPointer<vtkImageResize>::New();
-  targetBlur->SET_INPUT_DATA(targetImage);
+  targetBlur->SetInputData(targetImage);
   targetBlur->SetResizeMethodToOutputSpacing();
   targetBlur->SetInterpolator(targetBlurKernel);
   targetBlur->SetInterpolate(
@@ -2439,22 +2402,12 @@ int main(int argc, char *argv[])
       sourceBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
       sourceBlur->SetOutputSpacing(sourceSpacing);
-#if VTK_MAJOR_VERSION >= 6
       sourceBlur->UpdateWholeExtent();
-#else
-      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      sourceBlur->Update();
-#endif
 
       targetBlur->SetInterpolator(0);
       sourceBlur->InterpolateOff();
       targetBlur->SetOutputSpacing(targetSpacing);
-#if VTK_MAJOR_VERSION >= 6
       targetBlur->UpdateWholeExtent();
-#else
-      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      targetBlur->Update();
-#endif
     }
     else
     {
@@ -2475,24 +2428,14 @@ int main(int argc, char *argv[])
         spacing[2]/sourceSpacing[2]);
 
       sourceBlur->SetOutputSpacing(spacing);
-#if VTK_MAJOR_VERSION >= 6
       sourceBlur->UpdateWholeExtent();
-#else
-      sourceBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      sourceBlur->Update();
-#endif
 
       targetBlurKernel->SetBlurFactors(
         blurFactor*minSpacing/targetSpacing[0],
         blurFactor*minSpacing/targetSpacing[1],
         blurFactor*minSpacing/targetSpacing[2]);
 
-#if VTK_MAJOR_VERSION >= 6
       targetBlur->UpdateWholeExtent();
-#else
-      targetBlur->GetOutput()->SetUpdateExtentToWholeExtent();
-      targetBlur->Update();
-#endif
     }
 
     if (initialized)
@@ -2622,7 +2565,7 @@ int main(int argc, char *argv[])
     // if bspline, need to filter the image first
     if (options.interpolator == vtkImageRegistration::BSpline)
     {
-      bspline->SET_INPUT_DATA(resliceImage);
+      bspline->SetInputData(resliceImage);
       bspline->Update();
       resliceImage = bspline->GetOutput();
     }
@@ -2630,15 +2573,13 @@ int main(int argc, char *argv[])
     vtkSmartPointer<vtkImageReslice> reslice =
       vtkSmartPointer<vtkImageReslice>::New();
     reslice->SetInformationInput(templateImage);
-    reslice->SET_INPUT_DATA(resliceImage);
+    reslice->SetInputData(resliceImage);
     SetInterpolator(reslice, options.interpolator);
 
-#ifdef VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
     if (outputScalarType != resliceImage->GetScalarType())
     {
       reslice->SetOutputScalarType(outputScalarType);
     }
-#endif
 
     if (options.source_to_target)
     {
@@ -2651,7 +2592,6 @@ int main(int argc, char *argv[])
         registration->GetTransform());
     }
 
-#ifdef VTK_HAS_SLAB_SPACING
     if (options.mip)
     {
       double ss[3];
@@ -2667,23 +2607,20 @@ int main(int argc, char *argv[])
         cout << "Wrote MIP slabs that are " << ss[2] << " mm thick." << endl;
       }
     }
-#endif
 
     reslice->Update();
     resliceImage = reslice->GetOutput();
 
-#ifndef VTK_RESLICE_HAS_OUTPUT_SCALAR_TYPE
     vtkSmartPointer<vtkImageCast> imageCast =
       vtkSmartPointer<vtkImageCast>::New();
     if (outputScalarType != resliceImage->GetScalarType())
     {
-      imageCast->SET_INPUT_DATA(resliceImage);
+      imageCast->SetInputData(resliceImage);
       imageCast->SetOutputScalarType(outputScalarType);
       imageCast->ClampOverflowOn();
       imageCast->Update();
       resliceImage = imageCast->GetOutput();
     }
-#endif
 
     if (options.source_to_target)
     {

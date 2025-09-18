@@ -13,9 +13,6 @@ foreach(TMP_LIB ${VTK_EXTRA_LIBS})
   endif()
 endforeach()
 
-# TODO: remove corresponding conditionals in register.cxx
-add_definitions(-DVTK_HAS_SLAB_SPACING)
-
 add_executable(register register.cxx)
 target_link_libraries(register
   vtkImageRegistration ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
