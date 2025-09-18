@@ -2,17 +2,30 @@ include_directories(${AIRS_INCLUDE_DIRS})
 set(AIRS_TESTING_TEMP_DIR ${AIRS_BINARY_DIR}/Testing/Temporary)
 set(VTK_TESTING_DIRECTORY "${VTK_DIR}/ExternalData/Testing/")
 
-set(VTK_LIBS vtkRenderingCore vtkRenderingImage vtkInteractionStyle
-    vtkRenderingFreeType vtkIOImage vtkIOMINC
-    vtkImagingStencil vtkImagingMath vtkImagingMorphological
-    vtkFiltersSources vtksys)
-set(VTK_EXTRA_LIBS vtkIOMPIImage
-    vtkRenderingOpenGL vtkRenderingFreeTypeOpenGL
-    vtkRenderingOpenGL2 vtkRenderingFreeTypeOpenGL2)
-foreach(TMP_LIB ${VTK_EXTRA_LIBS})
-  list(FIND VTK_LIBRARIES ${TMP_LIB} TMP_INDEX)
-  if(TMP_INDEX GREATER -1)
-    set(VTK_LIBS ${VTK_LIBS} ${TMP_LIB})
+# The library dependencies
+set(VTK_TARGET_PREFIX "VTK::")
+if(VTK_VERSION VERSION_LESS 8.90)
+  set(VTK_TARGET_PREFIX "vtk")
+endif()
+set(VTK_LIBS)
+
+# required libraries
+foreach(_lib RenderingCore RenderingImage InteractionStyle
+  RenderingFreeType IOImage IOMINC
+  ImagingStencil ImagingMath ImagingMorphological
+  FiltersSources)
+
+  list(APPEND VTK_LIBS ${VTK_TARGET_PREFIX}${_lib})
+endforeach()
+
+# factory libraries (only needed if present)
+foreach(_lib TestingCore IOMPIImage
+  RenderingOpenGL RenderingFreeTypeOpenGL
+  RenderingOpenGL2 RenderingFreeTypeOpenGL2)
+
+  list(FIND VTK_LIBRARIES ${VTK_TARGET_PREFIX}${_lib} _index)
+  if(_index GREATER -1)
+    list(APPEND VTK_LIBS ${VTK_TARGET_PREFIX}${_lib})
   endif()
 endforeach()
 
@@ -20,7 +33,7 @@ endforeach()
 add_executable(TestImageConnectivityFilter
   TestImageConnectivityFilter.cxx)
 target_link_libraries(TestImageConnectivityFilter
-  vtkImageSegmentation ${VTK_LIBS})
+  ${VTK_TARGET_PREFIX}ImageSegmentation ${VTK_LIBS})
 get_target_property(_path
   TestImageConnectivityFilter RUNTIME_OUTPUT_DIRECTORY)
 add_test(TestImageConnectivityFilter
