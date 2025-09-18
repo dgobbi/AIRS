@@ -41,6 +41,12 @@ add_executable(skullstrip skullstrip.cxx)
 target_link_libraries(skullstrip ${VTK_TARGET_PREFIX}ImageSegmentation
   ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
 
+if(NOT VTK_VERSION VERSION_LESS 8.90)
+  vtk_module_autoinit(
+    TARGETS register skullstrip
+    MODULES VTK::RenderingOpenGL2 VTK::RenderingUI VTK::InteractionStyle)
+endif()
+
 install(TARGETS register skullstrip
   EXPORT DICOMTargets
   RUNTIME DESTINATION ${AIRS_RUNTIME_INSTALL_DEST} COMPONENT RuntimeLibraries

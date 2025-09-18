@@ -79,3 +79,9 @@ target_link_libraries(DifferenceRegistration
 add_executable(FrameFinder FrameFinder.cxx)
 target_link_libraries(FrameFinder ${VTK_TARGET_PREFIX}ImageRegistration
   ${VTK_LIBS} ${DICOM_LIBRARIES} ${GDCM_LIBS})
+
+if(NOT VTK_VERSION VERSION_LESS 8.90)
+  vtk_module_autoinit(
+    TARGETS RigidImageRegistration DifferenceRegistration FrameFinder
+    MODULES VTK::RenderingOpenGL2 VTK::RenderingUI VTK::InteractionStyle)
+endif()

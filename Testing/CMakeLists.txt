@@ -39,3 +39,9 @@ get_target_property(_path
 add_test(TestImageConnectivityFilter
   "${_path}/TestImageConnectivityFilter"
   -D "${VTK_TESTING_DIRECTORY}")
+
+if(NOT VTK_VERSION VERSION_LESS 8.90)
+  vtk_module_autoinit(
+    TARGETS TestImageConnectivityFilter
+    MODULES VTK::RenderingOpenGL2 VTK::RenderingUI VTK::InteractionStyle)
+endif()
