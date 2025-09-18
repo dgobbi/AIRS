@@ -67,6 +67,8 @@ Module:    register.cxx
 #include "vtkImageRegistration.h"
 #include "vtkLabelInterpolator.h"
 
+#include "AIRSConfig.h"
+
 // optional readers
 #ifdef AIRS_USE_DICOM
 #define AIRS_USE_NIFTI
