@@ -41,7 +41,7 @@ endif()
 option(AIRS_USE_DICOM "Use DICOM in AIRS" OFF)
 if(AIRS_USE_DICOM)
   find_package(DICOM QUIET)
-  if(DICOM_FOUND)
+  if(DICOM_FOUND AND DICOM_USE_FILE)
     include(${DICOM_USE_FILE})
   endif()
   # DICOM configured options with defaults
