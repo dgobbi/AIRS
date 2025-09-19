@@ -269,13 +269,6 @@ if(NOT VTK_VERSION VERSION_LESS 8.90)
 
 endif() #(NOT VTK_VERSION VERSION_LESS 8.90)
 
-if(Module_vtkAIRS)
-  set(AIRS_BIN_DIR ${VTK_INSTALL_RUNTIME_DIR})
-  set(AIRS_LIB_DIR ${VTK_INSTALL_LIBRARY_DIR})
-  set(AIRS_ARC_DIR ${VTK_INSTALL_ARCHIVE_DIR})
-  set(AIRS_INC_DIR ${VTK_INSTALL_INCLUDE_DIR})
-endif()
-
 # Set up our target directory structure for "make install"
 set(AIRS_BIN_DIR "bin") # for executables and ".dll" libraries
 if(NOT AIRS_LIB_DIR)
