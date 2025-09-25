@@ -62,11 +62,7 @@ void vtkImageSimilarityMetric::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 void vtkImageSimilarityMetric::SetStencilData(vtkImageStencilData *stencil)
 {
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputData(2, stencil);
-#else
-  this->SetInput(2, stencil);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -288,11 +284,7 @@ int vtkImageSimilarityMetric::RequestData(
         int updateExtent[6];
         info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
                   updateExtent);
-#if VTK_MAJOR_VERSION >= 6
         this->AllocateOutputData(outData, info, updateExtent);
-#else
-        this->AllocateOutputData(outData, updateExtent);
-#endif
       }
       // copy arrays from first input to output
       if (i == 0)

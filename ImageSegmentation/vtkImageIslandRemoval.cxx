@@ -44,11 +44,7 @@ vtkImageIslandRemoval::vtkImageIslandRemoval()
   this->InValue = 0.0;
   this->ReplaceOut = 0;
   this->OutValue = 0.0;
-#if VTK_MAJOR_VERSION >= 6
   this->LargestIsland = VTK_ID_MAX;
-#else
-  this->LargestIsland = VTK_LARGE_ID;
-#endif
   this->SmallestIsland = 0;
   this->IslandsSortedBySize = 0;
 
@@ -153,11 +149,7 @@ int vtkImageIslandRemoval::FillInputPortInformation(
 //----------------------------------------------------------------------------
 void vtkImageIslandRemoval::SetStencilData(vtkImageStencilData *stencil)
 {
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputData(1, stencil);
-#else
-  this->SetInput(1, stencil);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -664,11 +656,7 @@ void vtkImageIslandRemovalExecute(
   maskData->SetOrigin(inData->GetOrigin());
   maskData->SetSpacing(inData->GetSpacing());
   maskData->SetExtent(extent);
-#if VTK_MAJOR_VERSION >= 6
   maskData->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
-#else
-  maskData->AllocateScalars();
-#endif
 
   unsigned char *maskPtr =
     static_cast<unsigned char *>(maskData->GetScalarPointerForExtent(extent));
@@ -851,11 +839,7 @@ int vtkImageIslandRemoval::RequestData(
 
   int outExt[6];
   outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExt);
-#if VTK_MAJOR_VERSION >= 6
   this->AllocateOutputData(outData, outInfo, outExt);
-#else
-  this->AllocateOutputData(outData, outExt);
-#endif
 
   // get scalar pointers
   void *inPtr = inData->GetScalarPointerForExtent(outExt);

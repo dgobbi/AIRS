@@ -45,11 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
-
-#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
-#endif
 
 //---------------------------------------------------------------------------
 vtkCalcCrossCorrelation* vtkCalcCrossCorrelation::New()
@@ -69,11 +66,8 @@ vtkCalcCrossCorrelation::vtkCalcCrossCorrelation()
 {
   this->CrossCorrelation = 0.0;
   this->ReverseStencil = 0;
-
-#if (VTK_MAJOR_VERSION >= 5)
   // we have the image inputs and the optional stencil input
   this->SetNumberOfInputPorts(2);
-#endif
 }
 
 // Destroy any allocated memory.
@@ -85,88 +79,49 @@ vtkCalcCrossCorrelation::~vtkCalcCrossCorrelation()
 // Specifies the input datasets
 void vtkCalcCrossCorrelation::SetInput1(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION >= 5)
   this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
-#else
-  this->vtkProcessObject::SetNthInput(0, input);
-#endif
 }
 void vtkCalcCrossCorrelation::SetInput2(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION >= 5)
   this->SetNthInputConnection(0, 1, (input ? input->GetProducerPort() : 0));
-#else
-  this->vtkProcessObject::SetNthInput(1, input);
-#endif
 }
 
 //----------------------------------------------------------------------------
 void vtkCalcCrossCorrelation::SetStencil(vtkImageStencilData *stencil)
 {
-#if (VTK_MAJOR_VERSION >= 5)
   // if stencil is null, then set the input port to null
   this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
-#else
-  this->vtkProcessObject::SetNthInput(2, stencil);
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageData *vtkCalcCrossCorrelation::GetInput1()
 {
-#if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(0) < 1)
   {
     return NULL;
   }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
-#else
-  if (this->GetNumberOfInputs() < 1)
-  {
-    return NULL;
-  }
-  return (vtkImageData *)(this->Inputs[0]);
-#endif
 }
 //----------------------------------------------------------------------------
 vtkImageData *vtkCalcCrossCorrelation::GetInput2()
 {
-#if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(0) < 2)
   {
     return NULL;
   }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 1));
-#else
-  if (this->GetNumberOfInputs() < 2)
-  {
-    return NULL;
-  }
-  return (vtkImageData *)(this->Inputs[1]);
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkCalcCrossCorrelation::GetStencil()
 {
-#if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(1) < 1)
   {
     return NULL;
   }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
-#else
-  if (this->NumberOfInputs < 3)
-  {
-    return NULL;
-  }
-  else
-  {
-    return (vtkImageStencilData *)(this->Inputs[2]);
-  }
-#endif
 }
 
 // Description:
@@ -348,18 +303,11 @@ void vtkCalcCrossCorrelation::Execute()
 
   switch (input1->GetScalarType())
   {
-#if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro6(vtkCorrelationHelper,this,
-		      input1, (VTK_TT *)(in1Ptr),
-		      input2, (VTK_TT *)(in2Ptr),
-		      &this->CrossCorrelation);
-#else
     vtkTemplateMacro(
       vtkCorrelationHelper(this,
 			   input1, (VTK_TT *)(in1Ptr),
 			   input2, (VTK_TT *)(in2Ptr),
 			   &this->CrossCorrelation));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType (must be char, us char, int, us int");
       return;
@@ -377,7 +325,6 @@ void vtkCalcCrossCorrelation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CrossCorrelation: " << this->GetCrossCorrelation () << "\n";
 }
 
-#if (VTK_MAJOR_VERSION >= 5)
 //----------------------------------------------------------------------------
 int vtkCalcCrossCorrelation::FillInputPortInformation(int port,
                                                       vtkInformation* info)
@@ -395,7 +342,6 @@ int vtkCalcCrossCorrelation::FillInputPortInformation(int port,
   }
   return 1;
 }
-#endif
 
 
 

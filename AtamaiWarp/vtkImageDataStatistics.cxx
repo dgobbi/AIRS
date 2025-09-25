@@ -43,11 +43,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 #include "vtkCommand.h"
-
-#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
-#endif
 
 //----------------------------------------------------------------------------
 vtkImageDataStatistics* vtkImageDataStatistics::New()
@@ -78,30 +75,18 @@ vtkImageDataStatistics::~vtkImageDataStatistics()
 //----------------------------------------------------------------------------
 void vtkImageDataStatistics::SetInput(vtkImageData *input)
 {
-#if (VTK_MAJOR_VERSION < 5)
-  this->vtkProcessObject::SetNthInput(0, input);
-#else
   // Ask the superclass to connect the input.
   this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageData *vtkImageDataStatistics::GetInput()
 {
-#if (VTK_MAJOR_VERSION < 5)
-  if (this->GetNumberOfInputs() < 1)
-  {
-    return NULL;
-  }
-  return (vtkImageData *)(this->Inputs[0]);
-#else
   if (this->GetNumberOfInputConnections(0) < 1)
   {
     return NULL;
   }
   return vtkImageData::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -194,19 +179,11 @@ void vtkImageDataStatistics::Update()
       this->Progress = 0.0;
       switch (input->GetScalarType())
       {
-#if (VTK_MAJOR_VERSION < 5)
-	vtkTemplateMacro6(vtkImageDataStatisticsExecute,
-			  this, (VTK_TT *) (inPtr), input,
-			  &(this->AverageMagnitude),
-			  &(this->StandardDeviation),
-			  &(this->Count));
-#else
 	vtkTemplateMacro(
 	  vtkImageDataStatisticsExecute(this, (VTK_TT *) (inPtr), input,
 					&(this->AverageMagnitude),
 					&(this->StandardDeviation),
 					&(this->Count)));
-#endif
 	default:
 	  vtkErrorMacro(<< "Update: Unknown ScalarType");
 	  return;

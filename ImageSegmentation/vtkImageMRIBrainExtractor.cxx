@@ -63,17 +63,6 @@ POSSIBILITY OF SUCH DAMAGES.
 #include <algorithm>
 #include <numeric>
 
-// A macro to assist VTK 5 backwards compatibility
-#if VTK_MAJOR_VERSION >= 6
-#define SET_INPUT_DATA SetInputData
-#define SET_SOURCE_DATA SetSourceData
-#define SET_STENCIL_DATA SetStencilData
-#else
-#define SET_INPUT_DATA SetInput
-#define SET_SOURCE_DATA SetSource
-#define SET_STENCIL_DATA SetStencil
-#endif
-
 namespace {
 
 // A convenience class for using C arrays in STL vectors
@@ -425,7 +414,7 @@ static void vtkBEBuildAndLinkPolyData(
   // Subdivide each triangle into 4.
   vtkLinearSubdivisionFilter *subdivideSphere =
     vtkLinearSubdivisionFilter::New();
-  subdivideSphere->SET_INPUT_DATA(icosahedron->GetOutput());
+  subdivideSphere->SetInputData(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
   subdivideSphere->Update();
 
@@ -439,8 +428,8 @@ static void vtkBEBuildAndLinkPolyData(
 
   // Smooth the subdivided sphere
   vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
-  smoothSphere->SET_INPUT_DATA(subdivideSphere->GetOutput());
-  smoothSphere->SET_SOURCE_DATA(constraintSphere->GetOutput());
+  smoothSphere->SetInputData(subdivideSphere->GetOutput());
+  smoothSphere->SetSourceData(constraintSphere->GetOutput());
   smoothSphere->Update();
 
   // The brain sphere
@@ -962,7 +951,7 @@ void vtkImageMRIBrainExtractorExecute(
 
   // Aviod ugly poly data - unnecessary?
   vtkCleanPolyData *cleanPoly = vtkCleanPolyData::New();
-  cleanPoly->SET_INPUT_DATA(brainPolyData);
+  cleanPoly->SetInputData(brainPolyData);
   cleanPoly->Update();
 
   self->GetBrainMesh()->ShallowCopy(cleanPoly->GetOutput());
@@ -971,12 +960,12 @@ void vtkImageMRIBrainExtractorExecute(
   vtkPolyDataToImageStencil *theStencil = vtkPolyDataToImageStencil::New();
   vtkImageStencil *imageStencil = vtkImageStencil::New();
 
-  theStencil->SET_INPUT_DATA(self->GetBrainMesh());
+  theStencil->SetInputData(self->GetBrainMesh());
   theStencil->SetInformationInput(inData);
   theStencil->Update();
 
-  imageStencil->SET_STENCIL_DATA(theStencil->GetOutput());
-  imageStencil->SET_INPUT_DATA(inData);
+  imageStencil->SetStencilData(theStencil->GetOutput());
+  imageStencil->SetInputData(inData);
   imageStencil->SetBackgroundValue(T2);
   imageStencil->Update();
 
@@ -1009,12 +998,7 @@ int vtkImageMRIBrainExtractor::RequestData(
   int outExt[6];
   outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), outExt);
 
-#if VTK_MAJOR_VERSION >= 6
   this->AllocateOutputData(outData, outInfo, outExt);
-#else
-  this->AllocateOutputData(outData, outExt);
-#endif
-
 
   void *inPtr = inData->GetScalarPointerForExtent(outExt);
 

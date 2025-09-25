@@ -337,14 +337,9 @@ void vtkImageMean3D::ThreadedExecute(vtkImageData *inData,
 
   switch (inData->GetScalarType())
   {
-#if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro7(vtkImageMean3DExecute, this,inData, (VTK_TT *)(inPtr),
-                      outData, (VTK_TT *)(outPtr),outExt, id);
-#else
     vtkTemplateMacro(
         vtkImageMean3DExecute(this,inData, (VTK_TT *)(inPtr),
                       outData, (VTK_TT *)(outPtr),outExt, id));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown input ScalarType");
       return;

@@ -43,11 +43,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
-
-#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
-#endif
 
 //----------------------------------------------------------------------------
 vtkImageAmoebaGrid* vtkImageAmoebaGrid::New()
@@ -88,10 +85,8 @@ vtkImageAmoebaGrid::vtkImageAmoebaGrid()
 
   this->Tolerance = 0.005;
 
-#if (VTK_MAJOR_VERSION >= 5)
   // we have the image inputs and the optional stencil input
   this->SetNumberOfInputPorts(2);
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -114,7 +109,6 @@ vtkImageAmoebaGrid::~vtkImageAmoebaGrid()
 }
 
 //----------------------------------------------------------------------------
-#if (VTK_MAJOR_VERSION >= 5)
 int vtkImageAmoebaGrid::FillInputPortInformation(int port,
                                                  vtkInformation *info)
 {
@@ -131,39 +125,23 @@ int vtkImageAmoebaGrid::FillInputPortInformation(int port,
   }
   return 1;
 }
-#endif
 
 //----------------------------------------------------------------------------
 void vtkImageAmoebaGrid::SetStencil(vtkImageStencilData *stencil)
 {
-#if (VTK_MAJOR_VERSION >= 5)
   this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
-#else
-  this->vtkProcessObject::SetNthInput(3, stencil);
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageAmoebaGrid::GetStencil()
 {
-#if (VTK_MAJOR_VERSION >= 5)
   if (this->GetNumberOfInputConnections(1) < 1)
   {
     return NULL;
   }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
-#else
-  if (this->NumberOfInputs < 4)
-  {
-    return NULL;
-  }
-  else
-  {
-    return (vtkImageStencilData *)(this->Inputs[3]);
-  }
-#endif
 }
 
 #ifdef VTK_RESLICE_INTEGER_MATH
@@ -1202,18 +1180,6 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 
   switch (pb->scalarType)
   {
-#if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro9(CorrelationWorkFunction,
-		      (VTK_TT *)(pb->patPtr),
-		      pb->patIncs,
-		      pb->patWholeInExt,
-		      pb->patext,
-		      pb->modelPoints,
-		      pb->kernelDiameter,
-		      modelDisp,
-		      pb->sqrt_mod_sum_squared,
-		      correlation);
-#else
     vtkTemplateMacro(
       CorrelationWorkFunction((VTK_TT *)(pb->patPtr),
 			      pb->patIncs,
@@ -1224,7 +1190,6 @@ static void CorrelationForExtentAndDisplacement(void *amoebaParmBlock)
 			      modelDisp,
 			      pb->sqrt_mod_sum_squared,
 			      correlation));
-#endif
     default:
       cout << "CorrelationForExtentAndDisplacement: Unknown ScalarType\n";
       return;

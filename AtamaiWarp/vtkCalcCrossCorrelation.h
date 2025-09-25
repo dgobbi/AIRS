@@ -90,9 +90,7 @@ protected:
   vtkCalcCrossCorrelation();
   ~vtkCalcCrossCorrelation();
  
-#if (VTK_MAJOR_VERSION >= 5) 
   virtual int FillInputPortInformation(int, vtkInformation*);
-#endif
 
   void Execute();
 

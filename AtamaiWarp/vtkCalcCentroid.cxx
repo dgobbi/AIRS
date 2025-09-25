@@ -222,14 +222,9 @@ void vtkCalcCentroid::ComputeCentroid()
 
   switch (this->Input->GetScalarType())
   {
-#if (VTK_MAJOR_VERSION < 5)
-        vtkTemplateMacro4(vtkCalculateCentroid, this->Input,
-                          (VTK_TT *)(inPtr), inputExtent, centroid);
-#else
         vtkTemplateMacro(
             vtkCalculateCentroid(this->Input,
                                  (VTK_TT *)(inPtr), inputExtent, centroid));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
   }
@@ -260,16 +255,10 @@ void vtkCalcCentroid::ComputeCovarianceMatrix()
 
   switch (this->Input->GetScalarType())
   {
-#if (VTK_MAJOR_VERSION < 5)
-        vtkTemplateMacro5(vtkCalculateCovarianceMatrix, this->Input,
-                          (VTK_TT *)(inPtr), this->Centroid,
-                          inputExtent, this->CovarianceMatrix);
-#else
         vtkTemplateMacro(
             vtkCalculateCovarianceMatrix(this->Input,
                                          (VTK_TT *)(inPtr), this->Centroid,
                                          inputExtent, this->CovarianceMatrix));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
   }

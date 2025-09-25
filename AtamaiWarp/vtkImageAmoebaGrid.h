@@ -127,9 +127,7 @@ protected:
   double *TotalCost;
   int *VectorsMinimized;
 
-#if (VTK_MAJOR_VERSION >= 5)
   int FillInputPortInformation(int port, vtkInformation *info);
-#endif
 
   void ExecuteInformation(vtkImageData **inDatas, vtkImageData *outData);
   void ExecuteInformation(){this->vtkImageMultipleInputFilter::ExecuteInformation();};

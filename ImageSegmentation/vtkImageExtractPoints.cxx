@@ -89,11 +89,7 @@ vtkAlgorithmOutput *vtkImageExtractPoints::GetStencilConnection()
 //----------------------------------------------------------------------------
 void vtkImageExtractPoints::SetStencilData(vtkImageStencilData *stencil)
 {
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputData(1, stencil);
-#else
-  this->SetInput(1, stencil);
-#endif
 }
 
 //----------------------------------------------------------------------------

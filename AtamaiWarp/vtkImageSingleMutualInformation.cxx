@@ -20,11 +20,8 @@
 #include "vtkImageData.h"
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
-
-#if (VTK_MAJOR_VERSION >= 5)
 #include "vtkInformation.h"
 #include "vtkExecutive.h"
-#endif
 
 #include <math.h>
 
@@ -85,35 +82,20 @@ void vtkImageSingleMutualInformation::GetImageAComponentExtent(int extent[2])
 //----------------------------------------------------------------------------
 void vtkImageSingleMutualInformation::SetStencil(vtkImageStencilData *stencil)
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  this->vtkProcessObject::SetNthInput(2, stencil);
-#else
   // if stencil is null, then set the input port to null
   this->SetNthInputConnection(1, 0,
     (stencil ? stencil->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
 vtkImageStencilData *vtkImageSingleMutualInformation::GetStencil()
 {
-#if (VTK_MAJOR_VERSION == 4) && (VTK_MINOR_VERSION <= 4)
-  if (this->NumberOfInputs < 3)
-  {
-    return NULL;
-  }
-  else
-  {
-    return (vtkImageStencilData *)(this->Inputs[2]);
-  }
-#else
   if (this->GetNumberOfInputConnections(1) < 1)
   {
     return NULL;
   }
   return vtkImageStencilData::SafeDownCast(
     this->GetExecutive()->GetInputData(1, 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -339,14 +321,6 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
 
   switch (inData1->GetScalarType())
   {
-#if (VTK_MAJOR_VERSION < 5)
-    vtkTemplateMacro7(vtkImageSingleMutualInformationExecute, this,
-		      (VTK_TT *)(inPtr1),
-		      inData1,
-		      outData, (int *)(outPtr),
-		      &this->NormalizedMI,
-		      &this->MeanVoxel);
-#else
     vtkTemplateMacro(
       vtkImageSingleMutualInformationExecute(this,
 					     (VTK_TT *)(inPtr1),
@@ -354,7 +328,6 @@ void vtkImageSingleMutualInformation::ExecuteData(vtkDataObject *vtkNotUsed(out)
 					     outData, (int *)(outPtr),
 					     &this->NormalizedMI,
 					     &this->MeanVoxel));
-#endif
     default:
       vtkErrorMacro(<< "Execute: Unknown ScalarType");
       return;
@@ -425,7 +398,6 @@ void vtkImageSingleMutualInformation::PrintSelf(ostream& os, vtkIndent indent)
      << 0 << "," << 1 << " }\n";
 }
 
-#if (VTK_MAJOR_VERSION >= 5)
 //----------------------------------------------------------------------------
 int vtkImageSingleMutualInformation::FillInputPortInformation(int port,
                                                         vtkInformation* info)
@@ -443,4 +415,3 @@ int vtkImageSingleMutualInformation::FillInputPortInformation(int port,
   }
   return 1;
 }
-#endif

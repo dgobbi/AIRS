@@ -78,13 +78,6 @@ Module:    FrameFinder.cxx
 #include <vtksys/SystemTools.hxx>
 #include <string>
 
-// A macro to assist VTK 5 backwards compatibility
-#if VTK_MAJOR_VERSION >= 6
-#define SET_INPUT_DATA SetInputData
-#else
-#define SET_INPUT_DATA SetInput
-#endif
-
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
@@ -390,7 +383,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SET_INPUT_DATA(sourceImage);
+  sourceMapper->SetInputData(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   //sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -434,7 +427,7 @@ int main (int argc, char *argv[])
   vtkSmartPointer<vtkFrameFinder> frameFinder =
     vtkSmartPointer<vtkFrameFinder>::New();
   frameFinder->SetDICOMPatientMatrix(sourceMatrix);
-  frameFinder->SET_INPUT_DATA(sourceImage);
+  frameFinder->SetInputData(sourceImage);
 
   // -------------------------------------------------------
   // make a timer

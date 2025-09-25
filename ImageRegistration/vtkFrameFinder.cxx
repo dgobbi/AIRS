@@ -138,19 +138,7 @@ int vtkFrameFinder::FillOutputPortInformation(
 //----------------------------------------------------------------------------
 void vtkFrameFinder::SetInputData(vtkDataObject* input)
 {
-#if VTK_MAJOR_VERSION <= 5
-  if (input)
-  {
-    this->SetInputConnection(0, input->GetProducerPort());
-  }
-  else
-  {
-    // Setting a NULL input removes the connection.
-    this->SetInputConnection(0, 0);
-  }
-#else
   this->SetInputDataInternal(0, input);
-#endif
 }
 
 //----------------------------------------------------------------------------

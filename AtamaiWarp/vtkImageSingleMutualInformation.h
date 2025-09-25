@@ -112,10 +112,8 @@ protected:
 
   void ExecuteData(vtkDataObject *out);
 
-#if (VTK_MAJOR_VERSION >= 5) 
   // see vtkAlgorithm for docs.
   virtual int FillInputPortInformation(int, vtkInformation*);
-#endif
 
   float ImageAComponentSpacing;
   float ImageAComponentOrigin;

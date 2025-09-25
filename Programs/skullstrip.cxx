@@ -76,15 +76,6 @@ Module:    skullstrip.cxx
 
 #include <stdlib.h>
 
-// A macro to assist VTK 5 backwards compatibility
-#if VTK_MAJOR_VERSION >= 6
-#define SET_INPUT_DATA SetInputData
-#define SET_STENCIL_DATA SetStencilData
-#else
-#define SET_INPUT_DATA SetInput
-#define SET_STENCIL_DATA SetStencil
-#endif
-
 // coord systems
 enum { NativeCoords, DICOMCoords, NIFTICoords };
 
@@ -302,7 +293,7 @@ void WriteDICOMImage(
     }
     writer->SetMemoryRowOrder(reader->GetMemoryRowOrder());
   }
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   writer->SetPatientMatrix(matrix);
   writer->Write();
 }
@@ -470,7 +461,7 @@ void WriteMINCImage(
   vtkSmartPointer<vtkMINCImageWriter> writer =
     vtkSmartPointer<vtkMINCImageWriter>::New();
   writer->SetFileName(fileName);
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   // the input matrix must be converted
   //writer->SetDirectionCosines(matrix);
   writer->Write();
@@ -571,7 +562,7 @@ void WriteNIFTIImage(
       writer->SetQFac(-1.0);
     }
   }
-  writer->SET_INPUT_DATA(data);
+  writer->SetInputData(data);
   writer->SetQFormMatrix(matrix);
   writer->SetSFormMatrix(matrix);
   writer->SetFileName(fileName);
@@ -664,7 +655,7 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
 
   vtkSmartPointer<vtkTransformPolyDataFilter> filter =
     vtkSmartPointer<vtkTransformPolyDataFilter>::New();
-  filter->SET_INPUT_DATA(mesh);
+  filter->SetInputData(mesh);
   filter->SetTransform(transform);
   filter->Update();
 
@@ -672,7 +663,7 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
   {
     vtkSmartPointer<vtkSTLWriter> writer =
       vtkSmartPointer<vtkSTLWriter>::New();
-    writer->SET_INPUT_DATA(filter->GetOutput());
+    writer->SetInputData(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
   }
@@ -680,7 +671,7 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
   {
     vtkSmartPointer<vtkMNIObjectWriter> writer =
       vtkSmartPointer<vtkMNIObjectWriter>::New();
-    writer->SET_INPUT_DATA(filter->GetOutput());
+    writer->SetInputData(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
   }
@@ -688,7 +679,7 @@ void WriteMesh(vtkPolyData *mesh, vtkMatrix4x4 *matrix,
   {
     vtkSmartPointer<vtkPolyDataWriter> writer =
       vtkSmartPointer<vtkPolyDataWriter>::New();
-    writer->SET_INPUT_DATA(filter->GetOutput());
+    writer->SetInputData(filter->GetOutput());
     writer->SetFileName(filename);
     writer->Write();
   }
@@ -814,8 +805,8 @@ void ComputeRange(vtkImageData *image, double range[2])
     vtkSmartPointer<vtkImageHistogramStatistics>::New();
 
   rangeFinder->GetAutoRangePercentiles(range);
-  rangeFinder->SET_INPUT_DATA(image);
-  rangeFinder->SET_STENCIL_DATA(cylinder->GetOutput());
+  rangeFinder->SetInputData(image);
+  rangeFinder->SetStencilData(cylinder->GetOutput());
   rangeFinder->Update();
 
   rangeFinder->GetAutoRange(range);
@@ -1263,7 +1254,7 @@ int main(int argc, char *argv[])
 
   vtkSmartPointer<vtkImageMRIBrainExtractor> stripper =
     vtkSmartPointer<vtkImageMRIBrainExtractor>::New();
-  stripper->SET_INPUT_DATA(sourceImage);
+  stripper->SetInputData(sourceImage);
   stripper->SetRMin(options.rmin);
   stripper->SetRMax(options.rmax);
   stripper->SetD1(options.d1);
@@ -1300,7 +1291,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkImageProperty> sourceProperty =
     vtkSmartPointer<vtkImageProperty>::New();
 
-  sourceMapper->SET_INPUT_DATA(sourceImage);
+  sourceMapper->SetInputData(sourceImage);
   sourceMapper->SliceAtFocalPointOn();
   sourceMapper->SliceFacesCameraOn();
   sourceMapper->ResampleToScreenPixelsOff();
@@ -1326,7 +1317,7 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkLookupTable> brainTable =
     vtkSmartPointer<vtkLookupTable>::New();
 
-  brainMapper->SET_INPUT_DATA(stripper->GetOutput());
+  brainMapper->SetInputData(stripper->GetOutput());
   brainMapper->SliceAtFocalPointOn();
   brainMapper->SliceFacesCameraOn();
   brainMapper->ResampleToScreenPixelsOff();

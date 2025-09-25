@@ -56,15 +56,6 @@
 // C header files
 #include <math.h>
 
-// A macro to assist VTK 5 backwards compatibility
-#if VTK_MAJOR_VERSION >= 6
-#define SET_INPUT_DATA SetInputData
-#define SET_STENCIL_DATA SetStencilData
-#else
-#define SET_INPUT_DATA SetInput
-#define SET_STENCIL_DATA SetStencil
-#endif
-
 // A helper class for the optimizer
 struct vtkImageRegistrationInfo
 {
@@ -274,11 +265,7 @@ int vtkImageRegistration::GetNumberOfEvaluations()
 void vtkImageRegistration::SetTargetImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputDataInternal(1, input);
-#else
-  this->SetNthInputConnection(1, 0, (input ? input->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -295,11 +282,7 @@ vtkImageData* vtkImageRegistration::GetTargetImage()
 void vtkImageRegistration::SetSourceImage(vtkImageData *input)
 {
   // Ask the superclass to connect the input.
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputDataInternal(0, input);
-#else
-  this->SetNthInputConnection(0, 0, (input ? input->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -316,12 +299,7 @@ vtkImageData* vtkImageRegistration::GetSourceImage()
 void vtkImageRegistration::SetSourceImageStencil(vtkImageStencilData *stencil)
 {
   // if stencil is null, then set the input port to null
-#if VTK_MAJOR_VERSION >= 6
   this->SetInputDataInternal(2, stencil);
-#else
-  this->SetNthInputConnection(2, 0,
-    (stencil ? stencil->GetProducerPort() : 0));
-#endif
 }
 
 //----------------------------------------------------------------------------
@@ -535,8 +513,8 @@ void vtkImageRegistration::ComputeImageRange(
 {
   vtkImageHistogramStatistics *hist =
     vtkImageHistogramStatistics::New();
-  hist->SET_STENCIL_DATA(stencil);
-  hist->SET_INPUT_DATA(data);
+  hist->SetStencilData(stencil);
+  hist->SetInputData(data);
   hist->SetActiveComponent(0);
   hist->Update();
 
@@ -548,7 +526,7 @@ void vtkImageRegistration::ComputeImageRange(
     range[1] = range[0] + 1.0;
   }
 
-  hist->SET_INPUT_DATA(NULL);
+  hist->SetInputData(NULL);
   hist->Delete();
 }
 
@@ -681,7 +659,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       double sourceShift = (-sourceImageRange[0] + 0.5/sourceScale);
 
       vtkImageShiftScale *sourceQuantizer = this->SourceImageTypecast;
-      sourceQuantizer->SET_INPUT_DATA(sourceImage);
+      sourceQuantizer->SetInputData(sourceImage);
       sourceQuantizer->SetOutputScalarTypeToUnsignedChar();
       sourceQuantizer->ClampOverflowOn();
       sourceQuantizer->SetShift(sourceShift);
@@ -694,7 +672,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       double targetShift = (-targetImageRange[0] + 0.5/targetScale);
 
       vtkImageShiftScale *targetQuantizer = this->TargetImageTypecast;
-      targetQuantizer->SET_INPUT_DATA(targetImage);
+      targetQuantizer->SetInputData(targetImage);
       targetQuantizer->SetOutputScalarTypeToUnsignedChar();
       targetQuantizer->ClampOverflowOn();
       targetQuantizer->SetShift(targetShift);
@@ -733,7 +711,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     if (sourceImage->GetScalarType() != scalarType)
     {
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
-      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetInputData(sourceImage);
       sourceCast->SetOutputScalarType(scalarType);
       sourceCast->ClampOverflowOff();
       sourceCast->SetShift(0.0);
@@ -743,7 +721,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     }
 
     vtkImageBSplineCoefficients *bspline = this->ImageBSpline;
-    bspline->SET_INPUT_DATA(targetImage);
+    bspline->SetInputData(targetImage);
     bspline->SetOutputScalarType(scalarType);
     bspline->Update();
     targetImage = bspline->GetOutput();
@@ -777,7 +755,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     if (sourceType != coercedType)
     {
       vtkImageShiftScale *sourceCast = this->SourceImageTypecast;
-      sourceCast->SET_INPUT_DATA(sourceImage);
+      sourceCast->SetInputData(sourceImage);
       sourceCast->SetOutputScalarType(coercedType);
       sourceCast->ClampOverflowOff();
       sourceCast->SetShift(0.0);
@@ -789,7 +767,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
     if (targetType != coercedType)
     {
       vtkImageShiftScale *targetCast = this->TargetImageTypecast;
-      targetCast->SET_INPUT_DATA(targetImage);
+      targetCast->SetInputData(targetImage);
       targetCast->SetOutputScalarType(coercedType);
       targetCast->ClampOverflowOff();
       targetCast->SetShift(0.0);
@@ -801,8 +779,8 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
 
   vtkImageReslice *reslice = this->ImageReslice;
   reslice->SetInformationInput(sourceImage);
-  reslice->SET_INPUT_DATA(targetImage);
-  reslice->SET_STENCIL_DATA(this->GetSourceImageStencil());
+  reslice->SetInputData(targetImage);
+  reslice->SetStencilData(this->GetSourceImageStencil());
   reslice->SetResliceTransform(this->Transform);
   reslice->GenerateStencilOutputOn();
   reslice->SetInterpolator(0);
@@ -941,7 +919,7 @@ void vtkImageRegistration::Initialize(vtkMatrix4x4 *matrix)
       break;
   }
 
-  this->Metric->SET_INPUT_DATA(sourceImage);
+  this->Metric->SetInputData(sourceImage);
   this->Metric->SetInputConnection(1, reslice->GetOutputPort());
   this->Metric->SetInputConnection(2, reslice->GetStencilOutputPort());
   this->Metric->SetInputRange(0, sourceImageRange);
