@@ -73,6 +73,7 @@ Module:    skullstrip.cxx
 
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include <stdlib.h>
 
@@ -1181,7 +1182,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "Reading source image: " << sourcefile << endl;
+    std::cout << "Reading source image: " << sourcefile << endl;
   }
 
   vtkSmartPointer<vtkImageData> sourceImage =
@@ -1196,11 +1197,11 @@ int main(int argc, char *argv[])
   {
     if (options.coords == DICOMCoords)
     {
-      cout << "Using DICOM patient coords." << endl;;
+      std::cout << "Using DICOM patient coords." << endl;;
     }
     else
     {
-      cout << "Using NIFTI (or MINC) world coords." << endl;
+      std::cout << "Using NIFTI (or MINC) world coords." << endl;
     }
   }
 
@@ -1374,7 +1375,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "stripping took " << (lastTime - startTime) << "s" << endl;
+    std::cout << "stripping took " << (lastTime - startTime) << "s" << endl;
   }
 
   // -------------------------------------------------------
@@ -1390,7 +1391,7 @@ int main(int argc, char *argv[])
   {
     if (!options.silent)
     {
-      cout << "Writing stripped image: " << imagefile << endl;
+      std::cout << "Writing stripped image: " << imagefile << endl;
     }
 
     WriteImage(sourceReader, sourceReader,
@@ -1400,7 +1401,7 @@ int main(int argc, char *argv[])
   {
     if (!options.silent)
     {
-      cout << "Writing brain surface: " << meshfile << endl;
+      std::cout << "Writing brain surface: " << meshfile << endl;
     }
 
     WriteMesh(stripper->GetBrainMesh(), sourceMatrix, meshfile);
@@ -1408,7 +1409,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "Done!" << endl;
+    std::cout << "Done!" << endl;
   }
 
   // -------------------------------------------------------

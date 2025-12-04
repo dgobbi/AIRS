@@ -85,6 +85,7 @@ Module:    register.cxx
 
 #include <vector>
 #include <string>
+#include <iostream>
 
 // parallel processing
 enum { MultiThread = 1, ThreadPool = 2 };
@@ -2066,10 +2067,10 @@ int main(int argc, char *argv[])
     TransformArg trans = xfminputs->at(ti);
     if (!options.silent)
     {
-      cout << "Reading initial transform: " << trans.filename << endl;
+      std::cout << "Reading initial transform: " << trans.filename << endl;
       if (trans.invert)
       {
-        cout << "Using inverse of transform." << endl;
+        std::cout << "Using inverse of transform." << endl;
       }
     }
 
@@ -2102,7 +2103,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "Reading source image: " << sourcefile << endl;
+    std::cout << "Reading source image: " << sourcefile << endl;
   }
 
   double sourceRange[2] = { 0.0, 1.0 };
@@ -2117,7 +2118,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "Reading target image: " << targetfile << endl;
+    std::cout << "Reading target image: " << targetfile << endl;
   }
 
   double targetRange[2] = { 0.0, 1.0 };
@@ -2134,11 +2135,11 @@ int main(int argc, char *argv[])
   {
     if (options.coords == DICOMCoords)
     {
-      cout << "Using DICOM patient coords." << endl;;
+      std::cout << "Using DICOM patient coords." << endl;;
     }
     else
     {
-      cout << "Using NIFTI (or MINC) world coords." << endl;
+      std::cout << "Using NIFTI (or MINC) world coords." << endl;
     }
   }
 
@@ -2492,7 +2493,7 @@ int main(int argc, char *argv[])
 
     if (!options.silent)
     {
-      cout << minBlurSpacing << " mm took "
+      std::cout << minBlurSpacing << " mm took "
            << (newTime - lastTime) << "s and "
            << registration->GetNumberOfEvaluations() << " evaluations" << endl;
       lastTime = newTime;
@@ -2505,7 +2506,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "registration took " << (lastTime - startTime) << "s" << endl;
+    std::cout << "registration took " << (lastTime - startTime) << "s" << endl;
   }
 
   // -------------------------------------------------------
@@ -2514,7 +2515,7 @@ int main(int argc, char *argv[])
   {
     if (!options.silent)
     {
-      cout << "Writing transform file: " << xfmfile << endl;
+      std::cout << "Writing transform file: " << xfmfile << endl;
     }
 
     vtkMatrix4x4 *rmatrix = registration->GetTransform()->GetMatrix();
@@ -2548,7 +2549,7 @@ int main(int argc, char *argv[])
   {
     if (!options.silent)
     {
-      cout << "Writing transformed image: " << imagefile << endl;
+      std::cout << "Writing transformed image: " << imagefile << endl;
     }
 
     // check which image is to be written
@@ -2606,7 +2607,7 @@ int main(int argc, char *argv[])
       reslice->SetSlabSliceSpacingFraction(1.0/sn);
       if (!options.silent)
       {
-        cout << "Wrote MIP slabs that are " << ss[2] << " mm thick." << endl;
+        std::cout << "Wrote MIP slabs that are " << ss[2] << " mm thick." << endl;
       }
     }
 
@@ -2640,7 +2641,7 @@ int main(int argc, char *argv[])
 
   if (!options.silent)
   {
-    cout << "Done!" << endl;
+    std::cout << "Done!" << endl;
   }
 
   // -------------------------------------------------------
