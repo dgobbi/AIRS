@@ -77,6 +77,7 @@ Module:    FrameFinder.cxx
 
 #include <vtksys/SystemTools.hxx>
 #include <string>
+#include <iostream>
 
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
@@ -275,9 +276,9 @@ void SetViewFromMatrix(
 
 void printUsage(const char *cmdname)
 {
-    cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm file.mnc"
+    std::cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm file.mnc"
          << endl;
-    cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir/"
+    std::cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir/"
          << endl;
 }
 
@@ -305,7 +306,7 @@ int main (int argc, char *argv[])
   {
     if (argc <= argi + 1)
     {
-      cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
+      std::cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
       return EXIT_FAILURE;
     }
     xfmfile = argv[argi + 1];
@@ -313,7 +314,7 @@ int main (int argc, char *argv[])
     size_t m = strlen(xfmfile);
     if (m < 4 || strcmp(&xfmfile[m-4], ".xfm") != 0)
     {
-      cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
+      std::cerr << argv[0] << " : transform file must end in .xfm\n" << endl;
       return EXIT_FAILURE;
     }
   }
@@ -530,7 +531,7 @@ int main (int argc, char *argv[])
     }
 */
 
-  cout << "Frame finding took " << (lastTime - startTime) << " seconds\n";
+  std::cout << "Frame finding took " << (lastTime - startTime) << " seconds\n";
 
   // -------------------------------------------------------
   // allow user to interact

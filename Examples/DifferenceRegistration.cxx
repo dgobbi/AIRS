@@ -61,6 +61,8 @@ Module:    DifferenceRegistration.cxx
 
 #include <vtksys/SystemTools.hxx>
 
+#include <iostream>
+
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
@@ -357,9 +359,9 @@ void SetViewFromMatrix(
 
 void printUsage(const char *cmdname)
 {
-    cout << "Usage 1: " << cmdname << " --nodisplay -o output.nii source.nii target.nii"
+    std::cout << "Usage 1: " << cmdname << " --nodisplay -o output.nii source.nii target.nii"
          << endl;
-    cout << "Usage 2: " << cmdname << " --nodisplay -o output.nii dicomdir1/ dicomdir2/"
+    std::cout << "Usage 2: " << cmdname << " --nodisplay -o output.nii dicomdir1/ dicomdir2/"
          << endl;
 }
 
@@ -389,7 +391,7 @@ int main (int argc, char *argv[])
   {
     if (argc <= argi + 1)
     {
-      cerr << argv[0] << " : missing output file after -o\n" << endl;
+      std::cerr << argv[0] << " : missing output file after -o\n" << endl;
       return EXIT_FAILURE;
     }
     // is the output an xfm file or an image file?
@@ -742,7 +744,7 @@ int main (int argc, char *argv[])
     }
 
     double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " stage " << stage << " took "
+    std::cout << "blur " << blurFactor << " stage " << stage << " took "
          << (newTime - lastTime) << "s and "
          << registration->GetNumberOfEvaluations() << " evaluations" << endl;
     lastTime = newTime;
@@ -759,7 +761,7 @@ int main (int argc, char *argv[])
     stage = (stage + 1) % 2;
   }
 
-  cout << "registration took " << (lastTime - startTime) << "s" << endl;
+  std::cout << "registration took " << (lastTime - startTime) << "s" << endl;
 
   // -------------------------------------------------------
   // write the output matrix
@@ -787,7 +789,7 @@ int main (int argc, char *argv[])
   resample->SetInputData(sourceImage);
   resample->SetInformationInput(targetImage);
   resample->SetInterpolator(sincInterpolator);
-  registration->GetTransform()->GetMatrix()->Print(cerr);
+  registration->GetTransform()->GetMatrix()->Print(std::cerr);
   resample->SetResliceTransform(registration->GetTransform()->GetInverse());
   resample->Update();
 

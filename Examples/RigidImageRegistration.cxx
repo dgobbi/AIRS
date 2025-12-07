@@ -62,6 +62,8 @@ Module:    RigidImageRegistration.cxx
 #include <vtkDICOMReader.h>
 #endif
 
+#include <iostream>
+
 // internal methods for reading images, these methods read the image
 // into the specified data object and also provide a matrix for converting
 // the data coordinates into patient coordinates.
@@ -238,9 +240,9 @@ void SetViewFromMatrix(
 
 void printUsage(const char *cmdname)
 {
-    cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm source.mnc target.mnc"
+    std::cout << "Usage 1: " << cmdname << " --nodisplay -o output.xfm source.mnc target.mnc"
          << endl;
-    cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir1/ dicomdir2/"
+    std::cout << "Usage 2: " << cmdname << " --nodisplay -o output.xfm dicomdir1/ dicomdir2/"
          << endl;
 }
 
@@ -269,7 +271,7 @@ int main (int argc, char *argv[])
   {
     if (argc <= argi + 1)
     {
-      cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
+      std::cerr << argv[0] << " : missing .xfm file after -o\n" << endl;
       return EXIT_FAILURE;
     }
     xfmfile = argv[argi + 1];
@@ -280,7 +282,7 @@ int main (int argc, char *argv[])
          (strcmp(&xfmfile[m-4], ".tfm") != 0) &&
          (strcmp(&xfmfile[m-4], ".txt") != 0)))
     {
-      cerr << argv[0] << " : transform file must end in .xfm, .tfm, or .txt\n";
+      std::cerr << argv[0] << " : transform file must end in .xfm, .tfm, or .txt\n";
       return EXIT_FAILURE;
     }
   }
@@ -618,7 +620,7 @@ int main (int argc, char *argv[])
     }
 
     double newTime = timer->GetUniversalTime();
-    cout << "blur " << blurFactor << " stage " << stage << " took "
+    std::cout << "blur " << blurFactor << " stage " << stage << " took "
          << (newTime - lastTime) << "s and "
          << registration->GetNumberOfEvaluations() << " evaluations" << endl;
     lastTime = newTime;
@@ -635,7 +637,7 @@ int main (int argc, char *argv[])
     stage = (stage + 1) % 2;
   }
 
-  cout << "registration took " << (lastTime - startTime) << "s" << endl;
+  std::cout << "registration took " << (lastTime - startTime) << "s" << endl;
 
   // -------------------------------------------------------
   // write the output matrix
