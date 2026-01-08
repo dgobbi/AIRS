@@ -17,7 +17,7 @@
 // The command line arguments are:
 // -I        => run in interactive mode
 
-
+#include <iostream>
 #include <vtkSmartPointer.h>
 #include <vtkCamera.h>
 #include <vtkImageData.h>
@@ -118,10 +118,10 @@ int main(int argc, char *argv[])
     vtkIdTypeArray *labelArray = connectivity->GetExtractedRegionLabels();
     vtkIntArray *extentArray = connectivity->GetExtractedRegionExtents();
     vtkIdType rn = connectivity->GetNumberOfExtractedRegions();
-    cout << "info";
+    std::cout << "info";
     for (vtkIdType r = 0; r < rn; r++)
     {
-      cout << " (" << idArray->GetValue(r) << ","
+      std::cout << " (" << idArray->GetValue(r) << ","
            << labelArray->GetValue(r) << ","
            << sizeArray->GetValue(r) << ",["
            << extentArray->GetValue(6*r) << ","
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
            << extentArray->GetValue(6*r+4) << ","
            << extentArray->GetValue(6*r+5) << "])";
     }
-    cout << "\n";
+    std::cout << "\n";
 
     vtkSmartPointer<vtkImageSliceMapper> imageMapper =
       vtkSmartPointer<vtkImageSliceMapper>::New();
