@@ -14,10 +14,17 @@
 =========================================================================*/
 
 #include "vtkMorphologicalInterpolator.h"
-#include "vtkImageInterpolatorInternals.h"
 #include "vtkImageData.h"
 #include "vtkDataArray.h"
 #include "vtkObjectFactory.h"
+#include "vtkVersion.h"
+
+// VTK 9.6 no longer requires use of "Internal" interpolation header
+#if VTK_MAJOR_VERSION < 9 || (VTK_MAJOR_VERSION == 9 && VTK_MINOR_VERSION < 6)
+#include "vtkImageInterpolatorInternals.h"
+#else
+#include "vtkInterpolationMath.h"
+#endif
 
 #include "vtkTemplateAliasMacro.h"
 // turn off 64-bit ints when templating over all types, because
