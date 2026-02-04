@@ -103,6 +103,11 @@ public:
   vtkMatrix4x4 *GetImageToFrameMatrix() {
     return this->ImageToFrameMatrix; }
 
+  // Description:
+  // Get the average RMS distance for all accepted fiducial points.
+  // Returns a negative value if no accepted points were measured.
+  double GetAverageFiducialRMS() { return this->AverageFiducialRMS; }
+
 protected:
   vtkFrameFinder();
   ~vtkFrameFinder();
@@ -132,6 +137,8 @@ protected:
   bool Success;
   int UseAnteriorFiducial;
   int UsePosteriorFiducial;
+
+  double AverageFiducialRMS;
 
 private:
   // Copy constructor and assigment operator are purposely not implemented

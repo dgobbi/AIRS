@@ -81,6 +81,7 @@ vtkFrameFinder::vtkFrameFinder()
   this->Success = 0;
   this->UseAnteriorFiducial = 1;
   this->UsePosteriorFiducial = 1;
+  this->AverageFiducialRMS = -1.0;
 
   this->SetNumberOfInputPorts(1);
   this->SetNumberOfOutputPorts(2);
@@ -117,6 +118,7 @@ void vtkFrameFinder::PrintSelf(ostream& os, vtkIndent indent)
      << this->DICOMPatientMatrix << "\n";
 
   os << indent << "Success: " << this->Success << "\n";
+  os << indent << "AverageFiducialRMS: " << this->AverageFiducialRMS << "\n";
 }
 
 //----------------------------------------------------------------------------
@@ -1467,11 +1469,53 @@ void BuildMatrix(
 // Given the bright blobs identified in a stack of axial images, compute
 // the image-to-frame transformation matrix.  Return the points that were
 // identified as part of the frame.
+void AccumulateBarRMS(FiducialBar *bar, double *sumSq, int *count)
+{
+  if (!bar || !sumSq || !count)
+  {
+    return;
+  }
+
+  std::vector<Point> *barPoints = bar->GetPoints();
+  if (!barPoints || barPoints->size() == 0)
+  {
+    return;
+  }
+
+  double p[3], v[3];
+  bar->GetLine(p, v);
+  double len = vtkMath::Norm(v);
+  if (len == 0.0)
+  {
+    return;
+  }
+  vtkMath::Normalize(v);
+
+  for (std::vector<Point>::iterator it = barPoints->begin();
+       it != barPoints->end();
+       ++it)
+  {
+    double dx = it->x - p[0];
+    double dy = it->y - p[1];
+    double dz = it->z - p[2];
+    double dotpp = dx*dx + dy*dy + dz*dz;
+    double dotpv = dx*v[0] + dy*v[1] + dz*v[2];
+    double distSq = dotpp - dotpv*dotpv;
+    if (distSq < 0.0) { distSq = 0.0; }
+    *sumSq += distSq;
+    (*count)++;
+  }
+}
+
 bool PositionFrame(
   std::vector<Blob> *blobs, std::vector<Point> *points,
   const int extent[6], const double origin[3], const double spacing[3],
-  const double direction[3], const bool useAP[2], double matrix[16])
+  const double direction[3], const bool useAP[2], double matrix[16],
+  double *outSumSq, int *outCount)
 {
+  if (outSumSq) { *outSumSq = 0.0; }
+  if (outCount) { *outCount = 0; }
+
   double plateSeparationX = 196.0;
   double plateSeparationY = 235.0;
   double barSeparation = 120.0;
@@ -1573,6 +1617,7 @@ bool PositionFrame(
     for (int k = 0; k < 3; k++)
     {
       FiducialBar *bar = &plates[j].GetBars()[k];
+      AccumulateBarRMS(bar, outSumSq, outCount);
       std::vector<Point> *barPoints = bar->GetPoints();
       points->insert(points->end(), barPoints->begin(), barPoints->end());
     }
@@ -1653,6 +1698,7 @@ bool PositionFrame(
       for (int k = 0; k < 3; k++)
       {
         FiducialBar *bar = &plates[2+j].GetBars()[k];
+        AccumulateBarRMS(bar, outSumSq, outCount);
         std::vector<Point> *barPoints = bar->GetPoints();
         points->insert(points->end(), barPoints->begin(), barPoints->end());
       }
@@ -1738,6 +1784,8 @@ int vtkFrameFinder::FindFrame(
   image->GetOrigin(origin);
   image->GetExtent(extent);
 
+  this->AverageFiducialRMS = -1.0;
+
   bool useAP[2];
   if (direction[1] < 0)
   {
@@ -1756,10 +1804,18 @@ int vtkFrameFinder::FindFrame(
   UpdateBlobs(image, &blobs);
 
   double matrix[16];
+  double sumSq = 0.0;
+  int count = 0;
   this->Success = PositionFrame(
-    &blobs, &framePoints, extent, origin, spacing, direction, useAP, matrix);
+    &blobs, &framePoints, extent, origin, spacing, direction, useAP, matrix,
+    &sumSq, &count);
 
   m4x4->DeepCopy(matrix);
+
+  if (this->Success && count > 0)
+  {
+    this->AverageFiducialRMS = sqrt(sumSq/static_cast<double>(count));
+  }
 
   if (poly)
   {
