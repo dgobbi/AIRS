@@ -439,40 +439,40 @@ static void vtkBEBuildAndLinkPolyData(
   nPoints = brainPolyData->GetNumberOfPoints();
 
   // Create a list of neighbours for each point
-    for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
+  for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
+  {
+    // Create a new vtkIdList to hold the Ids for ptId's neighbours
+    vtkNew<vtkIdList> myNeighbours;
+
+    // The cells attached to the target point
+    vtkNew<vtkIdList> pointCells;
+    brainPolyData->GetPointCells(ptId, pointCells);
+
+    vtkIdType nCells = pointCells->GetNumberOfIds();
+
+    // The points inside the attached cells
+    for (vtkIdType cellIdx = 0; cellIdx < nCells; cellIdx++)
     {
-      // Create a new vtkIdList to hold the Ids for ptId's neighbours
-      vtkNew<vtkIdList> myNeighbours;
+      vtkIdType cellId = pointCells->GetId(cellIdx);
 
-      // The cells attached to the target point
-      vtkNew<vtkIdList> pointCells;
-      brainPolyData->GetPointCells(ptId, pointCells);
+      vtkNew<vtkIdList> pts;
+      brainPolyData->GetCellPoints(cellId, pts);
 
-      vtkIdType nCells = pointCells->GetNumberOfIds();
+      vtkIdType npts = pts->GetNumberOfIds();
 
-      // The points inside the attached cells
-      for (vtkIdType cellIdx = 0; cellIdx < nCells; cellIdx++)
+      // If the point is not our target point, it's a neighbour
+      for (vtkIdType ptIdx2 = 0; ptIdx2 < npts; ptIdx2++)
       {
-        vtkIdType cellId = pointCells->GetId(cellIdx);
-
-        vtkNew<vtkIdList> pts;
-        brainPolyData->GetCellPoints(cellId, pts);
-
-        vtkIdType npts = pts->GetNumberOfIds();
-
-        // If the point is not our target point, it's a neighbour
-        for (vtkIdType ptIdx2 = 0; ptIdx2 < npts; ptIdx2++)
+        vtkIdType ptId2 = pts->GetId(ptIdx2);
+        if (ptId != ptId2)
         {
-          vtkIdType ptId2 = pts->GetId(ptIdx2);
-          if (ptId != ptId2)
-          {
-            myNeighbours->InsertUniqueId(ptId2);
-          }
+          myNeighbours->InsertUniqueId(ptId2);
         }
       }
-
-      pointNeighbourList->AddItem(myNeighbours);
     }
+
+    pointNeighbourList->AddItem(myNeighbours);
+  }
   // Clean up
   icosahedron->Delete();
   subdivideSphere->Delete();
@@ -585,70 +585,70 @@ void vtkImageMRIBrainExtractorExecute(
 
   // Loop over each point in brainPolyData and save it into an STL vector.
   // Also, use vtkPolyData functions to figure out where our neighbours are
-    for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
+  for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
+  {
+    // Our target point
+    double point[3];
+    brainPolyData->GetPoint(ptId, point);
+
+    pt = point; // store in your C++ vector class
+    brainPoints[ptId] = pt;
+
+    // The cells attached to the target point
+    vtkNew<vtkIdList> pointCells;
+    brainPolyData->GetPointCells(ptId, pointCells);
+    vtkIdType nCells = pointCells->GetNumberOfIds();
+
+    // Loop over each cell attached to this point
+    for (vtkIdType cellIdx = 0; cellIdx < nCells; cellIdx++)
     {
-        // Our target point
-        double point[3];
-        brainPolyData->GetPoint(ptId, point);
+      vtkIdType cellId = pointCells->GetId(cellIdx);
 
-        pt = point; // store in your C++ vector class
-        brainPoints[ptId] = pt;
+      // Get the points of this cell
+      vtkNew<vtkIdList> pts;
+      brainPolyData->GetCellPoints(cellId, pts);
+      vtkIdType npts = pts->GetNumberOfIds();
 
-        // The cells attached to the target point
-        vtkNew<vtkIdList> pointCells;
-        brainPolyData->GetPointCells(ptId, pointCells);
-        vtkIdType nCells = pointCells->GetNumberOfIds();
+      // Ensure the cell is triangular
+      if (npts != 3)
+      {
+        std::cerr << "Warning: non-triangular cell encountered!" << std::endl;
+        continue;
+      }
 
-        // Loop over each cell attached to this point
-        for (vtkIdType cellIdx = 0; cellIdx < nCells; cellIdx++)
+      // Fill myVertIds
+      myVertIds vIds;
+      for (int nIdx = 0; nIdx < 3; nIdx++)
+      {
+        vIds[nIdx] = static_cast<int>(pts->GetId(nIdx));
+      }
+
+      // Add this cell's vertex IDs to the neighbour-vertex list
+      thisPointNeighbourVertIds.push_back(vIds);
+
+      // Update this point's neighbour list (excluding itself)
+      for (int nIdx = 0; nIdx < 3; nIdx++)
+      {
+        int nId = vIds[nIdx];
+        if (ptId != nId)
         {
-            vtkIdType cellId = pointCells->GetId(cellIdx);
-
-            // Get the points of this cell
-            vtkNew<vtkIdList> pts;
-            brainPolyData->GetCellPoints(cellId, pts);
-            vtkIdType npts = pts->GetNumberOfIds();
-
-            // Ensure the cell is triangular
-            if (npts != 3)
-            {
-                std::cerr << "Warning: non-triangular cell encountered!" << std::endl;
-                continue;
-            }
-
-            // Fill myVertIds
-            myVertIds vIds;
-            for (int nIdx = 0; nIdx < 3; nIdx++)
-            {
-                vIds[nIdx] = static_cast<int>(pts->GetId(nIdx));
-            }
-
-            // Add this cell's vertex IDs to the neighbour-vertex list
-            thisPointNeighbourVertIds.push_back(vIds);
-
-            // Update this point's neighbour list (excluding itself)
-            for (int nIdx = 0; nIdx < 3; nIdx++)
-            {
-                int nId = vIds[nIdx];
-                if (ptId != nId)
-                {
-                    if (std::find(thisPointNeighbourIds.begin(),
-                                  thisPointNeighbourIds.end(),
-                                  nId) == thisPointNeighbourIds.end())
-                    {
-                        thisPointNeighbourIds.push_back(nId);
-                    }
-                }
-            }
+          if (std::find(thisPointNeighbourIds.begin(),
+                        thisPointNeighbourIds.end(),
+                        nId) == thisPointNeighbourIds.end())
+          {
+            thisPointNeighbourIds.push_back(nId);
+          }
         }
-
-        // Save this point's neighbours
-        pointNeighbourIds[ptId] = thisPointNeighbourIds;
-        thisPointNeighbourIds.clear();
-
-        pointNeighbourVertIds[ptId] = thisPointNeighbourVertIds;
-        thisPointNeighbourVertIds.clear();
+      }
     }
+
+    // Save this point's neighbours
+    pointNeighbourIds[ptId] = thisPointNeighbourIds;
+    thisPointNeighbourIds.clear();
+
+    pointNeighbourVertIds[ptId] = thisPointNeighbourVertIds;
+    thisPointNeighbourVertIds.clear();
+  }
   // Temp variables
   myPoint target, neighbour;
   myPoint v0, v1, v2;
