@@ -39,20 +39,18 @@
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
 #include <vtkPointData.h>
-#include <vtkFloatArray.h>
-#include <vtkDoubleArray.h>
 #include <vtkImageStencilData.h>
 #include <vtkImagePointsIterator.h>
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
 #include <vtkSmartPointer.h>
-#include <vtkArrayDispatch.h>
-#include <vtkDataArrayAccessor.h>
+#include <vtkVersion.h>
 
 vtkStandardNewMacro(vtkImageExtractPoints);
 
 //----------------------------------------------------------------------------
+// Constructor sets default values
 vtkImageExtractPoints::vtkImageExtractPoints()
 {
   this->OutputPointsPrecision = 2;
@@ -144,6 +142,7 @@ int vtkImageExtractPoints::RequestUpdateExtent(
   inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT(), inExt);
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inExt, 6);
 
+  // need to set the stencil update extent to the input extent
   if (this->GetNumberOfInputConnections(1) > 0)
   {
     vtkInformation *stencilInfo = inputVector[1]->GetInformationObject(0);
@@ -160,7 +159,10 @@ namespace {
 vtkIdType vtkImageExtractPointsCount(
   vtkImageData *inData, vtkImageStencilData *stencil, const int extent[6])
 {
+  // count the number of points so that we can pre-allocate the space
   vtkIdType count = 0;
+
+  // iterate over all spans for the stencil
   vtkImageRegionIteratorBase inIter(inData, extent, stencil);
   for (; !inIter.IsAtEnd(); inIter.NextSpan())
   {
@@ -169,60 +171,52 @@ vtkIdType vtkImageExtractPointsCount(
       count += inIter.SpanEndId() - inIter.GetId();
     }
   }
+
   return count;
 }
 
 //----------------------------------------------------------------------------
-// Worker for vtkArrayDispatch
-struct ExtractPointsWorker
+// The execute method is templated over the point type (float or double)
+template<class T>
+void vtkImageExtractPointsExecute(
+  vtkImageExtractPoints *self, vtkImageData *inData, const int extent[6],
+  vtkImageStencilData *stencil, T *outPoints, vtkPointData *outPD)
 {
-  vtkImageExtractPoints* Self;
-  vtkImageData* InData;
-  const int* Extent;
-  vtkImageStencilData* Stencil;
-  vtkPointData* OutPD;
+  vtkDataArray *inScalars = inData->GetPointData()->GetScalars();
+  vtkDataArray *outScalars = outPD->GetScalars();
+  vtkImagePointsIterator inIter(inData, extent, stencil, self, 0);
+  vtkIdType outId = 0;
+  int pixelBytes = inScalars->GetNumberOfComponents() *
+    inScalars->GetDataTypeSize();
 
-  template <typename ArrayType>
-  void operator()(ArrayType* pointsArray)
+
+  // iterate over all spans for the stencil
+  while (!inIter.IsAtEnd())
   {
-    // Use vtk::GetAPIType to get float or double from the array
-    using T = vtk::GetAPIType<ArrayType>;
-    T* outPoints = pointsArray->GetPointer(0);
-
-    vtkDataArray* inScalars = this->InData->GetPointData()->GetScalars();
-    vtkDataArray* outScalars = this->OutPD->GetScalars();
-    vtkImagePointsIterator inIter(this->InData, this->Extent, this->Stencil, this->Self, 0);
-    
-    vtkIdType outId = 0;
-    int pixelBytes = inScalars->GetNumberOfComponents() * inScalars->GetDataTypeSize();
-
-    while (!inIter.IsAtEnd())
+    if (inIter.IsInStencil())
     {
-      if (inIter.IsInStencil())
+      // if span is inside stencil, generate points
+      vtkIdType n = inIter.SpanEndId() - inIter.GetId();
+      void *inPtr = inIter.GetVoidPointer(inScalars, inIter.GetId());
+      void *outPtr = inIter.GetVoidPointer(outScalars, outId);
+      memcpy(outPtr, inPtr, n*pixelBytes);
+      outId += n;
+      for (vtkIdType i = 0; i < n; i++)
       {
-        vtkIdType n = inIter.SpanEndId() - inIter.GetId();
-        void* inPtr = inIter.GetVoidPointer(inScalars, inIter.GetId());
-        void* outPtr = outScalars->GetVoidPointer(outId);
-        
-        memcpy(outPtr, inPtr, n * pixelBytes);
-        outId += n;
-
-        for (vtkIdType i = 0; i < n; i++)
-        {
-          inIter.GetPosition(outPoints);
-          outPoints += 3;
-          inIter.Next();
-        }
-      }
-      else
-      {
-        inIter.NextSpan();
+        inIter.GetPosition(outPoints);
+        outPoints += 3;
+        inIter.Next();
       }
     }
+    else
+    {
+      // if span is outside stencil, skip to next span
+      inIter.NextSpan();
+    }
   }
-};
+}
 
-} // end anonymous namespace
+}
 
 //----------------------------------------------------------------------------
 int vtkImageExtractPoints::RequestData(
@@ -230,73 +224,63 @@ int vtkImageExtractPoints::RequestData(
   vtkInformationVector** inputVector,
   vtkInformationVector* outputVector)
 {
+  // get the input
   vtkInformation* info = inputVector[0]->GetInformationObject(0);
   vtkInformation *stencilInfo = inputVector[1]->GetInformationObject(0);
   vtkImageData *inData = vtkImageData::SafeDownCast(
     info->Get(vtkDataObject::DATA_OBJECT()));
 
-  vtkImageStencilData* stencil = nullptr;
+  // use a stencil, if a stencil is connected
+  vtkImageStencilData* stencil = 0;
   if (stencilInfo)
   {
     stencil = static_cast<vtkImageStencilData *>(
       stencilInfo->Get(vtkDataObject::DATA_OBJECT()));
   }
 
+  // get the requested precision
   int pointsType = VTK_DOUBLE;
   if (this->OutputPointsPrecision == 0)
   {
     pointsType = VTK_FLOAT;
   }
 
+  // get the output data object
   vtkInformation *outInfo = outputVector->GetInformationObject(0);
   vtkPolyData *outData = vtkPolyData::SafeDownCast(
     outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
+  // count the total number of output points
   const int *extent = inData->GetExtent();
   vtkIdType numPoints = vtkImageExtractPointsCount(inData, stencil, extent);
 
+  // create the points
   vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
   points->SetDataType(pointsType);
   points->SetNumberOfPoints(numPoints);
   outData->SetPoints(points);
 
+  // pre-allocate output array
   vtkDataArray *inScalars = inData->GetPointData()->GetScalars();
   vtkPointData *outPD = outData->GetPointData();
-  
-  vtkSmartPointer<vtkDataArray> scalars;
-  scalars.TakeReference(vtkDataArray::CreateDataArray(inScalars->GetDataType()));
+  vtkDataArray *scalars = vtkDataArray::CreateDataArray(
+    inScalars->GetDataType());
   scalars->SetNumberOfComponents(inScalars->GetNumberOfComponents());
   scalars->SetNumberOfTuples(numPoints);
   outPD->SetScalars(scalars);
+  scalars->Delete();
 
-  // Set up the worker
-  ExtractPointsWorker worker;
-  worker.Self = this;
-  worker.InData = inData;
-  worker.Extent = extent;
-  worker.Stencil = stencil;
-  worker.OutPD = outPD;
-
-  // Use DispatchByValueType to handle float/double safely
-  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
-  vtkDataArray* pointsData = points->GetData();
-
-  if (!Dispatcher::Execute(pointsData, worker))
+  // iterate over the input and create the point data
+  void *ptr = points->GetVoidPointer(0);
+  if (pointsType == VTK_FLOAT)
   {
-    // Explicitly handle fallback to concrete types to avoid vtkDataArray abstract error
-    if (auto* fa = vtkFloatArray::SafeDownCast(pointsData))
-    {
-      worker(fa);
-    }
-    else if (auto* da = vtkDoubleArray::SafeDownCast(pointsData))
-    {
-      worker(da);
-    }
-    else
-    {
-      vtkErrorMacro("Unsupported points precision type.");
-      return 0;
-    }
+    vtkImageExtractPointsExecute(
+      this, inData, extent, stencil, static_cast<float *>(ptr), outPD);
+  }
+  else
+  {
+    vtkImageExtractPointsExecute(
+      this, inData, extent, stencil, static_cast<double *>(ptr), outPD);
   }
 
   return 1;
