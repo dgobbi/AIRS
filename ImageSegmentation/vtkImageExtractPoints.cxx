@@ -35,6 +35,8 @@
 
 #include <vtkObjectFactory.h>
 #include <vtkMath.h>
+#include <vtkFloatArray.h>
+#include <vtkDoubleArray.h>
 #include <vtkPoints.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
@@ -271,16 +273,18 @@ int vtkImageExtractPoints::RequestData(
   scalars->Delete();
 
   // iterate over the input and create the point data
-  void *ptr = points->GetVoidPointer(0);
-  if (pointsType == VTK_FLOAT)
+  vtkDataArray *pointArray = points->GetData();
+  vtkFloatArray *floatArray = vtkFloatArray::SafeDownCast(pointArray);
+  vtkDoubleArray *doubleArray = vtkDoubleArray::SafeDownCast(pointArray);
+  if (floatArray)
   {
     vtkImageExtractPointsExecute(
-      this, inData, extent, stencil, static_cast<float *>(ptr), outPD);
+      this, inData, extent, stencil, floatArray->GetPointer(0), outPD);
   }
-  else
+  else if (doubleArray)
   {
     vtkImageExtractPointsExecute(
-      this, inData, extent, stencil, static_cast<double *>(ptr), outPD);
+      this, inData, extent, stencil, doubleArray->GetPointer(0), outPD);
   }
 
   return 1;
