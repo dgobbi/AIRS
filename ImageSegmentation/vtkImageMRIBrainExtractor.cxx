@@ -40,7 +40,6 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkSphereSource.h"
 #include "vtkLinearSubdivisionFilter.h"
 #include "vtkCellArray.h"
-#include "vtkCellArrayIterator.h"
 #include "vtkPoints.h"
 #include "vtkIdList.h"
 #include "vtkIdListCollection.h"
@@ -53,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkImageIterator.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
+#include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkVersion.h"
 
@@ -148,16 +148,22 @@ void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
   /* only use polys, ignore strips */
   if (polys)
   {
-    vtkSmartPointer<vtkCellArrayIterator> it;
-    it=polys->NewIterator();
+#if VTK_MAJOR_VERSION < 9
+    vtkIdType l = 0;
+#endif
+    vtkIdType n = polys->GetNumberOfCells();
+    vtkSmartPointer<vtkIdList> pts = vtkSmartPointer<vtkIdList>::New();
 
-    for (it->GoToFirstCell(); !it->IsDoneWithTraversal(); it->GoToNextCell())
+    for (vtkIdType i = 0; i < n; i++)
     {
-      vtkIdType nPts;
-      const vtkIdType *ptIds;
-      it->GetCurrentCell(nPts, ptIds);
+#if VTK_MAJOR_VERSION < 9
+      polys->GetCell(l, pts);
+      l += pts->GetNumberOfIds() + 1;
+#else
+      polys->GetCellAtId(i, pts);
+#endif
 
-      if (nPts < 3)
+      if (pts->GetNumberOfIds() < 3)
       {
         continue; // skip degenerate polygons
       }
@@ -165,9 +171,9 @@ void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
       double v1[3], v2[3];
       double p0[3], p1[3];
 
-      vtkIdType m = nPts - 1;
-      points->GetPoint(ptIds[m], p1);
-      points->GetPoint(ptIds[0], p0);
+      vtkIdType m = pts->GetNumberOfIds() - 1;
+      points->GetPoint(pts->GetId(m), p1);
+      points->GetPoint(pts->GetId(0), p0);
 
       v2[0] = p1[0] - p0[0];
       v2[1] = p1[1] - p0[1];
@@ -179,7 +185,7 @@ void vtkImageMRIBrainExtractor::ComputeMeshCentroid(
         v1[1] = v2[1];
         v1[2] = v2[2];
 
-        points->GetPoint(ptIds[j], p1);
+        points->GetPoint(pts->GetId(j), p1);
         v2[0] = p1[0] - p0[0];
         v2[1] = p1[1] - p0[1];
         v2[2] = p1[2] - p0[2];
@@ -399,12 +405,9 @@ static void vtkBEBuildAndLinkPolyData(
   vtkPolyData *brainPolyData,
   vtkIdListCollection *pointNeighbourList)
 {
-  int nPoints, ptId, cellIdx, cellId, ptIdx2, ptId2;
-  vtkIdType *pointCells, npts, *pts;
-  unsigned short nCells;
-
   // Icosahedron - a 20-sided polygon
-  vtkSphereSource *icosahedron = vtkSphereSource::New();
+  vtkSmartPointer<vtkSphereSource> icosahedron =
+    vtkSmartPointer<vtkSphereSource>::New();
   icosahedron->SetCenter(COG[0], COG[1], COG[2]);
   icosahedron->SetRadius(R);
   icosahedron->SetPhiResolution(4);
@@ -412,14 +415,15 @@ static void vtkBEBuildAndLinkPolyData(
   icosahedron->Update();
 
   // Subdivide each triangle into 4.
-  vtkLinearSubdivisionFilter *subdivideSphere =
-    vtkLinearSubdivisionFilter::New();
+  vtkSmartPointer<vtkLinearSubdivisionFilter> subdivideSphere =
+    vtkSmartPointer<vtkLinearSubdivisionFilter>::New();
   subdivideSphere->SetInputData(icosahedron->GetOutput());
   subdivideSphere->SetNumberOfSubdivisions(Nsubs);
   subdivideSphere->Update();
 
   // Contraint sphere for smoothing
-  vtkSphereSource *constraintSphere = vtkSphereSource::New();
+  vtkSmartPointer<vtkSphereSource> constraintSphere =
+    vtkSmartPointer<vtkSphereSource>::New();
   constraintSphere->SetCenter(COG[0], COG[1], COG[2]);
   constraintSphere->SetRadius(R);
   constraintSphere->SetPhiResolution(100);
@@ -427,7 +431,8 @@ static void vtkBEBuildAndLinkPolyData(
   constraintSphere->Update();
 
   // Smooth the subdivided sphere
-  vtkSmoothPolyDataFilter *smoothSphere = vtkSmoothPolyDataFilter::New();
+  vtkSmartPointer<vtkSmoothPolyDataFilter> smoothSphere =
+    vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
   smoothSphere->SetInputData(subdivideSphere->GetOutput());
   smoothSphere->SetSourceData(constraintSphere->GetOutput());
   smoothSphere->Update();
@@ -436,28 +441,25 @@ static void vtkBEBuildAndLinkPolyData(
   brainPolyData->DeepCopy(smoothSphere->GetOutput());
   brainPolyData->BuildLinks();
 
-  nPoints = brainPolyData->GetNumberOfPoints();
+  vtkIdType nPoints = brainPolyData->GetNumberOfPoints();
+
+  // For holding information about neighboring cells
+  vtkSmartPointer<vtkIdList> myNeighbours = vtkSmartPointer<vtkIdList>::New();
+  vtkSmartPointer<vtkIdList> pointCells = vtkSmartPointer<vtkIdList>::New();
+  vtkSmartPointer<vtkIdList> pts = vtkSmartPointer<vtkIdList>::New();
 
   // Create a list of neighbours for each point
   for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
   {
-    // Create a new vtkIdList to hold the Ids for ptId's neighbours
-    vtkNew<vtkIdList> myNeighbours;
-
     // The cells attached to the target point
-    vtkNew<vtkIdList> pointCells;
     brainPolyData->GetPointCells(ptId, pointCells);
-
     vtkIdType nCells = pointCells->GetNumberOfIds();
 
     // The points inside the attached cells
     for (vtkIdType cellIdx = 0; cellIdx < nCells; cellIdx++)
     {
       vtkIdType cellId = pointCells->GetId(cellIdx);
-
-      vtkNew<vtkIdList> pts;
       brainPolyData->GetCellPoints(cellId, pts);
-
       vtkIdType npts = pts->GetNumberOfIds();
 
       // If the point is not our target point, it's a neighbour
@@ -473,11 +475,6 @@ static void vtkBEBuildAndLinkPolyData(
 
     pointNeighbourList->AddItem(myNeighbours);
   }
-  // Clean up
-  icosahedron->Delete();
-  subdivideSphere->Delete();
-  constraintSphere->Delete();
-  smoothSphere->Delete();
 }
 
 //----------------------------------------------------------------------------
@@ -516,8 +513,10 @@ void vtkImageMRIBrainExtractorExecute(
     inData, inPtr, brainExtent, T2, T98, TH, Tm, COG, R);
 
   // vtkPolyData time
-  vtkPolyData *brainPolyData = vtkPolyData::New();
-  vtkIdListCollection *pointNeighbourList = vtkIdListCollection::New();
+  vtkSmartPointer<vtkPolyData> brainPolyData =
+    vtkSmartPointer<vtkPolyData>::New();
+  vtkSmartPointer<vtkIdListCollection> pointNeighbourList =
+    vtkSmartPointer<vtkIdListCollection>::New();
 
   // Initialize a sphere inside the brain and for each point on the sphere,
   // build a list of its first-order neighbours
@@ -583,6 +582,9 @@ void vtkImageMRIBrainExtractorExecute(
   std::vector< std::vector<myVertIds> > pointNeighbourVertIds(nPoints);
   std::vector<myVertIds>::iterator neighbourVertIdsIter;
 
+  vtkSmartPointer<vtkIdList> pointCells = vtkSmartPointer<vtkIdList>::New();
+  vtkSmartPointer<vtkIdList> pts = vtkSmartPointer<vtkIdList>::New();
+
   // Loop over each point in brainPolyData and save it into an STL vector.
   // Also, use vtkPolyData functions to figure out where our neighbours are
   for (vtkIdType ptId = 0; ptId < nPoints; ptId++)
@@ -595,7 +597,6 @@ void vtkImageMRIBrainExtractorExecute(
     brainPoints[ptId] = pt;
 
     // The cells attached to the target point
-    vtkNew<vtkIdList> pointCells;
     brainPolyData->GetPointCells(ptId, pointCells);
     vtkIdType nCells = pointCells->GetNumberOfIds();
 
@@ -605,7 +606,6 @@ void vtkImageMRIBrainExtractorExecute(
       vtkIdType cellId = pointCells->GetId(cellIdx);
 
       // Get the points of this cell
-      vtkNew<vtkIdList> pts;
       brainPolyData->GetCellPoints(cellId, pts);
       vtkIdType npts = pts->GetNumberOfIds();
 
@@ -679,7 +679,8 @@ void vtkImageMRIBrainExtractorExecute(
   std::vector<myPoint>::iterator uIter;
 
   // Copy brain points as original points
-  vtkPoints *originalPoints = vtkPoints::New();
+  vtkSmartPointer<vtkPoints> originalPoints =
+    vtkSmartPointer<vtkPoints>::New();
   for (ptIter = brainPoints.begin();
        ptIter != brainPoints.end();
        ptIter++)
@@ -950,15 +951,18 @@ void vtkImageMRIBrainExtractorExecute(
   brainPolyData->Modified();
 
   // Aviod ugly poly data - unnecessary?
-  vtkCleanPolyData *cleanPoly = vtkCleanPolyData::New();
+  vtkSmartPointer<vtkCleanPolyData> cleanPoly =
+    vtkSmartPointer<vtkCleanPolyData>::New();
   cleanPoly->SetInputData(brainPolyData);
   cleanPoly->Update();
 
   self->GetBrainMesh()->ShallowCopy(cleanPoly->GetOutput());
 
   //Use the brain mesh to stencil out the non-brain
-  vtkPolyDataToImageStencil *theStencil = vtkPolyDataToImageStencil::New();
-  vtkImageStencil *imageStencil = vtkImageStencil::New();
+  vtkSmartPointer<vtkPolyDataToImageStencil> theStencil =
+    vtkSmartPointer<vtkPolyDataToImageStencil>::New();
+  vtkSmartPointer<vtkImageStencil> imageStencil =
+    vtkSmartPointer<vtkImageStencil>::New();
 
   theStencil->SetInputData(self->GetBrainMesh());
   theStencil->SetInformationInput(inData);
@@ -970,14 +974,6 @@ void vtkImageMRIBrainExtractorExecute(
   imageStencil->Update();
 
   self->GetOutput()->ShallowCopy(imageStencil->GetOutput());
-
-  //Clean up
-  originalPoints->Delete();
-  theStencil->Delete();
-  imageStencil->Delete();
-  brainPolyData->Delete();
-  pointNeighbourList->Delete();
-  cleanPoly->Delete();
 }
 
 } // end anonymous namespace
